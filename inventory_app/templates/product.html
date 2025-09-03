@@ -1,0 +1,257 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Manage Product{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xxl">
+    <div class="card mb-6">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">Add Product</h5>
+      </div>
+      <div class="card-body">
+
+        <!-- Loader -->
+        <div id="form-loader" class="text-center my-4" style="display: none;">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+
+        <!-- Toast -->
+        <div class="bs-toast toast toast-placement-ex m-2" id="alert-box" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
+          <div class="toast-header">
+            <i class="bx bx-bell me-2" id="toast-icon"></i>
+            <div class="me-auto fw-medium" id="toast-title">Notification</div>
+            <small class="toast-time">Now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body" id="toast-body"></div>
+        </div>
+
+        <!-- Form -->
+        <form id="product-form" enctype="multipart/form-data" style="display: none;">
+          {% csrf_token %}
+
+          <!-- Product Info -->
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="name">Product Name</label>
+            <div class="col-sm-10">
+              <input type="text" id="name" class="form-control" required />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="category">Category</label>
+            <div class="col-sm-10">
+              <select id="category" class="form-control" required>
+                <option value="">-- Select Category --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="photo">Photo</label>
+            <div class="col-sm-10">
+              <input type="file" id="photo" class="form-control" accept="image/*" />
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Variants Section -->
+          <h5>Product Variants</h5>
+          <table class="table table-bordered" id="variants-table">
+            <thead>
+              <tr>
+                <th>Size</th>
+                <th>Price</th>
+                <th>Total Price</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <button type="button" class="btn btn-secondary mb-4" id="add-variant">+ Add Variant</button>
+
+          <!-- Buttons -->
+          <div class="row justify-content-end">
+            <div class="col-sm-12">
+              {% if view_only == 'false' %}
+                <button type="submit" class="btn btn-primary" id="submit-button">Add Product</button>
+              {% endif %}
+              <button type="button" class="btn btn-secondary" id="back-button" onclick="window.location.href='/product-list/'">Back</button>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+  const form = document.getElementById("product-form");
+  const loader = document.getElementById("form-loader");
+  const productId = "{{ id|default:'' }}";
+  const isView = "{{ view_only|default:'false' }}" === 'true';
+  const isEdit = Boolean(productId) && !isView;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const submitBtn = document.getElementById("submit-button");
+    const formHeading = document.querySelector(".card-header h5");
+
+    if (isView) {
+      formHeading.textContent = "View Product";
+      if (submitBtn) submitBtn.style.display = "none";
+    } else if (isEdit) {
+      formHeading.textContent = "Edit Product";
+      if (submitBtn) submitBtn.textContent = "Update Product";
+    } else {
+      formHeading.textContent = "Add Product";
+    }
+
+    loadCategories().then(() => {
+      if (isEdit || isView) {
+        loadProduct(productId);
+      } else {
+        form.style.display = "block";
+      }
+    });
+
+    document.getElementById("add-variant").addEventListener("click", () => addVariantRow());
+  });
+
+  async function loadCategories() {
+    try {
+      const res = await fetch("/admin_api/categories/");
+      const data = await res.json();
+      const select = document.getElementById("category");
+      data.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat.id;
+        opt.textContent = cat.name;
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      showToast("Error", "Failed to load categories", "danger");
+    }
+  }
+
+  function addVariantRow(variant = {}) {
+    const tbody = document.querySelector("#variants-table tbody");
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>
+        <input type="hidden" class="variant-id" value="${variant.id || ''}">
+        <input type="text" class="form-control size" value="${variant.size || ''}" required>
+      </td>
+      <td><input type="number" step="0.01" class="form-control price" value="${variant.price || ''}" required></td>
+      <td><input type="number" class="form-control total_price" value="${variant.total_price || 0}" readonly></td>
+      <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">X</button></td>
+    `;
+    tbody.appendChild(row);
+    row.querySelector(".price").addEventListener("input", () => calculateTotal(row));
+    calculateTotal(row);
+  }
+
+  function calculateTotal(row) {
+    const price = parseFloat(row.querySelector(".price").value) || 0;
+    row.querySelector(".total_price").value = price.toFixed(2);
+  }
+
+  async function loadProduct(id) {
+    try {
+      const res = await fetch(`/admin_api/products/${id}/`);
+      const data = await res.json();
+      document.getElementById("name").value = data.name;
+      document.getElementById("category").value = data.category;
+      if (data.variants) {
+        data.variants.forEach(v => addVariantRow(v));
+      }
+      if (isView) {
+        form.querySelectorAll("input, select, button").forEach(el => {
+          if (el.id !== "back-button") el.disabled = true;
+        });
+      }
+      form.style.display = "block";
+    } catch {
+      showToast("Error", "Failed to load product", "danger");
+    }
+  }
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (isView) return;
+
+    loader.style.display = "block";
+    form.style.display = "none";
+
+    const variants = Array.from(document.querySelectorAll("#variants-table tbody tr")).map(row => ({
+      id: row.querySelector(".variant-id").value || null,
+      size: row.querySelector(".size").value,
+      price: parseFloat(row.querySelector(".price").value),
+      total_price: parseFloat(row.querySelector(".total_price").value)
+    }));
+
+    const formData = new FormData();
+    formData.append("name", document.getElementById("name").value);
+    formData.append("category", document.getElementById("category").value);
+    if (document.getElementById("photo").files[0]) {
+      formData.append("photo", document.getElementById("photo").files[0]);
+    }
+    formData.append("variants", JSON.stringify(variants));
+
+    const url = isEdit ? `/admin_api/products/${productId}/` : `/admin_api/products/`;
+    const method = isEdit ? "PATCH" : "POST";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "X-CSRFToken": getCookie("csrftoken") },
+        body: formData
+      });
+      loader.style.display = "none";
+      if (res.ok) {
+        showToast("Success", `Product ${isEdit ? "updated" : "added"} successfully`, "success");
+        setTimeout(() => window.location.href = "/product-list/", 1500);
+      } else {
+        const data = await res.json();
+        form.style.display = "block";
+        const error = data?.detail || data?.name?.join(" ") || "Operation failed.";
+        showToast("Error", error, "danger");
+      }
+    } catch {
+      loader.style.display = "none";
+      form.style.display = "block";
+      showToast("Error", "Something went wrong.", "danger");
+    }
+  });
+
+  function showToast(title, message, status) {
+    const toast = document.getElementById("alert-box");
+    document.getElementById("toast-title").textContent = title;
+    document.getElementById("toast-body").textContent = message;
+    document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
+    toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
+    new bootstrap.Toast(toast).show();
+  }
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+<aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+  {% if not navbar_full %}
+  <div class="app-brand demo">
+    <a href="{% url 'index' %}" class="app-brand-link">
+      <span class="app-brand-logo demo">
+        <img src="{% static 'img/logo/logo.jpeg' %}" alt="Logo" style="height: 40px; width:47px;" />
+      </span>
+      <span class="app-brand-text demo menu-text fw-bold ms-2 app-color">
+        <span class='app-color'>{% get_theme_variables 'template_name' %}</span>
+      </span>
+    </a>
+    <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
+      <i class="bx bx-chevron-left bx-sm d-flex align-items-center justify-content-center"></i>
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="menu-inner-shadow"></div>
+
+  <ul class="menu-inner py-1">
+   
+    <li class="menu-item {% if 'index' == request.resolver_match.url_name or '/dashboard/' in request.path %}active open{% endif %}">
+      <a href="{% url 'index' %}" class="menu-link">
+        <i class="menu-icon tf-icons bx bx-home-smile"></i>
+        <div class="text-truncate" data-i18n="Dashboards">Dashboard</div>
+      </a>
+    </li>
+
+    
+    {% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
+      {% include "layout/partials/menu/vertical/admin_sidebar.html" %}
+
+    {% endif %}
+
+    <div id="dynamic-sidebar-items"></div>
+  </ul>
+</aside>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const userRole = "{{ request.user.role.name }}";
+
+  if (userRole !== "Admin" || userRole !== "Sales Head") {
+    fetch("/api/sidebar-permissions/")
+      .then(response => response.json())
+      .then(data => {
+        const sidebar = document.querySelector(".menu-inner");
+
+        // Define group names and desired URL order
+        const groups = {
+          "Property Management": ["/properties/"],
+          "Lead Management": ["/leads/", "/appointments/"],
+          "User Management": ["/users/"]
+        };
+
+        // Organize modules into a dictionary with URL as key
+        const moduleMap = {};
+        data.forEach(item => {
+          const module = item.module;
+          moduleMap[module.url] = module;
+        });
+
+        // Loop through groups in desired order
+        for (const [groupName, urls] of Object.entries(groups)) {
+          const modulesInGroup = [];
+
+          // Match only modules present in this group (in desired order)
+          urls.forEach(url => {
+            if (moduleMap[url]) {
+              modulesInGroup.push(moduleMap[url]);
+            }
+          });
+
+          // If group has at least one module to render
+          if (modulesInGroup.length > 0) {
+            const header = document.createElement("li");
+            header.className = "menu-header small text-uppercase";
+            header.innerHTML = `<span class="menu-header-text">${groupName}</span>`;
+            sidebar.appendChild(header);
+
+            modulesInGroup.forEach(module => {
+              const isActive = window.location.pathname.startsWith(module.url) ? "active open" : "";
+              const li = document.createElement("li");
+              li.className = `menu-item ${isActive}`;
+              li.innerHTML = `
+                <a href="${module.url}" class="menu-link">
+                  <i class="menu-icon tf-icons ${module.icon || 'bx bx-folder'}"></i>
+                  <div class="text-truncate">${module.name}</div>
+                </a>
+              `;
+              sidebar.appendChild(li);
+            });
+          }
+        }
+
+      })
+      .catch(err => console.error("Failed to load sidebar modules", err));
+  }
+});
+
+</script>

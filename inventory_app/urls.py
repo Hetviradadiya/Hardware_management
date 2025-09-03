@@ -1,0 +1,68 @@
+from django.urls import path,include
+
+from .views import DashboardsView, ChangePasswordAPIView
+from inventory_app.admin_views.DashboadView import DashboardStatsAPIView, DashboardDataAPIView
+from inventory_app.admin_views.CategoryViews import CategoryView
+from inventory_app.admin_views.ProductViews import ProductView,ProductVariantView
+from inventory_app.admin_views.PurchaseViews import PurchaseViewSet, purchase_products
+from inventory_app.admin_views.SuppliersViews import SupplierView
+from inventory_app.admin_views.CustomerViews import CustomerView
+from inventory_app.admin_views.inventoryView import InventoryViewSet
+from inventory_app.admin_views.POSViews import CartViewSet, place_order,bill_page
+
+from rest_framework.routers import DefaultRouter
+
+router=DefaultRouter()
+router.register('categories', CategoryView, basename='categories')
+router.register('suppliers', SupplierView, basename='suppliers')
+router.register('customers', CustomerView, basename='customers')
+router.register('products', ProductView, basename='products')
+router.register('product-variants', ProductVariantView, basename='product-variants')
+router.register('purchases', PurchaseViewSet, basename='purchases')
+router.register('inventories', InventoryViewSet, basename='inventories')
+router.register('cart', CartViewSet, basename='cart')
+
+urlpatterns = [
+
+    path('dashboard/', DashboardsView.as_view(template_name="dashboard.html"), name='dashboard'),
+
+    # urls.py
+
+    path('category-list/', DashboardsView.as_view(template_name="category_list.html"), name='category-list'),
+    path('category/add/', DashboardsView.as_view(template_name="category.html"), name='category-add'),
+    path('category/edit/<int:id>/', DashboardsView.as_view(template_name="category.html"), name='category-edit'),
+    path('category/detail/<int:id>/', DashboardsView.as_view(template_name="category.html"), name='category-detail'),
+
+    path('product-list/', DashboardsView.as_view(template_name="product_list.html"), name='product-list'),
+    path('product/add/', DashboardsView.as_view(template_name="product.html"), name='product-add'),
+    path('product/edit/<int:id>/', DashboardsView.as_view(template_name="product.html"), name='product-edit'),
+    path('product/detail/<int:id>/', DashboardsView.as_view(template_name="product.html"), name='product-detail'),
+
+    path('supplier-list/', DashboardsView.as_view(template_name="supplier_list.html"), name='supplier-list'),
+    path('supplier/add/', DashboardsView.as_view(template_name="supplier.html"), name='supplier-add'),
+    path('supplier/edit/<int:id>/', DashboardsView.as_view(template_name="supplier.html"), name='supplier-edit'),
+    path('supplier/detail/<int:id>/', DashboardsView.as_view(template_name="supplier.html"), name='supplier-detail'),
+
+    path('customer-list/', DashboardsView.as_view(template_name="customer_list.html"), name='customer-list'),
+    path('customer/add/', DashboardsView.as_view(template_name="customer.html"), name='customer-add'),
+    path('customer/edit/<int:id>/', DashboardsView.as_view(template_name="customer.html"), name='customer-edit'),
+    path('customer/detail/<int:id>/', DashboardsView.as_view(template_name="customer.html"), name='customer-detail'),
+
+    path('purchase-list/', DashboardsView.as_view(template_name="purchase_list.html"), name='purchase-list'),
+    path('purchase/add/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-add'),
+    path('purchase/edit/<int:id>/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-edit'),
+    path('purchase/detail/<int:id>/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-detail'),
+
+    path('inventpory-list/', DashboardsView.as_view(template_name="inventory_list.html"), name='inventory-list'),
+
+    path('pos/', DashboardsView.as_view(template_name="pos.html"), name='pos'),
+    path('cart_view/', DashboardsView.as_view(template_name="cart.html"), name='cart-view'),
+    path('place_order/', place_order, name='place_order'),
+    # path('bill/<int:order_id>/', DashboardsView.as_view(template_name="bill_page.html"), name='bill_page'),
+    path('bill/<int:order_id>/', bill_page, name='bill_page'),
+    
+    path('admin_api/', include(router.urls)),
+
+    path('admin_api/purchase-products/', purchase_products, name='purchase-products'),
+
+]

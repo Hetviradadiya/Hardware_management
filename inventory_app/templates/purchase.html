@@ -1,0 +1,277 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Manage Purchase{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xxl">
+    <div class="card mb-6">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">Add Purchase</h5>
+      </div>
+      <div class="card-body">
+
+        <!-- Loader -->
+        <div id="form-loader" class="text-center my-4" style="display: none;">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+
+        <!-- Toast -->
+        <div class="bs-toast toast toast-placement-ex m-2" id="alert-box" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
+          <div class="toast-header">
+            <i class="bx bx-bell me-2" id="toast-icon"></i>
+            <div class="me-auto fw-medium" id="toast-title">Notification</div>
+            <small class="toast-time">Now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body" id="toast-body"></div>
+        </div>
+
+        <!-- Form -->
+        <form id="purchase-form" style="display: none;">
+          {% csrf_token %}
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="supplier">Supplier</label>
+            <div class="col-sm-10">
+              <select id="supplier" class="form-control"></select>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="variant">Product Variant</label>
+            <div class="col-sm-10">
+              <select id="variant" class="form-control" required></select>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="quantity">Quantity</label>
+            <div class="col-sm-10">
+              <input type="number" id="quantity" class="form-control" required min="1" value="1" />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="purchase_price">Purchase Price (per item)</label>
+            <div class="col-sm-10">
+              <input type="number" step="0.01" id="purchase_price" class="form-control" required />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="discount">Discount %</label>
+            <div class="col-sm-10">
+              <input type="number" step="0.01" id="discount" class="form-control" value="0" />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="gst">GST %</label>
+            <div class="col-sm-10">
+              <input type="number" step="0.01" id="gst" class="form-control" value="0" />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="total_price">Total Price</label>
+            <div class="col-sm-10">
+              <input type="number" id="total_price" class="form-control" readonly />
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="btn-container-save">
+            <div class="row justify-content-end">
+              <div class="col-sm-12">
+                {% if view_only == 'false' %}
+                  <button type="submit" class="btn btn-primary" id="submit-button">Add Purchase</button>
+                {% endif %}
+                <button type="button" class="btn btn-secondary" id="back-button" onclick="window.location.href='/purchase-list/'">Back</button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+  const form = document.getElementById("purchase-form");
+  const loader = document.getElementById("form-loader");
+  const purchaseId = "{{ id|default:'' }}";
+  const isView = "{{ view_only|default:'false' }}" === 'true';
+  const isEdit = Boolean(purchaseId) && !isView;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const submitBtn = document.getElementById("submit-button");
+    const formHeading = document.querySelector(".card-header h5");
+
+    if (isView) {
+      formHeading.textContent = "View Purchase";
+      document.title = "View Purchase";
+      if (submitBtn) submitBtn.style.display = "none";
+    } else if (isEdit) {
+      formHeading.textContent = "Edit Purchase";
+      document.title = "Edit Purchase";
+      if (submitBtn) submitBtn.textContent = "Update Purchase";
+    } else {
+      formHeading.textContent = "Add Purchase";
+      document.title = "Add Purchase";
+    }
+
+    // wait for dropdowns to load before setting values
+    loadDropdowns().then(() => {
+      if (isEdit || isView) {
+        loadPurchase(purchaseId);
+      } else {
+        form.style.display = "block";
+      }
+    });
+
+    ["quantity", "purchase_price", "discount", "gst"].forEach(id => {
+      document.getElementById(id).addEventListener("input", calculateTotal);
+    });
+  });
+
+  function loadDropdowns() {
+    return Promise.all([
+      fetch("/admin_api/suppliers/")
+        .then(r => r.json())
+        .then(data => {
+          let supplierSelect = document.getElementById("supplier");
+          supplierSelect.innerHTML = `<option value="">-- Select Supplier --</option>`;
+          data.forEach(s => {
+            supplierSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+          });
+        }),
+
+      fetch("/admin_api/product-variants/")
+        .then(r => r.json())
+        .then(data => {
+          let variantSelect = document.getElementById("variant");
+          variantSelect.innerHTML = `<option value="">-- Select Product Variant --</option>`;
+          data.forEach(variant => {
+            variantSelect.innerHTML += `<option value="${variant.id}">${variant.product_name} - ${variant.size}</option>`;
+          });
+        }),
+    ]);
+  }
+
+  function calculateTotal() {
+    const qty = parseFloat(document.getElementById("quantity").value) || 0;
+    const price = parseFloat(document.getElementById("purchase_price").value) || 0;
+    const discount = parseFloat(document.getElementById("discount").value) || 0;
+    const gst = parseFloat(document.getElementById("gst").value) || 0;
+
+    const priceAfterDiscount = price - (price * discount / 100);
+    const gstAmount = priceAfterDiscount * gst / 100;
+    const total = (priceAfterDiscount + gstAmount) * qty;
+
+    document.getElementById("total_price").value = total.toFixed(2);
+  }
+
+  function loadPurchase(id) {
+    fetch(`/admin_api/purchases/${id}/`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("supplier").value = data.supplier;
+        document.getElementById("variant").value = data.variant;
+        document.getElementById("quantity").value = data.quantity;
+        document.getElementById("purchase_price").value = data.purchase_price;
+        document.getElementById("discount").value = data.discount || 0;
+        document.getElementById("gst").value = data.gst || 0;
+        calculateTotal();
+
+        if (isView) {
+          form.querySelectorAll("input, select, button").forEach(el => {
+            if (el.id !== "back-button") el.disabled = true;
+          });
+        }
+        form.style.display = "block";
+      })
+      .catch(err => {
+        console.error("Failed to load purchase:", err);
+        showToast("Error", "Failed to load data", "danger");
+      });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (isView) return;
+
+    loader.style.display = "block";
+    form.style.display = "none";
+
+    const payload = {
+      supplier: document.getElementById("supplier").value,
+      variant: document.getElementById("variant").value,
+      quantity: document.getElementById("quantity").value,
+      purchase_price: document.getElementById("purchase_price").value,
+      discount: document.getElementById("discount").value,
+      gst: document.getElementById("gst").value,
+      total_price: document.getElementById("total_price").value
+    };
+
+    const url = isEdit
+      ? `/admin_api/purchases/${purchaseId}/`
+      : `/admin_api/purchases/`;
+    const method = isEdit ? "PATCH" : "POST";
+
+    fetch(url, {
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(res => {
+        loader.style.display = "none";
+        if (res.ok) {
+          showToast("Success", `Purchase ${isEdit ? "updated" : "added"} successfully`, "success");
+          setTimeout(() => window.location.href = "/purchase-list/", 1500);
+        } else {
+          res.json().then(data => {
+            form.style.display = "block";
+            const error = data?.detail || "Operation failed.";
+            showToast("Error", error, "danger");
+          });
+        }
+      })
+      .catch(err => {
+        loader.style.display = "none";
+        form.style.display = "block";
+        showToast("Error", "Something went wrong.", "danger");
+      });
+  });
+
+  function showToast(title, message, status) {
+    const toast = document.getElementById("alert-box");
+    document.getElementById("toast-title").textContent = title;
+    document.getElementById("toast-body").textContent = message;
+    document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
+    toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
+    new bootstrap.Toast(toast).show();
+  }
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %}

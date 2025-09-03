@@ -1,0 +1,67 @@
+<li class="menu-header small text-uppercase">
+  <span class="menu-header-text">Product Management</span>
+</li>
+
+<li
+  class="menu-item {% if '/pos/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'pos' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">POS</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/category-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'category-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Categories</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/product-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'product-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Products</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/supplier-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'supplier-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Supplier</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/customer-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'customer-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Customer</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/purchase-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'purchase-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Purchase</div>
+  </a>
+</li>
+
+<li
+  class="menu-item {% if '/inventory-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'inventory-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Inventory</div>
+  </a>
+</li>
+

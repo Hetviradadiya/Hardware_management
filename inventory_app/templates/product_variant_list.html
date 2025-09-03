@@ -1,0 +1,106 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %} Product Variants {% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+  <a href="/productvariant/add/" class="btn btn-primary">
+    <i class="bx bx-plus"></i> Add Product Variant
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Size</th>
+          <th>Price</th>
+          <th>Total Price</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="variants-table-body">
+        <tr id="variants-loader-row">
+          <td colspan="7" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let deleteVariantId = null;
+
+function delete_variant(id) {
+  deleteVariantId = id;
+  const modal = new bootstrap.Modal(document.getElementById("deleteConfirmModal"));
+  modal.show();
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  document.cookie.split(';').forEach(cookie => {
+    cookie = cookie.trim();
+    if (cookie.startsWith(name + '=')) {
+      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+    }
+  });
+  return cookieValue;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.getElementById("variants-table-body");
+  const loader = document.getElementById("variants-loader-row");
+
+  fetch("/admin_api/productvariants/")
+    .then(res => res.json())
+    .then(data => {
+      loader.style.display = "none";
+      tbody.innerHTML = "";
+
+      data.forEach(variant => {
+        const row = `
+          <tr>
+            <td>${ variant.product.name }</td>
+            <td>${ variant.size }</td>
+            <td>${ variant.price }</td>
+            <td>${ variant.total_price }</td>
+            <td>
+              <div class="dropdown">
+                <button class="btn p-0 dropdown-toggle" data-bs-toggle="dropdown">
+                  <i class="bx bx-dots-vertical-rounded"></i>
+                </button>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item text-info" href="/productvariant/edit/${variant.id}/">
+                    <i class="bx bx-edit-alt me-1"></i> Edit
+                  </a>
+                  <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="delete_variant(${variant.id})">
+                    <i class="bx bx-trash me-1"></i> Delete
+                  </a>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML("beforeend", row);
+      });
+
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td colspan="7" class="text-end fw-bold text-primary">
+            Total Records: ${data.length}
+          </td>
+        </tr>
+      `);
+    })
+    .catch(err => {
+      loader.style.display = "none";
+      console.error("Error loading variants:", err);
+    });
+});
+</script>
+{% endblock %}

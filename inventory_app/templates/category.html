@@ -1,0 +1,189 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Manage Category{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xxl">
+    <div class="card mb-6">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">Add Category</h5>
+      </div>
+      <div class="card-body">
+
+        <!-- Loader -->
+        <div id="form-loader" class="text-center my-4" style="display: none;">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+
+        <!-- Toast -->
+        <div class="bs-toast toast toast-placement-ex m-2" id="alert-box" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
+          <div class="toast-header">
+            <i class="bx bx-bell me-2" id="toast-icon"></i>
+            <div class="me-auto fw-medium" id="toast-title">Notification</div>
+            <small class="toast-time">Now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body" id="toast-body"></div>
+        </div>
+
+        <!-- Form -->
+        <form id="category-form" style="display: none;">
+          {% csrf_token %}
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="name">Category Name</label>
+            <div class="col-sm-10">
+              <input type="text" id="name" class="form-control" required />
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="description">Description</label>
+            <div class="col-sm-10">
+              <textarea id="description" class="form-control"></textarea>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="btn-container-save">
+            <div class="row justify-content-end">
+              <div class="col-sm-12">
+                {% if view_only == 'false' %}
+                  <button type="submit" class="btn btn-primary" id="submit-button">Add Category</button>
+                {% endif %}
+                <button type="button" class="btn btn-secondary" id="back-button" onclick="window.location.href='/category-list/'">Back</button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+  const form = document.getElementById("category-form");
+  const loader = document.getElementById("form-loader");
+  const categoryId = "{{ id|default:'' }}";
+  const isView = "{{ view_only|default:'false' }}" === 'true';
+  const isEdit = Boolean(categoryId) && !isView;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const submitBtn = document.getElementById("submit-button");
+    const formHeading = document.querySelector(".card-header h5");
+
+    if (isView) {
+      formHeading.textContent = "View Category";
+      document.title = "View Category";
+      if (submitBtn) submitBtn.style.display = "none";
+    } else if (isEdit) {
+      formHeading.textContent = "Edit Category";
+      document.title = "Edit Category";
+      if (submitBtn) submitBtn.textContent = "Update Category";
+    } else {
+      formHeading.textContent = "Add Category";
+      document.title = "Add Category";
+    }
+
+    if (isEdit || isView) {
+      loadCategory(categoryId);
+    } else {
+      form.style.display = "block";
+    }
+  });
+
+  function loadCategory(id) {
+    fetch(`/admin_api/categories/${id}/`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("name").value = data.name;
+        document.getElementById("description").value = data.description;
+
+        if (isView) {
+          form.querySelectorAll("input, textarea, button").forEach(el => {
+            if (el.id !== "back-button") el.disabled = true;
+          });
+        }
+        form.style.display = "block";
+      })
+      .catch(err => {
+        console.error("Failed to load category:", err);
+        showToast("Error", "Failed to load data", "danger");
+      });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (isView) return;
+
+    loader.style.display = "block";
+    form.style.display = "none";
+
+    const payload = {
+      name: document.getElementById("name").value,
+      description: document.getElementById("description").value
+    };
+
+    const url = isEdit
+      ? `/admin_api/categories/${categoryId}/`
+      : `/admin_api/categories/`;
+    const method = isEdit ? "PATCH" : "POST";
+
+    fetch(url, {
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken")
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(res => {
+        loader.style.display = "none";
+        if (res.ok) {
+          showToast("Success", `Category ${isEdit ? "updated" : "added"} successfully`, "success");
+          setTimeout(() => window.location.href = "/category-list/", 1500);
+        } else {
+          res.json().then(data => {
+            form.style.display = "block";
+            const error = data?.detail || data?.name?.join(" ") || "Operation failed.";
+            showToast("Error", error, "danger");
+          });
+        }
+      })
+      .catch(err => {
+        loader.style.display = "none";
+        form.style.display = "block";
+        showToast("Error", "Something went wrong.", "danger");
+      });
+  });
+
+  function showToast(title, message, status) {
+    const toast = document.getElementById("alert-box");
+    document.getElementById("toast-title").textContent = title;
+    document.getElementById("toast-body").textContent = message;
+    document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
+    toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
+    new bootstrap.Toast(toast).show();
+  }
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,344 @@
+{% load i18n %}
+{% load static %}
+{% block css %}
+<style>
+  #notification-count {
+  font-size: 0.6rem;
+  width: 19px;
+  height: 18px;
+}
+.active-notification {
+  background-color: #e3eaf7;  /* Match your sidebar active color */
+  border-radius: 30px;
+  padding: 8px 8px;
+  color: #08397B !important;
+}
+#favourite-count {
+  font-size: 0.6rem;
+  width: 19px;
+  height: 18px;
+}
+
+</style>
+{% endblock %}
+
+
+{% block page_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+fetch("/api/upcoming-followups/")
+  .then(res => res.json())
+  .then(data => {
+    const count = data?.length || 0;
+    const badge = document.getElementById("notification-count");
+    const bellIcon = document.querySelector(".bx-bell");
+    const notificationLink = document.getElementById("notification-link");
+
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = "inline-block";
+      if (notificationLink) notificationLink.style.width = "43px";
+
+      // 👇 Add bell highlight
+      if (bellIcon) {
+        bellIcon.classList.add("bell-highlight");
+      }
+    } else {
+      badge.style.display = "none";
+      if (notificationLink) notificationLink.style.removeProperty("width");
+
+      // 👇 Remove bell highlight
+      if (bellIcon) {
+        bellIcon.classList.remove("bell-highlight");
+      }
+    }
+  })
+  .catch(err => {
+    console.error("Notification fetch error:", err);
+  });
+ 
+  fetch("/all_favourite_leads/")
+    .then(res => res.json())
+    .then(data => {
+      const count = data?.length || 0;
+      const favBadge = document.getElementById("favourite-count");
+      const favIcon = document.querySelector(".bx-star");
+      const favLink = document.getElementById("favourite-link");
+
+      if (count > 0) {
+        favBadge.textContent = count;
+        favBadge.style.display = "inline-block";
+        if (favLink) favLink.style.width = "43px";
+        if (favIcon) favIcon.classList.add("bell-highlight");
+      } else {
+        favBadge.style.display = "none";
+        if (favLink) favLink.style.removeProperty("width");
+        if (favIcon) favIcon.classList.remove("bell-highlight");
+      }
+    })
+    .catch(err => console.error("Favourite fetch error:", err));
+
+    function showToast(title, message, status = "primary") {
+      const toast = document.getElementById("alert-box");
+      const toastTitle = document.getElementById("toast-title");
+      const toastBody = document.getElementById("toast-body");
+      const toastIcon = document.getElementById("toast-icon");
+
+      toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
+      toastTitle.textContent = title;
+      toastBody.textContent = message;
+
+      toastIcon.className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
+
+      const bsToast = new bootstrap.Toast(toast);
+      bsToast.show();
+    }
+
+    document.getElementById('createInvestorForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const investorId = document.getElementById('investor-id').value;
+      const isUpdate = investorId !== '';
+
+      const data = {
+        name: document.getElementById('investorName').value,
+        mobile_number: document.getElementById('investorMobile').value,
+        remarks: document.getElementById('investorRemarks').value,
+      };
+
+      const url = isUpdate
+        ? `/admin_api/investors/${investorId}/`
+        : `/admin_api/investors/`;
+
+      const method = isUpdate ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+      })
+        .then(res => res.json())
+        .then(response => {
+          const action = isUpdate ? 'updated' : 'created';
+          showToast('Success', `Investor ${action} successfully`, 'success');
+          
+          document.getElementById('createInvestorForm').reset();
+          document.getElementById('investor-id').value = ''; // reset ID after update
+          
+          bootstrap.Modal.getInstance(document.getElementById('investorModal')).hide();
+          
+          location.reload();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showToast('Error', 'Something went wrong', 'danger');
+        });
+    });
+
+
+  });
+  </script>
+{% endblock %}
+
+
+<div class="bs-toast toast toast-placement-ex m-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" id="alert-box">
+  <div class="toast-header">
+    <i class="bx bx-bell me-2" id="toast-icon"></i>
+    <div class="me-auto fw-medium" id="toast-title">Notification</div>
+    <small class="toast-time">Now</small>
+    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+    <div class="toast-body" id="toast-body">
+        <!-- Message goes here -->
+    </div>
+</div>
+
+<nav class="layout-navbar {{container_class}} navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
+  {% if not navbar_hide_toggle %}
+  <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0 d-xl-none">
+    <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
+      <i class="bx bx-menu bx-md"></i>
+    </a>
+  </div>
+  {% endif %}
+  <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+
+    
+
+    <!-- Search -->
+    {% comment %} <div class="navbar-nav align-items-center">
+      <div class="nav-item d-flex align-items-center">
+        <i class="bx bx-search bx-md"></i>
+        <input type="text" class="form-control border-0 shadow-none ps-1 ps-sm-2" placeholder="Search..." aria-label="Search...">
+      </div>
+    </div> {% endcomment %}
+    <!-- /Search -->
+    {% include "../_breadcrumbs.html" %}
+
+    {% if request.resolver_match.url_name == 'index' %}
+    <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded shadow-sm" style="max-width: 750px;">
+      <div class="input-group" style="flex: 1;">
+        <input
+          type="text"
+          class="form-control border-0 shadow-none bg-lighter"
+          id="propertySearchInput"
+          placeholder="Search properties or leads..."
+        />
+        <div class="input-group-text bg-white border-0">
+          <!-- Radio Buttons -->
+          <div class="form-check form-check-inline mb-0 me-2">
+            <input class="form-check-input" type="radio" name="searchType" id="searchProperty" value="property" checked>
+            <label class="form-check-label" for="searchProperty">Property</label>
+          </div>
+          <div class="form-check form-check-inline mb-0 me-2">
+            <input class="form-check-input" type="radio" name="searchType" id="searchLead" value="lead">
+            <label class="form-check-label" for="searchLead">Lead</label>
+          </div>
+        </div>
+        <button class="btn btn-outline-secondary" id="searchButton" type="button">
+          <i class="bx bx-search"></i>
+        </button>
+      </div>
+    </div>
+
+    {% endif %}
+
+    <ul class="navbar-nav flex-row align-items-center ms-auto">
+      <!-- Place this tag where you want the button to render. -->
+      {% comment %} <li class="nav-item lh-1 me-4">
+        <a class="github-button" href="{% get_theme_variables 'git_repository' %}" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star themeselection/sneat-html-admin-template-free on GitHub">Star</a>
+      </li> {% endcomment %}
+
+      {% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
+        <li class="nav-item dropdown me-3">
+          <a href="/investors/" class="nav-link {% if request.resolver_match.url_name == 'get-investors' %}active-notification{% endif %}"">
+            <i class="{% if request.resolver_match.url_name == 'get-investors' %}bx bxs-user-plus{% else %}bx bx-user-plus{% endif %}"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="nav-item dropdown me-3">
+          <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#investorModal" title="Create Investor">
+            <i class="bx bx-user-plus"></i>
+          </a>
+        </li>
+      {% endif %}
+      <li class="nav-item dropdown me-3">
+        <a id="favourite-link" class="nav-link dropdown-toggle hide-arrow {% if request.resolver_match.url_name == 'favourite-leads' %}active-notification{% endif %}"
+          href="/favourite_leads/" title="Favourites">
+          <i class="{% if request.resolver_match.url_name == 'favourite-leads' %}bx bxs-star{% else %}bx bx-star{% endif %}"></i>
+          <span class="badge bg-warning rounded-pill" id="favourite-count" style="position: relative; top: -10px; left: -5px;"></span>
+        </a>
+      </li>
+
+      <!-- Notification -->
+      {% comment %} <li class="nav-item dropdown me-3">
+        <a id="notification-link" class="nav-link dropdown-toggle hide-arrow {% if request.resolver_match.url_name == 'followup_notifications' %}active-notification{% endif %}" 
+          href="{% url 'followup_notifications' %}" title="Notifications">
+          <i class="{% if request.resolver_match.url_name == 'followup_notifications' %}bx bxs-bell{% else %}bx bx-bell {% endif %} "></i>
+          <span class="badge bg-danger rounded-pill" id="notification-count" style="position: relative; top: -10px; left: -5px;"></span>
+        </a>
+      </li> {% endcomment %}
+      
+      <!-- Appointments -->
+      {% comment %} <li class="nav-item dropdown me-3">
+        <a id="notification-link" class="nav-link dropdown-toggle hide-arrow {% if request.resolver_match.url_name == 'appointments' %}active-notification{% endif %}" 
+          href="{% url 'appointments' %}" title="Notifications">
+          <i class="{% if request.resolver_match.url_name == 'appointments' %}bx bxs-calendar{% else %}bx bx-calendar {% endif %} "></i>
+        </a>
+      </li> {% endcomment %}
+
+      <!-- User -->
+      <li class="nav-item navbar-dropdown dropdown-user dropdown">
+        <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown">
+          <div class="">
+            <img src="{% static 'img/logo/logo.jpeg' %}" alt class="w-px-40 h-auto rounded-circle">
+          </div>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end">
+          
+          <li>
+            <a class="dropdown-item" href="javascript:void(0);">
+              <div class="d-flex">
+                <div class="flex-shrink-0 me-3">
+                  <div class="">
+                    <img src="{% static 'img/logo/logo.jpeg' %}" alt class="w-px-40 h-auto rounded-circle">
+                  </div>
+                </div>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0">{{request.user.full_name}}</h6>
+                  <small class="text-muted">{{request.user.role.name}}</small>
+                </div>
+              </div>
+            </a>
+          </li>
+
+          <li>
+            <div class="dropdown-divider my-1"></div>
+          </li>
+          {% comment %} <li>
+            <a class="dropdown-item" href="javascript:void(0);">
+             <i class="bx bx-user bx-md me-3"></i><span>My Profile</span>
+            </a>
+          </li> {% endcomment %}
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+              <i class="bx bx-lock me-2"></i> Change Password
+            </a>
+          </li>
+          {% comment %} <li>
+            <a class="dropdown-item" href="javascript:void(0);">
+              <span class="d-flex align-items-center align-middle">
+                <i class="flex-shrink-0 bx bx-credit-card bx-md me-3"></i><span class="flex-grow-1 align-middle">Billing Plan</span>
+                <span class="flex-shrink-0 badge rounded-pill bg-danger">4</span>
+              </span>
+            </a>
+          </li> {% endcomment %}
+          <li>
+            <div class="dropdown-divider my-1"></div>
+          </li>
+          {% comment %} <li>
+            <a class="dropdown-item" href="{% url 'auth-logout' %}">
+              <i class="bx bx-power-off bx-md me-3"></i><span>Log Out</span>
+            </a>
+          </li> {% endcomment %}
+        </ul>
+      </li>
+      <!--/ User -->
+    </ul>
+  </div>
+</nav>
+
+<div class="modal fade" id="investorModal" tabindex="-1" aria-labelledby="investorModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="createInvestorForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="investorModalLabel">Create Investor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="investor-id">
+          <div class="mb-3">
+            <label for="investorName" class="form-label">Name</label>
+            <input type="text" class="form-control" id="investorName" name="name" required>
+          </div>
+          <div class="mb-3">
+            <label for="investorMobile" class="form-label">Mobile Number</label>
+            <input type="phone" class="form-control" id="investorMobile" name="mobile_number" required>
+          </div>
+          <div class="mb-3">
+            <label for="investorRemarks" class="form-label">Remarks</label>
+            <textarea class="form-control" id="investorRemarks" name="remarks" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Create Investor</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

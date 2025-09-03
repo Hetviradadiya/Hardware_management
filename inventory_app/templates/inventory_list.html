@@ -1,0 +1,91 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %} Inventory {% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Variant</th>
+          <th>Size</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody id="inventory-table-body">
+        <tr id="inventory-loader-row">
+          <td colspan="3" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let deleteInventoryId = null;
+
+function delete_inventory(id) {
+  deleteInventoryId = id;
+  const modal = new bootstrap.Modal(document.getElementById("deleteConfirmModal"));
+  modal.show();
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.startsWith(name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.getElementById("inventory-table-body");
+  const loader = document.getElementById("inventory-loader-row");
+
+  fetch("/admin_api/inventories/")
+    .then(res => res.json())
+    .then(data => {
+      loader.style.display = "none";
+      tbody.innerHTML = "";
+
+      data.forEach(inv => {
+        const row = `
+          <tr>
+            <td>${inv.variant_name || ""}</td>
+            <td>${inv.size || ""}</td>
+            <td>${inv.quantity}</td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML("beforeend", row);
+      });
+
+      const totalRow = `
+        <tr>
+          <td colspan="3" class="text-end fw-bold text-primary">
+            Total Records: ${data.length}
+          </td>
+        </tr>
+      `;
+      tbody.insertAdjacentHTML("beforeend", totalRow);
+    })
+    .catch(err => {
+      loader.style.display = "none";
+      console.error("Error loading inventory:", err);
+    });
+});
+
+</script>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %} Products with Variants {% endblock %}
+
+{% block content %}
+<h4 class="mb-3">Products & Variants</h4>
+<div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+  <a href="/product/add/" class="btn btn-primary">
+    <i class="bx bx-plus"></i> Add Product
+  </a>
+</div>
+
+
+<div class="card">
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Size</th>
+          <th>Price</th>
+          <th>Total Price</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="products-variants-body">
+        <tr id="loader-row">
+          <td colspan="9" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="deleteModalMessage">Are you sure?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let deleteItemId = null;
+let deleteType = null;
+
+function delete_variant(id) {
+  deleteItemId = id;
+  deleteType = "variant";
+  document.getElementById("deleteModalMessage").textContent = "Delete this variant?";
+  new bootstrap.Modal(document.getElementById("deleteConfirmModal")).show();
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  document.cookie.split(';').forEach(cookie => {
+    cookie = cookie.trim();
+    if (cookie.startsWith(name + '=')) {
+      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+    }
+  });
+  return cookieValue;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.getElementById("products-variants-body");
+  const loader = document.getElementById("loader-row");
+
+  fetch("/admin_api/products/?include_variants=true") // ensure your API returns variants
+    .then(res => res.json())
+    .then(products => {
+      loader.style.display = "none";
+      tbody.innerHTML = "";
+
+      products.forEach(prod => {
+        const variants = prod.variants || [];
+        if (variants.length === 0) {
+          // No variants, single row
+          tbody.insertAdjacentHTML("beforeend", `
+            <tr>
+              <td>${prod.photo ? `<img src="${prod.photo}" width="50" height="50">` : ""}</td>
+              <td><a href="/product/detail/${ prod.id }/">${prod.name}</td>
+              <td>${prod.category_name}</td>
+              <td colspan="5" class="text-muted">No variants</td>
+              <td>
+                <div class="dropdown">
+                  <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                    <i class="bx bx-dots-vertical-rounded"></i>
+                  </button>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item text-info" href="/product/edit/${prod.id}/">
+                      <i class="bx bx-edit-alt me-1"></i> Edit
+                    </a>
+                    <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="delete_product(${prod.id})">
+                      <i class="bx bx-trash me-1"></i> Delete
+                    </a>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `);
+        } else {
+          variants.forEach((variant, index) => {
+            let rowHtml = "<tr>";
+            if (index === 0) {
+              // First variant row includes product info + actions with rowspan
+              rowHtml += `
+                <td rowspan="${variants.length}">${prod.photo ? `<img src="${prod.photo}" width="50" height="50">` : ""}</td>
+                <td rowspan="${variants.length}"><a href="/product/detail/${ prod.id }/">${prod.name}</td>
+                <td rowspan="${variants.length}">${prod.category_name}</td>
+              `;
+            }
+            // Variant-specific columns
+            rowHtml += `
+              <td>${variant.size}</td>
+              <td>${variant.price}</td>
+              <td>${variant.total_price}</td>
+            `;
+
+            if (index === 0) {
+              // Actions dropdown only in first row
+              rowHtml += `
+                <td rowspan="${variants.length}">
+                  <div class="dropdown">
+                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                      <i class="bx bx-dots-vertical-rounded"></i>
+                    </button>
+                    <div class="dropdown-menu">
+                      <a class="dropdown-item text-info" href="/product/edit/${prod.id}/">
+                        <i class="bx bx-edit-alt me-1"></i> Edit
+                      </a>
+                      <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="delete_product(${prod.id})">
+                        <i class="bx bx-trash me-1"></i> Delete
+                      </a>
+                    </div>
+                  </div>
+                </td>
+              `;
+            }
+
+            rowHtml += "</tr>";
+            tbody.insertAdjacentHTML("beforeend", rowHtml);
+          });
+        }
+      });
+    });
+});
+
+// Confirm delete
+document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
+  if (!deleteItemId || !deleteType) return;
+  const url = `/admin_api/products/${deleteProductId}/`;
+  fetch(url, {
+    method: "DELETE",
+    headers: { "X-CSRFToken": getCookie("csrftoken") }
+  }).then(res => {
+    if (res.ok) location.reload();
+  });
+});
+</script>
+{% endblock %}

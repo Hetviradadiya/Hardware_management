@@ -1,0 +1,203 @@
+{% extends layout_path %}
+{% block title %}Cart{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-4">🛒 Your Cart</h4>
+  <div id="cart-items"></div>
+
+  <div class="mt-4 text-end">
+    <label><strong>Order Discount:</strong></label>
+    <input type="number" id="order-discount" class="discount-input" value="0" min="0" step="0.01" onchange="updateOrderDiscount()">
+    <select id="order-discount-type" onchange="updateOrderDiscount()">
+      <option value="flat">₹ Flat</option>
+      <option value="percent">%</option>
+    </select>
+
+    <h5 class="mt-3">Total: ₹<span id="cart-total">0</span></h5>
+    <button class="btn btn-primary mt-2" onclick="placeOrder()">Place Order</button>
+  </div>
+</div>
+
+<style>
+  .cart-item {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+    flex-wrap: wrap;
+  }
+  .cart-item img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-right: 15px;
+  }
+  .cart-details {
+    flex: 1;
+    min-width: 200px;
+  }
+  .qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .qty-btn {
+    border: none;
+    background: #08397B;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .remove-btn {
+    border: none;
+    background: transparent;
+    color: red;
+    cursor: pointer;
+  }
+  .discount-input {
+    width: 70px;
+    padding: 3px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: right;
+  }
+</style>
+
+<script>
+  let orderDiscount = 0;
+  let orderDiscountType = "flat"; // or percent
+  let lastCartData = [];
+
+  function updateCartUI() {
+    fetch("/admin_api/cart/")
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById("cart-items");
+        const totalEl = document.getElementById("cart-total");
+
+        if (!data || data.length === 0) {
+          container.innerHTML = "<p>Your cart is empty.</p>";
+          totalEl.textContent = "0";
+          return;
+        }
+
+        lastCartData = data;
+        container.innerHTML = "";
+        let subtotal = 0;
+
+        data.forEach(item => {
+          const price = parseFloat(item.variant_price);
+          const discount = parseFloat(item.discount || 0);
+          const subtotalItem = (price * item.quantity) - discount;
+          subtotal += subtotalItem;
+
+          const imageUrl = item.variant_photo ? item.variant_photo : "/static/no-image.png";
+
+          container.insertAdjacentHTML("beforeend", `
+            <div class="cart-item">
+              <img src="${imageUrl}">
+              <div class="cart-details">
+                <strong>${item.variant_name} (${item.variant_size})</strong><br>
+                <small>₹${price.toFixed(2)} each</small><br>
+                <small class="text-success">Item Discount: ₹${discount.toFixed(2)}</small>
+              </div>
+              <div class="qty-controls">
+                <button class="qty-btn" onclick="updateQty(${item.id}, ${item.quantity - 1})">-</button>
+                <span>${item.quantity}</span>
+                <button class="qty-btn" onclick="updateQty(${item.id}, ${item.quantity + 1})">+</button>
+              </div>
+              <div class="ms-3">
+                <input type="number" class="discount-input" value="${discount}" 
+                  onchange="updateDiscount(${item.id}, this.value)" min="0" step="0.01">
+                <div>Subtotal: ₹${subtotalItem.toFixed(2)}</div>
+              </div>
+              <button class="remove-btn ms-3" onclick="removeItem(${item.id})">✖</button>
+            </div>
+          `);
+        });
+
+        // Apply order-level discount
+        let discountVal = 0;
+        if (orderDiscountType === "percent") {
+          discountVal = subtotal * (orderDiscount / 100);
+        } else {
+          discountVal = orderDiscount;
+        }
+        let finalTotal = subtotal - discountVal;
+
+        totalEl.textContent = finalTotal.toFixed(2);
+      });
+  }
+
+  function updateOrderDiscount() {
+    orderDiscount = parseFloat(document.getElementById("order-discount").value || 0);
+    orderDiscountType = document.getElementById("order-discount-type").value;
+    updateCartUI();
+  }
+
+  function updateQty(cartId, qty) {
+    if (qty <= 0) {
+      return removeItem(cartId);
+    }
+    fetch(`/admin_api/cart/${cartId}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+      body: JSON.stringify({ quantity: qty })
+    }).then(updateCartUI);
+  }
+
+  function updateDiscount(cartId, discount) {
+    fetch(`/admin_api/cart/${cartId}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+      body: JSON.stringify({ discount: discount })
+    }).then(updateCartUI);
+  }
+
+  function removeItem(cartId) {
+    fetch(`/admin_api/cart/${cartId}/`, {
+      method: "DELETE",
+      headers: { "X-CSRFToken": getCSRFToken() }
+    }).then(updateCartUI);
+  }
+
+  document.addEventListener("DOMContentLoaded", updateCartUI);
+
+  function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith('csrftoken=')) {
+          cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function placeOrder() {
+    const formData = new URLSearchParams();
+    formData.append("customer_id", 1);  // replace with logged in customer id
+    formData.append("order_discount", orderDiscount);
+    formData.append("is_percentage", orderDiscountType === "percent");
+
+    fetch("/place_order/", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCSRFToken(),
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: formData.toString()
+    }).then(res => {
+      if (res.redirected) {
+        window.location.href = res.url;
+      }
+    });
+  }
+</script>
+{% endblock %}
