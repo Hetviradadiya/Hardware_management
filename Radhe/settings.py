@@ -64,7 +64,7 @@ MIDDLEWARE = [
 #     'django.contrib.auth.backends.ModelBackend',  # fallback for email or username
 # ]
 
-# LOGIN_URL = '/auth/login/'
+LOGIN_URL = '/auth/login/'
 
 ROOT_URLCONF = 'Radhe.urls'
 

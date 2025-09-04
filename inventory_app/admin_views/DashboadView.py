@@ -1,220 +1,111 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.utils.timezone import now
+from django.db.models import Q, Sum
+from django.utils.timezone import now, make_aware
 from datetime import datetime, timedelta
-from django.db.models import Q
-from django.utils.timezone import make_aware, get_current_timezone
+
+from inventory_app.models import (
+    Category, Supplier, Customer,
+    Product, ProductVariant, Purchase, Cart
+)
+
 
 class DashboardStatsAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        is_admin = user.is_superuser or (user.role and user.role.name == "Admin") or (user.role and user.role.name == "Sales Head")
+        is_admin = user.is_superuser or (hasattr(user, "role") and user.role.name in ["Admin"])
 
-        # Filters
-        prop_filter = Q()
-        lead_filter = Q(is_deleted=False)
-        followup_filter = Q()
+        today = now().date()
+        ten_days_ago = today - timedelta(days=10)
+        today_start = make_aware(datetime.combine(today, datetime.min.time()))
+        today_end = make_aware(datetime.combine(today, datetime.max.time()))
+
+        # Filters for staff vs admin
+        product_filter = Q()
+        purchase_filter = Q()
+        order_filter = Q()
 
         if not is_admin:
-            lead_filter &= Q(created_by=user)
-            followup_filter &= Q(follow_up_by=user)
-            
-        ten_days_ago = datetime.now().date() - timedelta(days=10)
-        today = datetime.now().date()
-        tomorrow = datetime.now().date() + timedelta(days=1)
+            product_filter &= Q(created_by=user)
+            purchase_filter &= Q(created_by=user)
+            order_filter &= Q(created_by=user)
 
-        today_start_datetime = make_aware(datetime.combine(today, datetime.min.time()))
-        today_end_datetime = make_aware(datetime.combine(today, datetime.max.time()))
-        tomorrow_start_datetime = make_aware(datetime.combine(tomorrow, datetime.min.time()))
-        tomorrow_end_datetime = make_aware(datetime.combine(tomorrow, datetime.max.time()))
-        ten_days_ago_end_datetime = make_aware(datetime.combine(ten_days_ago, datetime.max.time()))
-            
-        # today_followups = LeadFollowUp.objects.filter(follow_up_date__range=(today_start_datetime, today_end_datetime), status__in=['open','hold'])
-        # tomorrow_followups = LeadFollowUp.objects.filter(follow_up_date__range=(tomorrow_start_datetime, tomorrow_end_datetime), status__in=['open','hold'])
-        # pending_leads = Lead.objects.filter(lead_followup_status='Pending')
-        
-        # if not is_admin:
-        #     today_followups = today_followups.filter(follow_up_by=user)
-        #     tomorrow_followups = tomorrow_followups.filter(follow_up_by=user)
-        #     pending_leads = pending_leads.filter(created_by=user)
+        # Totals
+        total_categories = Category.objects.filter(product_filter).count()
+        total_products = Product.objects.filter(product_filter).count()
+        total_suppliers = Supplier.objects.count()
+        total_customers = Customer.objects.count()
+        total_purchases = Purchase.objects.filter(purchase_filter).count()
 
-        # data = {
-        #     "total_properties": Property.objects.filter(prop_filter).count(),
-        #     "total_leads": Lead.objects.filter(lead_filter).count(),
-        #     "upcoming_appointments": LeadFollowUp.objects.filter(followup_filter, follow_up_date__gte=today_start_datetime).count(),
-        #     "closed_leads": Lead.objects.filter(lead_filter & Q(lead_followup_status="Closed")).count(),
-        #     "total_users": UserAccount.objects.count() if is_admin else 0,
-        #     "total_bookings": Lead.objects.filter(lead_filter & Q(lead_followup_status="Booking Done")).count(),
-        #     "today_followups": today_followups.count(),
-        #     "tomorrow_followups": tomorrow_followups.count(),
-        #     "pending_leads": pending_leads.count(),
-        #     "properties_ten": Property.objects.filter(created_at__gte=ten_days_ago_end_datetime).count(),
-        # }
+        # Inventory
+        low_stock_products = ProductVariant.objects.filter(stock__lt=5).count()
 
-        # return Response(data)
+        # Orders
+        today_orders = Cart.objects.filter(
+            order_filter, status=1,  # 1 = Ordered
+            created_at__range=(today_start, today_end)
+        ).count()
 
+        last_10_days_orders = Cart.objects.filter(
+            order_filter, status=1,
+            created_at__gte=ten_days_ago
+        ).count()
 
-# class RecentLeadsAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
+        total_sales_amount = Cart.objects.filter(order_filter, status=1).aggregate(
+            total=Sum("price")
+        )["total"] or 0
 
-#     def get(self, request):
-#         if request.user.role.name == "Admin" or (request.user.role and request.user.role.name == "Sales Head"):
-#             leads = Lead.objects.filter(is_deleted=False).order_by('-created_at')[:10]
-#         else:
-#             leads = Lead.objects.filter(created_by=request.user, is_deleted=False).order_by('-created_at')[:10]
-#         serializer = LeadSerializer(leads, many=True)
-#         return Response(serializer.data)
+        data = {
+            "total_categories": total_categories,
+            "total_products": total_products,
+            "total_suppliers": total_suppliers,
+            "total_customers": total_customers,
+            "total_purchases": total_purchases,
 
-import traceback
-from collections import OrderedDict
+            "low_stock_products": low_stock_products,
+            "today_orders": today_orders,
+            "last_10_days_orders": last_10_days_orders,
+            "total_sales_amount": total_sales_amount,
+        }
+
+        return Response(data)
+
 
 class DashboardDataAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            key = request.GET.get("key")
-            user_id = request.GET.get('user_id')
+        # Recent Products (5 latest)
+        recent_products = list(
+            Product.objects.select_related("category", "supplier")
+            .order_by("-id")[:5]
+            .values("id", "name", "category__name", "price", "supplier__name")
+        )
 
-            ten_days_ago = datetime.now().date() - timedelta(days=10)
-            today = datetime.now().date()
-            tomorrow = datetime.now().date() + timedelta(days=1)
+        # Recent Purchases
+        recent_purchases = list(
+            Purchase.objects.order_by("-id")[:5]
+            .values("id", "invoice_no", "purchase_date", "total_amount")
+        )
 
-            today_start_datetime = make_aware(datetime.combine(today, datetime.min.time()))
-            today_end_datetime = make_aware(datetime.combine(today, datetime.max.time()))
-            tomorrow_start_datetime = make_aware(datetime.combine(tomorrow, datetime.min.time()))
-            tomorrow_end_datetime = make_aware(datetime.combine(tomorrow, datetime.max.time()))
-            ten_days_ago_end_datetime = make_aware(datetime.combine(ten_days_ago, datetime.max.time()))
+        # Recent Customers
+        recent_customers = list(
+            Customer.objects.order_by("-id")[:5]
+            .values("id", "name", "phone", "email")
+        )
 
-            # queryset = Lead.objects.filter(is_deleted=False)
-            # user = request.user
-            # is_admin = user.is_superuser or (user.role and user.role.name == "Admin") or (user.role and user.role.name == "Sales Head")
+        # Recent Suppliers
+        recent_suppliers = list(
+            Supplier.objects.order_by("-id")[:5]
+            .values("id", "name", "contact", "email")
+        )
 
-            # # Filters
-            # lead_filter = Q(is_deleted=False)
-            # followup_filter = Q()
-
-            # if not is_admin:
-            #     lead_filter &= Q(created_by=user)
-            #     followup_filter &= Q(follow_up_by=user)
-
-            # if key == "today-followups":
-            #     queryset = LeadFollowUp.objects.filter(
-            #         followup_filter,
-            #         follow_up_date__range=(today_start_datetime, today_end_datetime),
-            #         status__in=['open','hold']
-            #     ).distinct()
-            #     if user_id and user_id.isdigit():
-            #         queryset = queryset.filter(follow_up_by=user_id)
-
-            # elif key == "tomorrow-followups":
-            #     queryset = LeadFollowUp.objects.filter(
-            #         followup_filter,
-            #         follow_up_date__range=(tomorrow_start_datetime, tomorrow_end_datetime),
-            #         status__in=['open','hold']
-            #     ).distinct()
-            #     if user_id and user_id.isdigit():
-            #         queryset = queryset.filter(follow_up_by=user_id)
-
-            # elif key == "pending-leads":
-            #     queryset = queryset.filter(lead_filter, lead_followup_status="Pending")
-            #     if user_id and user_id.isdigit():
-            #         queryset = queryset.filter(created_by=user_id)
-            #     raw_data = list(queryset.values(
-            #         'id',
-            #         'area_requirements',
-            #         'purpose',
-            #         'property_type__name',
-            #         'name',
-            #         'mobile',
-            #         'mobile_2',
-            #         'area',
-            #         'requirements',
-            #         'min_budget',
-            #         'max_budget',
-            #         'min_size',
-            #         'max_size',
-            #         'furnished_status',
-            #         'created_by__full_name',
-            #         'lead_followup_status',
-            #     ))
-
-            #     data = []
-            #     for item in raw_data:
-            #         formatted = OrderedDict()
-            #         formatted['id'] = item.get('id')
-            #         formatted['purpose'] = item.get('purpose', '').replace('_', ' ').title() if item.get('purpose', '') else ''
-            #         formatted['area_requirements'] = item.get('area_requirements')
-            #         formatted['property_type__name'] = item.get('property_type__name')
-            #         formatted['name'] = item.get('name')
-            #         formatted['mobile'] = item.get('mobile')
-            #         formatted['mobile_2'] = item.get('mobile_2')
-            #         formatted['area'] = item.get('area')
-            #         formatted['requirements'] = item.get('requirements')
-            #         formatted['min_budget'] = item.get('min_budget')
-            #         formatted['max_budget'] = item.get('max_budget')
-            #         formatted['min_size'] = item.get('min_size')
-            #         formatted['max_size'] = item.get('max_size')
-            #         formatted['furnished_status'] = item.get('furnished_status')
-            #         formatted['created_by'] = item.get('created_by__full_name')
-            #         formatted['status'] = item.get('lead_followup_status', '').replace('_', ' ').title() if item.get('lead_followup_status', '') else ''
-            #         data.append(formatted)
-
-            #     return Response(data)
-
-            # elif key == "visits-scheduled":
-            #     queryset = LeadFollowUp.objects.filter(followup_filter, follow_up_date__gte=today_start_datetime)
-            #     if user_id and user_id.isdigit():
-            #         queryset = queryset.filter(follow_up_by=user_id)
-                
-            # elif key == "properties-ten":
-            #     queryset = Property.objects.filter(created_at__gte=ten_days_ago_end_datetime)
-
-            #     data = list(queryset.values(
-            #         'id',
-            #         'address',
-            #         'purpose',
-            #         'title',
-            #         'project__name',
-            #         'super_built_up_area',
-            #         'bhk',
-            #         'price',
-            #         'owner_name',
-            #         'owner_number',
-            #         'key_status',
-            #         'furnished_status',
-            #         'status',
-            #     ))
-
-            #     final_data = []
-            #     for item in data:
-            #         formatted = {
-            #             'id': item.get('id'),
-            #             'address': item.get('address', ''),
-            #             'purpose': item.get('purpose', '').replace('_', ' ').title() if item.get('purpose', '') else '',
-            #             'block_number': item.get('title', ''),
-            #             'project_name': item.get('project__name', ''),
-            #             'super_built_up_area': item.get('super_built_up_area', ''),
-            #             'bhk': item.get('bhk', ''),
-            #             'price': item.get('price', ''),
-            #             'owner_name': item.get('owner_name', ''),
-            #             'owner_number': item.get('owner_number', ''),
-            #             'key_status': item.get('key_status', ''),
-            #             'furnished_status': item.get('furnished_status', ''),
-            #             'status': item.get('status', ''),
-            #         }
-            #         final_data.append(formatted)
-
-            #     return Response(final_data)
-
-            # else:
-            #     return Response({"error": "Invalid key"}, status=400)
-
-            # serializer = LeadDashboardSerializer(queryset, many=True)
-            # return Response(serializer.data)
-        except Exception as e:
-            print(traceback.format_exc())
-            return Response({"error": str(e)}, status=500)
+        return Response({
+            "recent_products": recent_products,
+            "recent_purchases": recent_purchases,
+            "recent_customers": recent_customers,
+            "recent_suppliers": recent_suppliers,
+        })

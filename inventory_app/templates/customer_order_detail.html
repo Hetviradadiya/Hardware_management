@@ -1,0 +1,98 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Order Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="fw-bold">Order Detail</h4>
+  <a href="javascript:history.back()" class="btn btn-primary">
+    <i class="bx bx-arrow-back"></i> Back
+  </a>
+</div>
+
+<div class="card p-4 shadow-sm">
+  <div id="orderInfo" class="mb-4">
+    <h5 class="fw-bold mb-3">Order Information</h5>
+    <p><strong>Order:</strong> <span id="orderId">Loading...</span></p>
+    <p><strong>Customer:</strong> <span id="customerName">Loading...</span></p>
+    <p><strong>Order Date:</strong> <span id="orderDate">Loading...</span></p>
+    <p><strong>Total Amount:</strong> ₹ <span id="totalAmount">0.00</span></p>
+    <p><strong>Discount:</strong> <span id="discount">0.00</span></p>
+    <p><strong>Final Amount:</strong> ₹ <span id="finalAmount">0.00</span></p>
+  </div>
+
+  <div>
+    <h5 class="fw-bold mb-3">Order Items</h5>
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead class="">
+          <tr>
+            <th>#</th>
+            <th>Product</th>
+            <th>Size</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="orderItemsBody">
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">Loading...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const orderId = "{{ pk }}";
+    const url = `/admin_api/order/${orderId}/`; // your API endpoint for single order
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          const order = data; // since your API already returns one order object
+
+          // Fill order info
+          document.getElementById("orderId").textContent = order.id;
+          document.getElementById("customerName").textContent = order.customer_name;
+          document.getElementById("orderDate").textContent = new Date(order.order_date).toLocaleString();
+          document.getElementById("totalAmount").textContent = order.total_amount;
+          document.getElementById("discount").textContent = order.is_percentage 
+              ? order.order_discount + "%" 
+              : "₹ " + order.order_discount;
+          document.getElementById("finalAmount").textContent = order.calculate_total ?? order.final_amount;
+
+          // Fill items
+          const tbody = document.getElementById("orderItemsBody");
+          tbody.innerHTML = "";
+          if (order.order_items && order.order_items.length > 0) {
+            order.order_items.forEach((item, idx) => {
+              tbody.insertAdjacentHTML("beforeend", `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td>${item.product_name}</td>
+                  <td>${item.product_size}</td>
+                  <td>${item.quantity}</td>
+                  <td>₹ ${item.price_at_sale}</td>
+                  <td>₹ ${item.total_price}</td>
+                </tr>
+              `);
+            });
+          } else {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">No items in this order.</td>
+              </tr>`;
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching order:", err);
+      });
+  });
+</script>
+{% endblock %}

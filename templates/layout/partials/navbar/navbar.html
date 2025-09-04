@@ -94,7 +94,7 @@ fetch("/api/upcoming-followups/")
       bsToast.show();
     }
 
-    document.getElementById('createInvestorForm').addEventListener('submit', function (e) {
+    {% comment %} document.getElementById('createInvestorForm').addEventListener('submit', function (e) {
       e.preventDefault();
 
       const investorId = document.getElementById('investor-id').value;
@@ -136,7 +136,7 @@ fetch("/api/upcoming-followups/")
           console.error('Error:', error);
           showToast('Error', 'Something went wrong', 'danger');
         });
-    });
+    }); {% endcomment %}
 
 
   });
@@ -178,7 +178,7 @@ fetch("/api/upcoming-followups/")
     <!-- /Search -->
     {% include "../_breadcrumbs.html" %}
 
-    {% if request.resolver_match.url_name == 'index' %}
+    {% comment %} {% if request.resolver_match.url_name == 'index' %}
     <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded shadow-sm" style="max-width: 750px;">
       <div class="input-group" style="flex: 1;">
         <input
@@ -204,7 +204,7 @@ fetch("/api/upcoming-followups/")
       </div>
     </div>
 
-    {% endif %}
+    {% endif %} {% endcomment %}
 
     <ul class="navbar-nav flex-row align-items-center ms-auto">
       <!-- Place this tag where you want the button to render. -->
@@ -212,7 +212,7 @@ fetch("/api/upcoming-followups/")
         <a class="github-button" href="{% get_theme_variables 'git_repository' %}" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star themeselection/sneat-html-admin-template-free on GitHub">Star</a>
       </li> {% endcomment %}
 
-      {% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
+      {% comment %} {% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
         <li class="nav-item dropdown me-3">
           <a href="/investors/" class="nav-link {% if request.resolver_match.url_name == 'get-investors' %}active-notification{% endif %}"">
             <i class="{% if request.resolver_match.url_name == 'get-investors' %}bx bxs-user-plus{% else %}bx bx-user-plus{% endif %}"></i>
@@ -224,7 +224,7 @@ fetch("/api/upcoming-followups/")
             <i class="bx bx-user-plus"></i>
           </a>
         </li>
-      {% endif %}
+      {% endif %} {% endcomment %}
       <li class="nav-item dropdown me-3">
         <a id="favourite-link" class="nav-link dropdown-toggle hide-arrow {% if request.resolver_match.url_name == 'favourite-leads' %}active-notification{% endif %}"
           href="/favourite_leads/" title="Favourites">
@@ -299,11 +299,11 @@ fetch("/api/upcoming-followups/")
           <li>
             <div class="dropdown-divider my-1"></div>
           </li>
-          {% comment %} <li>
+          <li>
             <a class="dropdown-item" href="{% url 'auth-logout' %}">
               <i class="bx bx-power-off bx-md me-3"></i><span>Log Out</span>
             </a>
-          </li> {% endcomment %}
+          </li>
         </ul>
       </li>
       <!--/ User -->
@@ -311,7 +311,7 @@ fetch("/api/upcoming-followups/")
   </div>
 </nav>
 
-<div class="modal fade" id="investorModal" tabindex="-1" aria-labelledby="investorModalLabel" aria-hidden="true">
+{% comment %} <div class="modal fade" id="investorModal" tabindex="-1" aria-labelledby="investorModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="createInvestorForm">
@@ -341,4 +341,4 @@ fetch("/api/upcoming-followups/")
       </form>
     </div>
   </div>
-</div>
+</div> {% endcomment %}

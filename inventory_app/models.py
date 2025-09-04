@@ -210,6 +210,8 @@ class Cart(models.Model):
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     date_added = models.DateTimeField(auto_now_add=True)
+    item_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    is_percentage = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.variant} x {self.quantity}"
@@ -227,13 +229,10 @@ class Order(models.Model):
     is_percentage = models.BooleanField(default=True)  # True if discount is %
 
     def calculate_total(self):
-        """
-        Recalculate total considering items & order-level discount.
-        """
         subtotal = sum(item.subtotal() for item in self.items.all())
 
         if self.is_percentage:
-            discount_value = (subtotal * self.order_discount) / 100
+            discount_value = (subtotal * self.order_discount) / Decimal(100)
         else:
             discount_value = self.order_discount
 
@@ -259,7 +258,7 @@ class OrderItem(models.Model):
         total = self.quantity * self.price_at_sale
 
         if self.is_percentage:
-            discount_value = (total * self.item_discount) / 100
+            discount_value = (total * self.item_discount) / Decimal(100)
         else:
             discount_value = self.item_discount
 
@@ -284,7 +283,7 @@ class Sale(models.Model):
             purchase = Purchase.objects.filter(variant=item.variant).order_by('-date').first()
             if purchase:
                 purchase_cost = (purchase.purchase_price * item.quantity) - purchase.discount
-                gst_amount = (purchase_cost * purchase.gst) / 100
+                gst_amount = (purchase_cost * purchase.gst) / Decimal(100)
                 final_cost = purchase_cost + gst_amount
 
                 revenue = item.quantity * item.price_at_sale

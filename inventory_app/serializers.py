@@ -168,6 +168,30 @@ class CartSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(photo.url)
         return None
     
+class Orderserializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    order_items = serializers.SerializerMethodField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    order_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    is_percentage = serializers.BooleanField(read_only=True)
+    final_amount = serializers.SerializerMethodField()
+    order_date = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ["id", "customer", "customer_name", "order_items", "total_amount", "order_discount", "is_percentage", "final_amount", "order_date"]
+
+    def get_order_items(self, obj):
+        items = obj.items.all()  # via related_name="items"
+        return OrderItemSerializer(items, many=True).data
+
+    def get_final_amount(self, obj):
+        if obj.is_percentage:
+            discount_amount = (obj.order_discount / 100) * obj.total_amount
+        else:
+            discount_amount = obj.order_discount
+        return max(obj.total_amount - discount_amount, 0)
+    
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField()
     total_price = serializers.SerializerMethodField()

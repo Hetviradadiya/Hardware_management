@@ -1,533 +1,104 @@
-{% comment %} {% extends layout_path %}
- 
+{% extends layout_path %}
 {% load static %}
-{% load i18n %}
- 
-{% block title %}Dashboard - Analytics{% endblock %}
- 
-{% block vendor_css %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
-{% endblock vendor_css %}
- 
-{% block vendor_js %}
-{{ block.super }}
-<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
-{% endblock vendor_js %}
- 
+{% block title %}Hardware Shop - Sales Analysis{% endblock %}
+
 {% block page_js %}
-{{ block.super }}
-<script src="{% static 'js/dashboards-analytics.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    const input = document.getElementById("propertySearchInput");
-    const searchBtn = document.getElementById("searchButton");
-    const searchResults = document.getElementById("searchResults");
-    const leadTableWrapper = document.getElementById("leadTableWrapper");
-    const resultsHeader = document.getElementById("resultsHeader");
-    const resultsBody = document.getElementById("resultsBody");
-
-    // Show/hide radio buttons dynamically (optional)
-    const radios = document.querySelectorAll('input[name="searchType"]');
-    radios.forEach(radio => {
-      radio.disabled = true;
-      radio.closest(".form-check").style.opacity = true ? "1" : "0.5";
-    });
-    // Remove this section if radio buttons should always be visible
-    input.addEventListener("input", function () {
-      const hasValue = input.value.trim().length > 0;
-      const radios = document.querySelectorAll('input[name="searchType"]');
-      radios.forEach(radio => {
-        radio.disabled = !hasValue;
-        radio.closest(".form-check").style.opacity = hasValue ? "1" : "0.5";
-      });
-    });
-
-    searchBtn.addEventListener("click", function () {
-      const query = input.value.trim();
-      const selectedType = document.querySelector('input[name="searchType"]:checked').value;
-
-      if (!query) return;
-
-      const endpoint =
-        selectedType === "property"
-          ? `/admin_api/properties/?search=${encodeURIComponent(query)}`
-          : `/admin_api/leads_list/?q=${encodeURIComponent(query)}`;
-
-      fetch(endpoint)
-        .then((response) => response.json())
-        .then((data) => {
-          renderResults(data, selectedType);
-        })
-        .catch((err) => {
-          console.error("Search API error:", err);
-        });
-    });
-
-    function renderResults(data, type) {
-      if (type === 'property') {
-        searchResults.classList.remove("d-none");        
-        leadTableWrapper.classList.add("d-none");
-        populatePropertyTable(data);
-      } else {
-        leadTableWrapper.classList.remove("d-none");
-        searchResults.classList.add("d-none");
-        populateLeadTable(data);
-      }
-    }
-
-    function populatePropertyTable(properties) {
-      const tbody = document.querySelector("#propertyTable tbody");
-      tbody.innerHTML = properties.map((property, index) => `
-        <tr>
-          <td>${index + 1}</td>          
-          <td>${property.address|| "-"}</td>
-          <td>${property.purpose|| "-"}</td>
-          <td>${
-            property.id
-              ? `<a href="/properties/detail/${property.id}/">${property.title}</a>`
-              : "-"
-          }</a></td>
-          <td>${property.project_name|| "-"} </td>
-          <td>${property.super_built_up_area|| "-"}</td>
-          <td>${property.bhk|| "-"}</td>
-          <td>₹ ${property.price || "-"}</td> 
-          <td> ${property.owner_name || "-"}</td>
-          <td> ${property.owner_number || "-"}</td>
-          <td> ${property.key_status || "-"}</td>
-          <td> ${property.furnished_status || "-"}</td>
-          <td>
-            <span class="badge ${
-              property.status
-                ? "bg-" + (property.status === "Ready to Move" ? "success" : "warning")
-                : "bg-secondary"
-            }">
-              ${property.status || "-"}
-            </span>
-          </td>          
-        </tr>
-      `).join("");
-    }
-
-    function populateLeadTable(leads) {
-      const tbody = document.querySelector("#leadTable tbody");
-      tbody.innerHTML = leads.map((lead, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${lead.area_requirements || '-'}</td>
-          <td>${lead.purpose_name || "-"}</td>
-          <td>${lead.property_type_name || '-'}</td>
-          <td>${lead.name}</td>
-          <td>${lead.mobile}</td>
-          <td>${lead.mobile_2|| '-'}</td>
-          <td>${lead.area || '-'}</td>
-          <td>${lead.requirements || '-'}</td>
-          <td style='white-space:nowrap;'>${lead.min_budget|| '-'} - ${lead.max_budget|| '-'} </td>
-          <td style='white-space:nowrap;'>${lead.min_size|| '-'} - ${lead.max_size|| '-'}</td>
-          <td>${lead.furnished_status || '-'}</td>
-          <td>${lead.created_by_name}</td>
-          <td><span id="status-text-${lead.id}" class="badge ${getStatusBadgeClass(lead.status_display)}">${lead.status_display.replaceAll("_", " ")}</span></td>
-        </tr>
-      `).join("");
-    }
-
-    fetch('/admin_api/dashboard-stats/')
+    // Fetch Dashboard Analysis
+    fetch("/admin_api/hardware-dashboard-analysis/")
       .then(res => res.json())
       .then(data => {
-        function setIfExists(id, value) {
-          const el = document.getElementById(id);
-          if (el) {
-            el.innerText = value;
+        // Fill daily stats
+        document.getElementById("today-orders").innerText = data.daily_orders;
+        document.getElementById("today-sales").innerText = "₹" + data.daily_sales;
 
-            // Get the parent card div
-            const card = el.closest('.card');
+        // Fill weekly stats
+        document.getElementById("weekly-orders").innerText = data.weekly_orders;
+        document.getElementById("weekly-sales").innerText = "₹" + data.weekly_sales;
 
-            if (card && value == 0) {
-              card.style.cursor = 'not-allowed';
-              card.removeAttribute('onclick'); // remove click behavior
-            }
+        // Fill monthly stats
+        document.getElementById("monthly-orders").innerText = data.monthly_orders;
+        document.getElementById("monthly-sales").innerText = "₹" + data.monthly_sales;
+
+        // Chart: Last 10 Days Orders
+        renderOrdersChart(data.last_10_days);
+      });
+
+    function renderOrdersChart(last10Days) {
+      const ctx = document.getElementById("ordersChart").getContext("2d");
+      const labels = last10Days.map(item => item.date);
+      const values = last10Days.map(item => item.count);
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Orders",
+            data: values,
+            borderColor: "#4e73df",
+            backgroundColor: "rgba(78, 115, 223, 0.1)",
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
           }
         }
-
-        // Usage
-        setIfExists("total-properties", data.total_properties);
-        setIfExists("total-leads", data.total_leads);
-        setIfExists("closed-leads", data.closed_leads);
-        setIfExists("today-followups", data.today_followups);
-        setIfExists("tomorrow-followups", data.tomorrow_followups);
-        setIfExists("pending-leads", data.pending_leads);
-        setIfExists("visits-scheduled", data.upcoming_appointments);
-        setIfExists("properties-ten", data.properties_ten);
-      })      
-      .catch(error => console.error("Dashboard load error:", error));
-  });
-    
-    fetch("/api/upcoming-followups/")
-    .then(res => res.json())
-    .then(data => {
-      if (data && data.length > 0) {
-        const count = data.length;
-        const message = `You have <strong>${count}</strong> follow-up notification${count > 1 ? 's' : ''}.`;
-        showFollowupSummaryToast(message, "info", "/followup-notifications/");
-      }
-    })
-    .catch(err => console.error("Follow-up fetch error", err));
-
-  function showToast(title, message, status = "primary") {
-    const toast = document.getElementById("alert-box");
-    const toastTitle = document.getElementById("toast-title");
-    const toastBody = document.getElementById("toast-body");
-    const toastIcon = document.getElementById("toast-icon");
-
-    toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
-    toastTitle.textContent = title;
-    toastBody.textContent = message;
-
-    toastIcon.className = `bx me-2 ${
-      status === "success" ? "bx-check-circle" : "bx-error"
-    }`;
-
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
-  }
-
-  function showFollowupSummaryToast(message, status = "info", link = "#") {
-    const container = document.getElementById("followup-toast-container");
-
-    const toastEl = document.createElement("div");
-    toastEl.className = `toast align-items-center text-white bg-${status} border-0 fade`;
-    toastEl.setAttribute("role", "alert");
-    toastEl.setAttribute("aria-live", "assertive");
-    toastEl.setAttribute("aria-atomic", "true");
-
-    toastEl.innerHTML = `
-      <div class="d-flex justify-content-between align-items-center" style="background-color:rgba(8, 57, 123, 0.6);">
-        <div class="toast-body">
-          ${message}
-          <br/>
-          <a href="${link}" class="btn btn-sm btn-light mt-2">View Details</a>
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-    `;
-
-    container.appendChild(toastEl);
-
-    const toast = new bootstrap.Toast(toastEl, { delay: 60000 });
-    toast.show();
-
-    toastEl.addEventListener('hidden.bs.toast', () => {
-      toastEl.remove();
-    });
-  }
-  
-    
-  function getStatusBadgeClass(status) {
-    switch (status) {
-      case 'Follow Up Visit 1 Done': return 'bg-success';
-      case 'Follow Up Visit 2 Done': return 'bg-success';
-      case 'Visit 1 Done': return 'bg-success';
-      case 'Visit 2 Done': return 'bg-success';
-      case 'Meeting Scheduled': return 'bg-primary';
-      case 'Fb Taken 1' : return 'bg-primary';
-      case 'Fb Taken 2' : return 'bg-primary';
-      case 'Visit Scheduled 2': return 'bg-info';
-      case 'Visit Scheduled 1': return 'bg-info';
-      case 'Visit Done': return 'bg-success';
-      case 'Booking Done': return 'bg-success';
-      case 'Closed': return 'bg-success';
-      case 'Option Not Available': return 'bg-danger';
-      case 'Pending': return 'bg-danger';
-      case 'Inquired': return 'bg-info';
-      case 'Option Given On A Call': return 'bg-secondary';
-      case 'Open': return 'bg-info';
-      case 'Close': return 'bg-success';
-      case 'Hold': return 'bg-warning';
-      default: return 'bg-light';
-    }
-  }
-
-  fetch("/admin_api/recent-leads/")
-    .then((res) => res.json())
-    .then((data) => {
-      const tbody = document.getElementById("recent-leads-body");
-      const loaderRow = document.getElementById("leads-loader-row");
-      loaderRow.style.display = "none";
-      tbody.innerHTML = "";
-
-      if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center">No recent leads found.</td></tr>`;
-      }
-
-      data.forEach((lead) => {
-        const row = `
-          <tr>
-            <td>${lead.name}</td>
-            <td>${lead.mobile}</td>
-            <td>${lead.email || '-'}</td>
-            <td>${lead.area || '-'}</td>
-            <td>
-              <span class="badge ${getStatusBadgeClass(lead.status_display)}">
-                ${lead.status_display.replaceAll("_", " ")}
-              </span>
-            </td>
-            <td>${new Date(lead.created_at).toLocaleDateString()}</td>
-          </tr>
-        `;
-        tbody.insertAdjacentHTML("beforeend", row);
       });
-    })
-    .catch((err) => {
-      console.error("Failed to load recent leads", err);
-    });
-
-
-  {% if messages %}
-
-  {% for message in messages %}
-    showToast("Error", "{{ message|escapejs }}", "danger");
-  {% endfor %}
-
-  {% endif %}
-
+    }
+  });
 </script>
- 
 {% endblock page_js %}
- 
+
 {% block content %}
-
-<div class="bs-toast toast toast-placement-ex m-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" id="alert-box">
-  <div class="toast-header">
-    <i class="bx bx-bell me-2" id="toast-icon"></i>
-    <div class="me-auto fw-medium" id="toast-title">Notification</div>
-    <small class="toast-time">Now</small>
-    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-  </div>
-    <div class="toast-body" id="toast-body">
-        <!-- Message goes here -->
-    </div>
-</div>
-
 <div class="row">
-  <!-- Today's Follow Up -->
-  <div class="{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}col-md-6 col-xl-3{% else %}col-xxl-2 col-xl-2 col-md-4{% endif %} mb-4">
-    <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'dashboard' %}?key=today-followups'" style="cursor: pointer;">
+  <!-- Today's Orders -->
+  <div class="col-md-6 col-xl-3 mb-4">
+    <div class="card h-100 hover-shadow">
       <div class="card-body">
-        <div class="card-title d-flex align-items-start justify-content-between mb-4">
-          <div class="avatar flex-shrink-0">
-            <img src="{% static 'img/icons/unicons/closed.png' %}" alt="chart success" class="rounded">
-          </div>
-        </div>
-        <p class="mb-1">Today's Follow Up</p>
-        <h4 class="card-title mb-3" id="today-followups"></h4>
+        <p class="mb-1">Today's Orders</p>
+        <h4 class="card-title mb-2" id="today-orders">0</h4>
+        <p class="text-muted mb-0">Sales: <span id="today-sales">₹0</span></p>
       </div>
     </div>
   </div>
 
-  <!-- Tomorrow's Follow Up -->
-  <div class="{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}col-md-6 col-xl-3{% else %}col-xxl-2 col-xl-2 col-md-4{% endif %} mb-4">
-    <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'dashboard' %}?key=tomorrow-followups'" style="cursor: pointer;">
+  <!-- Weekly Orders -->
+  <div class="col-md-6 col-xl-3 mb-4">
+    <div class="card h-100 hover-shadow">
       <div class="card-body">
-        <div class="card-title d-flex align-items-start justify-content-between mb-4">
-          <div class="avatar flex-shrink-0">
-            <img src="{% static 'img/icons/unicons/phone.png' %}" alt="wallet info" class="rounded">
-          </div>
-        </div>
-        <p class="mb-1">Tomorrow's Follow Up</p>
-        <h4 class="card-title mb-3" id="tomorrow-followups"></h4>
+        <p class="mb-1">Weekly Orders</p>
+        <h4 class="card-title mb-2" id="weekly-orders">0</h4>
+        <p class="text-muted mb-0">Sales: <span id="weekly-sales">₹0</span></p>
       </div>
     </div>
   </div>
 
-  <!-- Pending Leads -->
-  <div class="{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}col-md-6 col-xl-3{% else %}col-xxl-2 col-xl-2 col-md-4{% endif %} mb-4">
-    <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'dashboard' %}?key=pending-leads'" style="cursor: pointer;">
+  <!-- Monthly Orders -->
+  <div class="col-md-6 col-xl-3 mb-4">
+    <div class="card h-100 hover-shadow">
       <div class="card-body">
-        <div class="card-title d-flex align-items-start justify-content-between mb-4">
-          <div class="avatar flex-shrink-0">
-            <img src="{% static 'img/icons/unicons/home.png' %}" alt="calendar" class="rounded">
-          </div>
-        </div>
-        <p class="mb-1">Pending Leads</p>
-        <h4 class="card-title mb-3" id="pending-leads"></h4>
+        <p class="mb-1">Monthly Orders</p>
+        <h4 class="card-title mb-2" id="monthly-orders">0</h4>
+        <p class="text-muted mb-0">Sales: <span id="monthly-sales">₹0</span></p>
       </div>
     </div>
   </div>
-
-  <!-- Visits Scheduled -->
-  <div class="{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}col-md-6 col-xl-3{% else %}col-xxl-2 col-xl-2 col-md-4{% endif %} mb-4">
-    <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'dashboard' %}?key=visits-scheduled'" style="cursor: pointer;">
-      <div class="card-body">
-        <div class="card-title d-flex align-items-start justify-content-between mb-4">
-          <div class="avatar flex-shrink-0">
-            <img src="{% static 'img/icons/unicons/appointments.png' %}" alt="check" class="rounded">
-          </div>
-        </div>
-        <p class="mb-1">Visits Scheduled</p>
-        <h4 class="card-title mb-3" id="visits-scheduled"></h4>
-      </div>
-    </div>
-  </div>
-
-  <!-- Recent Properties -->
-  <div class="{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}col-md-6 col-xl-3{% else %}col-xxl-2 col-xl-2 col-md-4{% endif %} mb-4">
-    <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'dashboard' %}?key=properties-ten'" style="cursor: pointer;">
-      <div class="card-body">
-        <div class="card-title d-flex align-items-start justify-content-between mb-4">
-          <div class="avatar flex-shrink-0">
-            <img src="{% static 'img/icons/unicons/home.png' %}" alt="check" class="rounded">
-          </div>
-        </div>
-        <p class="mb-1">Recent Properties</p>
-        <h4 class="card-title mb-3" id="properties-ten"></h4>
-      </div>
-    </div>
-  </div>
-
-  {% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
-    <!-- Total Properties -->
-    <div class="col-md-6 col-xl-3 mb-4">
-      <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'properties' %}'" style="cursor: pointer;">
-        <div class="card-body">
-          <div class="card-title d-flex align-items-start justify-content-between mb-4">
-            <div class="avatar flex-shrink-0">
-              <img src="{% static 'img/icons/unicons/home.png' %}" alt="chart success" class="rounded">
-            </div>
-          </div>
-          <p class="mb-1">Total Properties</p>
-          <h4 class="card-title mb-3" id="total-properties"></h4>
-        </div>
-      </div>
-    </div>
-
-    <!-- Total Leads -->
-    <div class="col-md-6 col-xl-3 mb-4">
-      <div class="card h-100 hover-shadow" onclick="window.location.href='{% url 'leads' %}'" style="cursor: pointer;">
-        <div class="card-body">
-          <div class="card-title d-flex align-items-start justify-content-between mb-4">
-            <div class="avatar flex-shrink-0">
-              <img src="{% static 'img/icons/unicons/phone.png' %}" alt="wallet info" class="rounded">
-            </div>
-          </div>
-          <p class="mb-1">Total Leads</p>
-          <h4 class="card-title mb-3" id="total-leads"></h4>
-        </div>
-      </div>
-    </div>
-
-    <!-- Closed Leads -->
-    <div class="col-md-6 col-xl-3 mb-4">
-      <div class="card h-100 hover-shadow" onclick="window.location.href='/leads/closed/'" style="cursor: pointer;">
-        <div class="card-body">
-          <div class="card-title d-flex align-items-start justify-content-between mb-4">
-            <div class="avatar flex-shrink-0">
-              <img src="{% static 'img/icons/unicons/closed.png' %}" alt="check" class="rounded">
-            </div>
-          </div>
-          <p class="mb-1">Closed Leads</p>
-          <h4 class="card-title mb-3" id="closed-leads"></h4>
-        </div>
-      </div>
-    </div>
-  {% endif %}
 </div>
 
+<!-- Orders Trend Chart -->
 <div class="card mt-4">
-  <div id="searchResults" class="card-body table-responsive d-none" style="max-height: 450px; overflow-y: auto;">
-    <h5>Properties</h5>
-    <table class="table table-hover" id="propertyTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Address</th>
-          <th>Purpose</th>
-          <th>Block Number</th>
-          <th>Building Name</th>
-          <th>Size</th>
-          <th>BHK</th>
-          <th>Price</th>
-          <th>Owner Name</th>
-          <th>Owner Number</th>
-          <th>Key Status</th>
-          <th>Furnished</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+  <div class="card-header">
+    <h5 class="mb-0">Orders Trend - Last 10 Days</h5>
+  </div>
+  <div class="card-body">
+    <canvas id="ordersChart" height="120"></canvas>
   </div>
 </div>
-
-<div class="card mt-4">
-  <div id="leadTableWrapper" class="card-body table-responsive d-none" style="max-height: 450px; overflow-y: auto;">
-    <h5>Leads</h5>
-    <table class="table table-hover" id="leadTable">
-      <thead>
-        <tr>
-          <th>#</th>              
-          <th>Requirement Areas</th>
-          <th>Purpose</th>
-          <th>Property Type</th>
-          <th>Name</th>
-          <th>Mobile</th>
-          <th>Mobile(other)</th>
-          <th>Residential Area</th>
-          <th>Requirements</th>
-          <th>Budget</th>
-          <th>Size</th>
-          <th>Furnished Status</th>
-          <th>Created By</th>
-          <th>Status</th>            
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-
-{% if request.user.role.name == 'Admin' or request.user.role.name == 'Sales Head' %}
-<div class="card mt-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">Recent Leads</h5>
-    <a href="/leads/" class="btn btn-sm btn-outline-primary">View All</a>
-  </div>
-
-  <div class="table-responsive text-nowrap">
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Mobile</th>
-          <th>Email</th>
-          <th>Location</th>
-          <th>Status</th>
-          <th>Created At</th>
-        </tr>
-      </thead>
-      <tbody id="recent-leads-body">
-        <tr id="leads-loader-row">
-          <td colspan="6" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;" id="followup-toast-container">
-  <div id="custom-toast" class="toast align-items-center text-white bg-warning border-0 fade" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body" id="custom-toast-body">
-        🔔 You have a follow-up!
-      </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>
-</div>
-
-{% endblock %} {% endcomment %}
+{% endblock %}

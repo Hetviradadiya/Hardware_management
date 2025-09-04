@@ -9,3 +9,4 @@ django-tinymce-4
 pandas
 openpyxl
 python-slugify==8.0.4
+reportlab==4.4.3

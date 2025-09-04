@@ -28,7 +28,7 @@ urlpatterns = [
     path("", include("apps.dashboards.urls")),
 
     # Auth urls
-    # path("", include("apps.authentication.urls")),
+    path("", include("apps.authentication.urls")),
 
 ]
 

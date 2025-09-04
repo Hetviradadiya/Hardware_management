@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from ..models import Cart, ProductVariant,Customer, Order, OrderItem, Sale
 from django.shortcuts import render,redirect
 from ..serializers import CartSerializer,OrderItemSerializer
+from decimal import Decimal
 
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
@@ -39,11 +40,20 @@ def place_order(request):
     customer_id = request.POST.get("customer_id")
     customer = get_object_or_404(Customer, id=customer_id)
 
+    # order-level discount (from form/JS)
+    order_discount = Decimal(request.POST.get("order_discount", "0"))
+    is_percentage = request.POST.get("is_percentage", "false") == "true"
+
     cart_items = Cart.objects.all()
     if not cart_items.exists():
         return redirect("cart_page")
 
-    order = Order.objects.create(customer=customer, total_amount=0)
+    order = Order.objects.create(
+        customer=customer,
+        total_amount=0,
+        order_discount=order_discount,
+        is_percentage=is_percentage,
+    )
 
     for cart_item in cart_items:
         price = cart_item.variant.price
@@ -52,8 +62,8 @@ def place_order(request):
             variant=cart_item.variant,
             quantity=cart_item.quantity,
             price_at_sale=price,
-            item_discount=cart_item.discount or 0,  # take product discount from cart
-            is_percentage=True   # or True if you store %
+            item_discount=cart_item.item_discount or Decimal("0.00"),  # ✅ per-product discount
+            is_percentage=cart_item.is_percentage,
         )
 
     order.total_amount = order.calculate_total()
