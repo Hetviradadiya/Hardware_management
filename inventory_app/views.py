@@ -34,10 +34,30 @@ class DashboardsView(TemplateView):
             breadcrumbs.append({"label": label, "url": url} if url else {"label": label})
 
         route_map = {
-            # "user_list.html": ("users", None),
-            # "user_add.html": ("Users", reverse("users"), "Add User"),
-            # "user_edit.html": ("Users", reverse("users"), "Edit User"),
+            "customer_list.html": ("Customer", None),
+            "customer.html": ("Customer", reverse("customer-list"), " Customer-detail"),
 
+            "supplier_list.html": ("Supplier", None),
+            "supplier.html": ("Supplier", reverse("supplier-list"), " Supplier-detail"),
+            
+            "purchase_list.html": ("Purchase", None),
+            "purchase.html": ("Purchase", reverse("purchase-list"), " Purchase-detail"),
+            
+            "product_list.html": ("Product", None),
+            "product.html": ("Product", reverse("product-list"), " Product-detail"),
+            
+            "category_list.html": ("Category", None),
+            "category.html": ("Category", reverse("category-list"), " Category-detail"),
+            
+            "inventory_list.html": ("Inventory", None),
+            
+            "pos.html": ("POS", None),
+            
+            "cart.html": ("POS", reverse("pos"), "Cart-detail"),
+            
+            "customer_orders.html": ("Customer", reverse("customer-list"), "Customer-orders"),
+            "customer_order_detail.html": ("Customer", reverse("customer-list"), "Customer-orders", "DYNAMIC", "Order Detail"),
+            
             # "properties_list.html": ("Properties", None),
             # "property_detail.html": ("Properties", reverse("properties"), "Property Detail"),
             # "property_add.html": ("Properties", reverse("properties"), "Add Property"),
@@ -89,12 +109,12 @@ class DashboardsView(TemplateView):
         route = route_map.get(template)
         if route:
             def resolve_url(item):
-                if item == "DYNAMIC" and slug:
-                    return reverse("leads-detail", kwargs={"slug": slug})
-                elif item == "FOLLOWUP_URL_ADD" and slug and pk:
-                    return reverse("leadFollowUp", kwargs={"slug": slug, "pk": pk})
-                elif item == "FOLLOWUP_URL_EDIT" and slug and pk:
-                    return reverse("leadFollowUp", kwargs={"slug": slug, "pk": id})
+                if item == "DYNAMIC" and pk:
+                    return reverse("customer-orders", kwargs={"pk": pk})
+                # elif item == "FOLLOWUP_URL_ADD" and slug and pk:
+                #     return reverse("leadFollowUp", kwargs={"slug": slug, "pk": pk})
+                # elif item == "FOLLOWUP_URL_EDIT" and slug and pk:
+                #     return reverse("leadFollowUp", kwargs={"slug": slug, "pk": id})
                 return item if isinstance(item, str) else None
 
             i = 0

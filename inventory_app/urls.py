@@ -1,6 +1,6 @@
-from django.urls import path,include
 
 from .views import DashboardsView, ChangePasswordAPIView
+from django.urls import path,include
 from inventory_app.admin_views.DashboadView import DashboardStatsAPIView, DashboardDataAPIView
 from inventory_app.admin_views.CategoryViews import CategoryView
 from inventory_app.admin_views.ProductViews import ProductView,ProductVariantView
@@ -9,6 +9,8 @@ from inventory_app.admin_views.SuppliersViews import SupplierView
 from inventory_app.admin_views.CustomerViews import CustomerView
 from inventory_app.admin_views.inventoryView import InventoryViewSet
 from inventory_app.admin_views.POSViews import CartViewSet, place_order,bill_page
+from inventory_app.admin_views.CustomerOrderView import customer_orders,order_detail_api
+from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf
 
 from rest_framework.routers import DefaultRouter
 
@@ -57,12 +59,22 @@ urlpatterns = [
 
     path('pos/', DashboardsView.as_view(template_name="pos.html"), name='pos'),
     path('cart_view/', DashboardsView.as_view(template_name="cart.html"), name='cart-view'),
+    
+    path('customer-orders/<int:pk>/', DashboardsView.as_view(template_name="customer_orders.html"), name='customer-orders'),
+    path('customer-orders/<int:pk>/customer-order-detail/<int:id>/', DashboardsView.as_view(template_name="customer_order_detail.html"), name= 'customer-order-detail'),
+    path("admin_api/customer-orders/<int:pk>/export_excel/", export_customer_orders_excel, name="export_customer-order_excel"),
+    path("admin_api/customer-orders/<int:pk>/export_pdf/", export_customer_orders_pdf, name="customer_orders_pdf"),
+    
     path('place_order/', place_order, name='place_order'),
-    # path('bill/<int:order_id>/', DashboardsView.as_view(template_name="bill_page.html"), name='bill_page'),
     path('bill/<int:order_id>/', bill_page, name='bill_page'),
     
     path('admin_api/', include(router.urls)),
 
     path('admin_api/purchase-products/', purchase_products, name='purchase-products'),
+    path('admin_api/orders/<int:pk>/', customer_orders, name='orders'),
+    path("admin_api/order/<int:id>/", order_detail_api, name="order-detail-api"),
+    
+    path("admin_api/hardware-dashboard-stats/", DashboardStatsAPIView.as_view(), name="hardware-dashboard-stats"),
+    path("admin_api/hardware-dashboard-data/", DashboardDataAPIView.as_view(), name="hardware-dashboard-data"),
 
 ]

@@ -14,7 +14,12 @@
     </select>
 
     <h5 class="mt-3">Total: ₹<span id="cart-total">0</span></h5>
-    <button class="btn btn-primary mt-2" onclick="placeOrder()">Place Order</button>
+
+    <!-- Buttons -->
+    <div class="mt-2 d-flex justify-content-end gap-2">
+      <a href="{% url 'pos' %}" class="btn btn-secondary">⬅ Back to POS</a>
+      <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
+    </div>
   </div>
 </div>
 
@@ -152,7 +157,7 @@
     fetch(`/admin_api/cart/${cartId}/`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-      body: JSON.stringify({ discount: discount })
+      body: JSON.stringify({ item_discount: discount }) 
     }).then(updateCartUI);
   }
 
