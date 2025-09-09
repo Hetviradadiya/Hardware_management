@@ -7,6 +7,9 @@
   {% comment %} <button type="button" class="btn btn-outline-success" id="exportSupplierExcelBtn" disabled>
     <i class="bx bx-file"></i> Export
   </button> {% endcomment %}
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search suppliers...">
+  </div>
   <a href="/supplier/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Supplier
   </a>
@@ -87,20 +90,21 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function loadSuppliers(search = "") {
   const tbody = document.getElementById("suppliers-table-body");
   const loader = document.getElementById("suppliers-loader-row");
 
-  fetch("/admin_api/suppliers/")
+  tbody.innerHTML = "";
+
+  fetch(`/admin_api/suppliers/?search=${encodeURIComponent(search)}`)
     .then(res => res.json())
     .then(data => {
-      loader.style.display = "none";
       tbody.innerHTML = "";
 
       data.forEach(s => {
         const row = `
           <tr>
-            <td><a href="/supplier/detail/${ s.id }/">${s.name || ""}</td>
+            <td><a href="/supplier/detail/${s.id}/">${s.name || ""}</a></td>
             <td>${s.phone || ""}</td>
             <td>${s.email || ""}</td>
             <td>${s.address || ""}</td>
@@ -110,6 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
                   <i class="bx bx-dots-vertical-rounded"></i>
                 </button>
                 <div class="dropdown-menu">
+                  <a class="dropdown-item text-primary" href="/supplier-purchases/${s.id}/">
+                    <i class="bx bx-receipt me-1"></i> Purchase
+                  </a>
                   <a class="dropdown-item text-info" href="/supplier/edit/${s.id}/">
                     <i class="bx bx-edit-alt me-1"></i> Edit
                   </a>
@@ -134,10 +141,34 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.insertAdjacentHTML("beforeend", totalRow);
     })
     .catch(err => {
-      loader.style.display = "none";
       console.error("Error loading suppliers:", err);
     });
+}
+
+// Initial load & search handling
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox"); // add this input in HTML
+
+  function triggerSearch() {
+    loadSuppliers(searchBox.value.trim());
+  }
+
+  // Debounce for typing
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerSearch, 400);
+  });
+
+  // Press Enter to search immediately
+  searchBox.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") triggerSearch();
+  });
+
+  // Initial load
+  loadSuppliers();
 });
+
 
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deleteSupplierId) return;

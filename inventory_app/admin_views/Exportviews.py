@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from openpyxl import Workbook
 from inventory_app.models import Order
-from inventory_app.serializers import Orderserializer  # import your serializer
+from inventory_app.serializers import OrderSerializer  # import your serializer
 
 
 def export_customer_orders_excel(request, pk):
@@ -9,7 +9,7 @@ def export_customer_orders_excel(request, pk):
     orders = Order.objects.filter(customer_id=pk)
 
     # Serialize orders
-    serializer = Orderserializer(orders, many=True)
+    serializer = OrderSerializer(orders, many=True)
     orders_data = serializer.data
 
     # Create workbook
@@ -72,14 +72,19 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from inventory_app.models import Order, Customer
-from inventory_app.serializers import Orderserializer
-
+from inventory_app.serializers import OrderSerializer
+from django.utils.dateparse import parse_date
 
 def export_customer_orders_pdf(request, pk):
-    # Fetch orders for this customer
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
     orders = Order.objects.filter(customer_id=pk)
+    if start_date and end_date:
+        orders = orders.filter(order_date__date__range=[start_date, end_date])
+
     customer = Customer.objects.get(id=pk)
-    serializer = Orderserializer(orders, many=True)
+    serializer = OrderSerializer(orders, many=True)
     orders_data = serializer.data
 
     # Setup response

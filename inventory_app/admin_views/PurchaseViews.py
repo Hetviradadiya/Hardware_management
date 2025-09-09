@@ -1,10 +1,15 @@
-from rest_framework import viewsets
+from rest_framework import viewsets,filters
 from ..models import Purchase
 from ..serializers import PurchaseSerializer
 
 class PurchaseViewSet(viewsets.ModelViewSet):
     queryset = Purchase.objects.all().order_by('-date')
     serializer_class = PurchaseSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
+        'variant__product__name',      
+        'supplier__name'      
+    ]
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response

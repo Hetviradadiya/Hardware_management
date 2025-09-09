@@ -3,27 +3,52 @@
 {% block title %}Customer Orders{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="fw-bold">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+  <h4 class="fw-bold mb-2 mb-md-0">
     Orders
   </h4>
-    <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-        <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
-            <i class="bx bx-file"></i> Export
-        </button> 
-        <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
-            <i class="bx bxs-file-pdf"></i> Export PDF
-        </button>
-        <a href="/customer-list/" class="btn btn-primary">
-            <i class="bx bx-arrow-back"></i> Back to Customers
-        </a>
-    </div>
+  <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+    <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
+      <i class="bx bx-file"></i> Export
+    </button> 
+    <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
+      <i class="bx bxs-file-pdf"></i> Export PDF
+    </button>
+    <a href="/customer-list/" class="btn btn-primary">
+      <i class="bx bx-arrow-back"></i> Back to Customers
+    </a>
+  </div>
 </div>
 
-<div class="card">
+<!-- 🔹 Date Filter Card -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <form id="filterForm" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="startDate" class="form-label">Start Date</label>
+        <input type="date" id="startDate" class="form-control">
+      </div>
+      <div class="col-md-4">
+        <label for="endDate" class="form-label">End Date</label>
+        <input type="date" id="endDate" class="form-control">
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1" id="applyFilterBtn">
+          <i class="bx bx-filter-alt"></i> Apply Filter
+        </button>
+        <button type="button" class="btn btn-secondary flex-grow-1" id="resetFilterBtn">
+          <i class="bx bx-reset"></i> Reset Filter
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Orders Table -->
+<div class="card shadow-sm">
   <div class="table-responsive text-nowrap">
-    <table class="table table-hover" id="ordersTable">
-      <thead class="">
+    <table class="table table-hover align-middle mb-0" id="ordersTable">
+      <thead class="table-light">
         <tr>
           <th>Order</th>
           <th>Order Date</th>
@@ -43,27 +68,36 @@
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const customerId = "{{pk}}";   // Django will inject customer ID
-    const ordersUrl = `/admin_api/orders/${customerId}/`;   // JSON orders API
-    const exportUrl = `/admin_api/customer-orders/${customerId}/export_excel/`; // Excel export API
-    const exportPdfUrl = `/admin_api/customer-orders/${customerId}/export_pdf/`;
-    // Fetch & render orders
-    fetch(ordersUrl)
+document.addEventListener("DOMContentLoaded", function () {
+  const customerId = "{{pk}}";
+  const ordersUrl = `/admin_api/orders/${customerId}/`;
+
+  const tbody = document.getElementById("ordersBody");
+  const filterForm = document.getElementById("filterForm");
+
+  function fetchOrders(startDate = "", endDate = "") {
+    let url = ordersUrl;
+    if (startDate && endDate) {
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    fetch(url)
       .then(response => response.json())
       .then(data => {
-        const tbody = document.getElementById("ordersBody");
         tbody.innerHTML = "";
-
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(order => {
+            let finalAmount = order.is_percentage
+              ? (order.total_amount - (order.total_amount * order.order_discount / 100)).toFixed(2)
+              : (order.total_amount - order.order_discount).toFixed(2);
+
             let row = `
               <tr>
                 <td>${order.id}</td>
                 <td>${new Date(order.order_date).toLocaleString()}</td>
                 <td>₹ ${order.total_amount}</td>
                 <td>${order.is_percentage ? order.order_discount + "%" : "₹ " + order.order_discount}</td>
-                <td>₹ ${order.final_amount}</td>
+                <td>₹ ${finalAmount}</td>
                 <td>
                   <a href="customer-order-detail/${order.id}/" class="btn btn-sm btn-primary">
                     <i class="bx bx-show"></i> View
@@ -80,21 +114,51 @@
             </tr>`;
         }
       })
-      .catch(error => {
-        console.error("Error fetching orders:", error);
-      });
+      .catch(error => console.error("Error fetching orders:", error));
+  }
 
-    // Handle Export to Excel
-    document.getElementById("exportExcelBtn").addEventListener("click", function () {
-      window.location.href = exportUrl; // Directly download Excel
-    });
+  // Initial fetch
+  fetchOrders();
 
-    document.getElementById("exportPdfBtn").addEventListener("click", function () {
-        window.location.href = exportPdfUrl;
-    });
-    
+  // Apply filter
+  filterForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    fetchOrders(startDate, endDate);
   });
+
+  // Reset filter
+  document.getElementById("resetFilterBtn").addEventListener("click", function () {
+    document.getElementById("startDate").value = "";
+    document.getElementById("endDate").value = "";
+    fetchOrders(); // fetch all orders
+  });
+
+  // Auto-open date picker
+  [document.getElementById("startDate"), document.getElementById("endDate")].forEach(input => {
+    input.addEventListener("focus", () => {
+      if (input.showPicker) input.showPicker();
+    });
+  });
+
+  // Export PDF
+  document.getElementById("exportPdfBtn").addEventListener("click", function () {
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    let url = `/admin_api/customer-orders/${customerId}/export_pdf/`;
+    if (startDate && endDate) url += `?start_date=${startDate}&end_date=${endDate}`;
+    window.location.href = url;
+  });
+
+  // Export Excel (example, you can adjust URL)
+  document.getElementById("exportExcelBtn").addEventListener("click", function () {
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    let url = `/admin_api/customer-orders/${customerId}/export_excel/`;
+    if (startDate && endDate) url += `?start_date=${startDate}&end_date=${endDate}`;
+    window.location.href = url;
+  });
+});
 </script>
-
-
 {% endblock %}

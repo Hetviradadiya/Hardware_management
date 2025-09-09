@@ -1,6 +1,7 @@
 import json
 from rest_framework import serializers
 from .models import *
+from decimal import Decimal
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -157,9 +158,20 @@ class CartSerializer(serializers.ModelSerializer):
     variant_size = serializers.CharField(source="variant.size", read_only=True)
     variant_price = serializers.DecimalField(source="variant.price", max_digits=10, decimal_places=2, read_only=True)
     variant_photo = serializers.SerializerMethodField()
+    discount_price = serializers.SerializerMethodField()
+    gst_amount = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+    is_percentage = serializers.BooleanField(default=True)
+    item_discount = serializers.DecimalField(max_digits=10, decimal_places=2, default=0)
+    gst = serializers.DecimalField(max_digits=5, decimal_places=2, default=0)
+
     class Meta:
         model = Cart
-        fields = ["id", "variant", "variant_name","variant_photo", "variant_size", "variant_price", "quantity", "date_added"]
+        fields = [
+            "id", "variant", "variant_name", "variant_photo", "variant_size", "variant_price",
+            "quantity", "date_added", "item_discount", "is_percentage", "gst",
+            "discount_price", "gst_amount", "total_price"
+        ]
 
     def get_variant_photo(self, obj):
         request = self.context.get("request")
@@ -167,45 +179,98 @@ class CartSerializer(serializers.ModelSerializer):
         if photo:
             return request.build_absolute_uri(photo.url)
         return None
+
+    def get_discount_price(self, obj):
+        price = obj.variant.price * obj.quantity
+        if obj.is_percentage:
+            return round(price * obj.item_discount / 100, 2)
+        return round(obj.item_discount, 2)
+
+    def get_gst_amount(self, obj):
+        price_after_discount = obj.variant.price * obj.quantity - self.get_discount_price(obj)
+        return round(price_after_discount * obj.gst / 100, 2)
+
+    def get_total_price(self, obj):
+        price = obj.variant.price * obj.quantity
+        discount = self.get_discount_price(obj)
+        gst_amount = self.get_gst_amount(obj)
+        return round(price - discount + gst_amount, 2)
     
-class Orderserializer(serializers.ModelSerializer):
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.SerializerMethodField()
+    product_size = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+    discount_price = serializers.SerializerMethodField()
+    gst_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "id",
+            "variant",
+            "product_name",
+            "product_size",
+            "quantity",
+            "price_at_sale",
+            "item_discount",
+            "is_percentage",
+            "gst",
+            "discount_price",
+            "gst_amount",
+            "total_price",
+        ]
+
+    def get_product_name(self, obj):
+        return obj.variant.product.name if obj.variant else None
+
+    def get_product_size(self, obj):
+        return obj.variant.size if obj.variant else None
+
+    def get_total_price(self, obj):
+        return obj.total_price()
+
+    def get_discount_price(self, obj):
+        return obj.discount_price()
+
+    def get_gst_amount(self, obj):
+        return obj.gst_amount()
+
+
+class OrderSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
-    order_items = serializers.SerializerMethodField()
-    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    order_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    is_percentage = serializers.BooleanField(read_only=True)
+    order_items = OrderItemSerializer(source="items", many=True, read_only=True)
+    subtotal = serializers.SerializerMethodField()
+    discount_value = serializers.SerializerMethodField()
     final_amount = serializers.SerializerMethodField()
     order_date = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
 
     class Meta:
         model = Order
-        fields = ["id", "customer", "customer_name", "order_items", "total_amount", "order_discount", "is_percentage", "final_amount", "order_date"]
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "order_date",
+            "total_amount",
+            "order_discount",
+            "is_percentage",
+            "pay_type",
+            "is_paid",
+            "pod_number",
+            "paid_amount",
+            "note",
+            "order_items",
+            "subtotal",
+            "discount_value",
+            "final_amount",
+        ]
 
-    def get_order_items(self, obj):
-        items = obj.items.all()  # via related_name="items"
-        return OrderItemSerializer(items, many=True).data
+    def get_subtotal(self, obj):
+        return obj.subtotal()
+
+    def get_discount_value(self, obj):
+        return obj.discount_value()
 
     def get_final_amount(self, obj):
-        if obj.is_percentage:
-            discount_amount = (obj.order_discount / 100) * obj.total_amount
-        else:
-            discount_amount = obj.order_discount
-        return max(obj.total_amount - discount_amount, 0)
-    
-class OrderItemSerializer(serializers.ModelSerializer):
-    product_name = serializers.SerializerMethodField()
-    total_price = serializers.SerializerMethodField()
-    product_size = serializers.SerializerMethodField()
-
-    class Meta:
-        model = OrderItem
-        fields = ["id", "product_name","product_size", "quantity", "price_at_sale", "total_price"]
-
-    def get_total_price(self, obj):
-        return obj.quantity * obj.price_at_sale
-    
-    def get_product_name(self,obj):
-        return obj.variant.product.name if obj.variant else "None"
-    
-    def get_product_size(self,obj):
-        return obj.variant.size if obj.variant else "None"
+        return obj.get_total_amount()

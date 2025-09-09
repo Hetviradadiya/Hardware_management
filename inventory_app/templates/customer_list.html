@@ -7,6 +7,9 @@
   {% comment %} <button type="button" class="btn btn-outline-success" id="exportCustomerExcelBtn" disabled>
     <i class="bx bx-file"></i> Export
   </button> {% endcomment %}
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search customers...">
+  </div>
   <a href="/customer/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Customer
   </a>
@@ -98,20 +101,21 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function loadCustomers(search = "") {
   const tbody = document.getElementById("customers-table-body");
   const loader = document.getElementById("customers-loader-row");
 
-  fetch("/admin_api/customers/")
+  tbody.innerHTML = "";
+
+  fetch(`/admin_api/customers/?search=${encodeURIComponent(search)}`)
     .then(res => res.json())
     .then(data => {
-      loader.style.display = "none";
       tbody.innerHTML = "";
 
       data.forEach(c => {
         const row = `
           <tr>
-            <td><a href="/customer/detail/${ c.id }/">${c.name || ""}</a></td>
+            <td><a href="/customer/detail/${c.id}/">${c.name || ""}</a></td>
             <td>${c.phone || ""}</td>
             <td>${c.email || ""}</td>
             <td>${c.address || ""}</td>
@@ -148,10 +152,34 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.insertAdjacentHTML("beforeend", totalRow);
     })
     .catch(err => {
-      loader.style.display = "none";
       console.error("Error loading customers:", err);
     });
+}
+
+// Initial load
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox");
+
+  function triggerSearch() {
+    loadCustomers(searchBox.value.trim());
+  }
+
+  // Debounce for typing
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerSearch, 400);
+  });
+
+  // Press Enter to search immediately
+  searchBox.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") triggerSearch();
+  });
+
+  // Initial load
+  loadCustomers();
 });
+
 
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deleteCustomerId) return;

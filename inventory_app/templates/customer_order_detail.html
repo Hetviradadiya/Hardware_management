@@ -30,8 +30,10 @@
             <th>#</th>
             <th>Product</th>
             <th>Size</th>
-            <th>Quantity</th>
             <th>Price</th>
+            <th>Quantity</th>
+            <th>Discount</th>
+            <th>GST</th>
             <th>Total</th>
           </tr>
         </thead>
@@ -75,9 +77,11 @@
                 <tr>
                   <td>${idx + 1}</td>
                   <td>${item.product_name}</td>
-                  <td>${item.product_size}</td>
-                  <td>${item.quantity}</td>
+                  <td>${item.product_size ?? "-"}</td>
                   <td>₹ ${item.price_at_sale}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.is_percentage ? item.item_discount + "%" : "₹ " + item.item_discount}</td>
+                  <td>₹ ${item.gst_amount}</td>
                   <td>₹ ${item.total_price}</td>
                 </tr>
               `);

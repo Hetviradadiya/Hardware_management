@@ -1,193 +1,312 @@
 {% extends layout_path %}
 {% block title %}Cart{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-  <h4 class="mb-4">🛒 Your Cart</h4>
-  <div id="cart-items"></div>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>🛒 Your Cart</h4>
 
-  <div class="mt-4 text-end">
-    <label><strong>Order Discount:</strong></label>
-    <input type="number" id="order-discount" class="discount-input" value="0" min="0" step="0.01" onchange="updateOrderDiscount()">
-    <select id="order-discount-type" onchange="updateOrderDiscount()">
-      <option value="flat">₹ Flat</option>
-      <option value="percent">%</option>
-    </select>
-
-    <h5 class="mt-3">Total: ₹<span id="cart-total">0</span></h5>
-
-    <!-- Buttons -->
-    <div class="mt-2 d-flex justify-content-end gap-2">
-      <a href="{% url 'pos' %}" class="btn btn-secondary">⬅ Back to POS</a>
-      <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
+    <!-- Customer Selector with Search -->
+    <div class="mb-3 position-relative" style="width: 300px;">
+      <label for="customer_input" class="form-label fw-bold me-2">Select Customer:</label>
+      <input type="text" id="customer_input" class="form-control" placeholder="Type customer name / phone / email" autocomplete="off">
+      <input type="hidden" id="customer_id" name="customer_id">
+      <ul id="customer_suggestions" class="list-group position-absolute w-100" style="z-index: 1; background-color: #b9b9b9"></ul>
     </div>
+  </div>
+
+  <table class="table table-bordered align-middle" id="cart-table">
+    <thead class="table-light">
+      <tr>
+        <th>Product</th>
+        <th>Size</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Quantity Price</th>
+        <th>Discount (%)</th>
+        <th>Discount Price</th>
+        <th>GST (%)</th>
+        <th>GST Amount</th>
+        <th>Total</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="cart-items">
+      <!-- Items will be injected here -->
+    </tbody>
+    <tfoot>
+      <tr id="total-item-discount-row">
+        <td colspan="8" class="text-end"><strong>Total Item Discount:</strong></td>
+        <td colspan="2">₹ <span id="total-item-discount">0</span></td>
+      </tr>
+      <tr>
+        <td colspan="8" class="text-end"><strong>Order Discount:</strong></td>
+        <td colspan="2">
+          <div class="d-flex gap-2">
+            <input type="number" id="order-discount-flat" class="form-control" placeholder="₹ Flat" min="0" step="0.01">
+            <input type="number" id="order-discount-percent" class="form-control" placeholder="% Percent" min="0" step="0.01">
+          </div>
+        </td>
+      </tr>
+      <tr id="total-discount-row">
+        <td colspan="8" class="text-end"><strong>Total Discount (Items + Order):</strong></td>
+        <td colspan="2">
+          ₹ <span id="grand-total-discount">0</span> 
+          (<span id="grand-total-discount-percent">0</span>%)
+        </td>
+      </tr>
+      <tr id="total-gst-row">
+        <td colspan="8" class="text-end"><strong>Total GST:</strong></td>
+        <td colspan="2">₹ <span id="total-gst">0</span></td>
+      </tr>
+      <tr>
+        <td colspan="8" class="text-end"><strong>Grand Total:</strong></td>
+        <td colspan="2">₹ <span id="cart-total">0</span></td>
+      </tr>
+    </tfoot>
+
+  </table>
+
+  <div class="mt-3 text-end">
+    <a href="{% url 'pos' %}" class="btn btn-secondary">⬅ Back to POS</a>
+    <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
   </div>
 </div>
 
 <style>
-  .cart-item {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
-    flex-wrap: wrap;
-  }
-  .cart-item img {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 5px;
-    margin-right: 15px;
-  }
-  .cart-details {
-    flex: 1;
-    min-width: 200px;
-  }
-  .qty-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .qty-btn {
-    border: none;
-    background: #08397B;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .remove-btn {
-    border: none;
-    background: transparent;
-    color: red;
-    cursor: pointer;
-  }
-  .discount-input {
-    width: 70px;
-    padding: 3px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    text-align: right;
-  }
+  #cart-table input[type="number"] { width: 70px; }
+  #cart-table select { width: 80px; }
+  .product-img { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
 </style>
 
 <script>
-  let orderDiscount = 0;
-  let orderDiscountType = "flat"; // or percent
-  let lastCartData = [];
+let orderDiscountFlat = 0;
+let orderDiscountPercent = 0;
 
-  function updateCartUI() {
-    fetch("/admin_api/cart/")
-      .then(res => res.json())
-      .then(data => {
-        const container = document.getElementById("cart-items");
-        const totalEl = document.getElementById("cart-total");
+function updateCartUI() {
+  fetch("/admin_api/cart/")
+    .then(res => res.json())
+    .then(data => {
+      const tbody = document.getElementById("cart-items");
+      const totalEl = document.getElementById("cart-total");
+      const totalGSTEl = document.getElementById("total-gst");
+      const totalItemDiscountEl = document.getElementById("total-item-discount");
+      const grandTotalDiscountEl = document.getElementById("grand-total-discount");
+      const grandTotalDiscountPercentEl = document.getElementById("grand-total-discount-percent");
 
-        if (!data || data.length === 0) {
-          container.innerHTML = "<p>Your cart is empty.</p>";
-          totalEl.textContent = "0";
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center">Your cart is empty.</td></tr>';
+        totalEl.textContent = "0";
+        totalGSTEl.textContent = "0";
+        totalItemDiscountEl.textContent = "0";
+        grandTotalDiscountEl.textContent = "0";
+        grandTotalDiscountPercentEl.textContent = "0";
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      let subtotal = 0;
+      let totalDiscount = 0;
+      let totalGST = 0;
+
+      data.forEach(item => {
+        const price = parseFloat(item.variant_price);
+        const qty = parseInt(item.quantity);
+        const isPerc = item.is_percentage;
+        const itemDiscount = parseFloat(item.item_discount || 0);
+        const gst = parseFloat(item.gst || 0);
+
+        let qtyPrice = price * qty;
+        let discountPrice = isPerc ? (qtyPrice * itemDiscount / 100) : itemDiscount;
+        let gstAmount = (qtyPrice - discountPrice) * gst / 100;
+        let totalPrice = (qtyPrice - discountPrice) + gstAmount;
+
+        subtotal += qtyPrice;
+        totalDiscount += discountPrice;
+        totalGST += gstAmount;
+
+        const imageUrl = item.variant_photo || "/static/no-image.png";
+
+        tbody.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td><img src="${imageUrl}" class="product-img"> ${item.variant_name}</td>
+            <td>${item.variant_size}</td>
+            <td>₹${price.toFixed(2)}</td>
+            <td><input type="number" value="${qty}" min="1" step="1" onchange="updateQty(${item.id}, this.value)"></td>
+            <td>₹${qtyPrice.toFixed(2)}</td>
+            <td>${isPerc ? itemDiscount + "%" : "-"}</td>
+            <td>₹${discountPrice.toFixed(2)}</td>
+            <td>${gst}%</td>
+            <td>₹${gstAmount.toFixed(2)}</td>
+            <td>₹${totalPrice.toFixed(2)}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✖</button></td>
+          </tr>
+        `);
+      });
+
+      // Order discount
+      let orderDiscountValueFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
+      let orderDiscountValuePercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
+
+      // If flat entered, calculate percent; if percent entered, calculate flat
+      if (orderDiscountValueFlat > 0) {
+        orderDiscountValuePercent = (orderDiscountValueFlat / subtotal) * 100;
+        document.getElementById("order-discount-percent").value = orderDiscountValuePercent.toFixed(2);
+      } else if (orderDiscountValuePercent > 0) {
+        orderDiscountValueFlat = (subtotal * orderDiscountValuePercent / 100);
+        document.getElementById("order-discount-flat").value = orderDiscountValueFlat.toFixed(2);
+      }
+
+      let grandDiscount = totalDiscount + orderDiscountValueFlat;
+      let grandDiscountPercent = (grandDiscount / subtotal) * 100;
+
+      // Update UI
+      totalItemDiscountEl.textContent = totalDiscount.toFixed(2);
+      grandTotalDiscountEl.textContent = grandDiscount.toFixed(2);
+      grandTotalDiscountPercentEl.textContent = grandDiscountPercent.toFixed(2);
+
+      totalGSTEl.textContent = totalGST.toFixed(2);
+      totalEl.textContent = (subtotal - grandDiscount + totalGST).toFixed(2);
+    });
+}
+
+// Event listeners for new inputs
+document.addEventListener("DOMContentLoaded", () => {
+  updateCartUI();
+  document.getElementById("order-discount-flat")?.addEventListener("input", () => {
+    document.getElementById("order-discount-percent").value = "";
+    updateCartUI();
+  });
+  document.getElementById("order-discount-percent")?.addEventListener("input", () => {
+    document.getElementById("order-discount-flat").value = "";
+    updateCartUI();
+  });
+});
+
+
+// Update qty/discount/GST/remove
+function updateQty(cartId, qty) {
+  fetch(`/admin_api/cart/${cartId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ quantity: parseInt(qty) })
+  }).then(updateCartUI);
+}
+function updateItemDiscount(cartId, val, isPercentage) {
+  val = parseFloat(val);
+  fetch(`/admin_api/cart/${cartId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ item_discount: val, is_percentage: isPercentage })
+  }).then(updateCartUI);
+}
+function updateDiscountPrice(cartId, discountPrice, price, qty) {
+  discountPrice = parseFloat(discountPrice);
+  let percent = (discountPrice / (price * qty)) * 100;
+  fetch(`/admin_api/cart/${cartId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ item_discount: percent, is_percentage: true })
+  }).then(updateCartUI);
+}
+function updateGST(cartId, gst) {
+  let gstValue = gst === "" ? null : parseFloat(gst);
+  fetch(`/admin_api/cart/${cartId}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ gst: gstValue })
+  }).then(updateCartUI);
+}
+function removeItem(cartId) {
+  fetch(`/admin_api/cart/${cartId}/`, {
+    method: "DELETE",
+    headers: { "X-CSRFToken": getCSRFToken() }
+  }).then(updateCartUI);
+}
+
+// CSRF helper
+function getCSRFToken() {
+  let cookieValue = null;
+  document.cookie.split(';').forEach(cookie => {
+    cookie = cookie.trim();
+    if (cookie.startsWith('csrftoken=')) cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
+  });
+  return cookieValue;
+}
+
+// ======================= CUSTOMER SEARCH =======================
+  const customerInput = document.getElementById("customer_input");
+  const customerSuggestionBox = document.getElementById("customer_suggestions");
+  const customerHiddenId = document.getElementById("customer_id");
+
+  // Fetch and render customers
+  function fetchCustomers(query = "") {
+    let url = "/admin_api/customers/";
+    if (query) {
+      url += `?search=${encodeURIComponent(query)}`;
+    }
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        const customers = data.results ? data.results : data; // DRF paginated or plain list
+        customerSuggestionBox.innerHTML = "";
+
+        if (customers.length === 0) {
+          customerSuggestionBox.innerHTML = `<li class="list-group-item">No results</li>`;
           return;
         }
 
-        lastCartData = data;
-        container.innerHTML = "";
-        let subtotal = 0;
+        customers.forEach((cust) => {
+          const li = document.createElement("li");
+          li.textContent = `${cust.name} (${cust.phone || cust.email || ""})`;
+          li.classList.add("list-group-item");
+          li.style.cursor = "pointer";
 
-        data.forEach(item => {
-          const price = parseFloat(item.variant_price);
-          const discount = parseFloat(item.discount || 0);
-          const subtotalItem = (price * item.quantity) - discount;
-          subtotal += subtotalItem;
+          li.addEventListener("click", function () {
+            customerInput.value = cust.name;      // show customer name
+            customerHiddenId.value = cust.id;     // save customer id
+            customerSuggestionBox.innerHTML = ""; // close dropdown
+          });
 
-          const imageUrl = item.variant_photo ? item.variant_photo : "/static/no-image.png";
-
-          container.insertAdjacentHTML("beforeend", `
-            <div class="cart-item">
-              <img src="${imageUrl}">
-              <div class="cart-details">
-                <strong>${item.variant_name} (${item.variant_size})</strong><br>
-                <small>₹${price.toFixed(2)} each</small><br>
-                <small class="text-success">Item Discount: ₹${discount.toFixed(2)}</small>
-              </div>
-              <div class="qty-controls">
-                <button class="qty-btn" onclick="updateQty(${item.id}, ${item.quantity - 1})">-</button>
-                <span>${item.quantity}</span>
-                <button class="qty-btn" onclick="updateQty(${item.id}, ${item.quantity + 1})">+</button>
-              </div>
-              <div class="ms-3">
-                <input type="number" class="discount-input" value="${discount}" 
-                  onchange="updateDiscount(${item.id}, this.value)" min="0" step="0.01">
-                <div>Subtotal: ₹${subtotalItem.toFixed(2)}</div>
-              </div>
-              <button class="remove-btn ms-3" onclick="removeItem(${item.id})">✖</button>
-            </div>
-          `);
+          customerSuggestionBox.appendChild(li);
         });
-
-        // Apply order-level discount
-        let discountVal = 0;
-        if (orderDiscountType === "percent") {
-          discountVal = subtotal * (orderDiscount / 100);
-        } else {
-          discountVal = orderDiscount;
-        }
-        let finalTotal = subtotal - discountVal;
-
-        totalEl.textContent = finalTotal.toFixed(2);
+      })
+      .catch((err) => {
+        console.error("Error fetching customers:", err);
+        customerSuggestionBox.innerHTML = "";
       });
   }
 
-  function updateOrderDiscount() {
-    orderDiscount = parseFloat(document.getElementById("order-discount").value || 0);
-    orderDiscountType = document.getElementById("order-discount-type").value;
-    updateCartUI();
-  }
+  // Show all customers when clicking the input
+  customerInput.addEventListener("focus", function () {
+    fetchCustomers();
+  });
 
-  function updateQty(cartId, qty) {
-    if (qty <= 0) {
-      return removeItem(cartId);
+  // Filter customers while typing
+  customerInput.addEventListener("input", function () {
+    const query = this.value.trim();
+    fetchCustomers(query);
+  });
+
+  // Close suggestion box when clicking outside
+  document.addEventListener("click", function (e) {
+    if (!customerInput.contains(e.target) && !customerSuggestionBox.contains(e.target)) {
+      customerSuggestionBox.innerHTML = "";
     }
-    fetch(`/admin_api/cart/${cartId}/`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-      body: JSON.stringify({ quantity: qty })
-    }).then(updateCartUI);
-  }
+  });
 
-  function updateDiscount(cartId, discount) {
-    fetch(`/admin_api/cart/${cartId}/`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-      body: JSON.stringify({ item_discount: discount }) 
-    }).then(updateCartUI);
-  }
-
-  function removeItem(cartId) {
-    fetch(`/admin_api/cart/${cartId}/`, {
-      method: "DELETE",
-      headers: { "X-CSRFToken": getCSRFToken() }
-    }).then(updateCartUI);
-  }
-
-  document.addEventListener("DOMContentLoaded", updateCartUI);
-
-  function getCSRFToken() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith('csrftoken=')) {
-          cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
-
+  // ======================= ORDER PLACEMENT =======================
   function placeOrder() {
+    const customerId = document.getElementById("customer_id").value;
+    if (!customerId) {
+      alert("Please select a customer before placing order.");
+      return;
+    }
+
     const formData = new URLSearchParams();
-    formData.append("customer_id", 1);  // replace with logged in customer id
+    formData.append("customer_id", customerId);
     formData.append("order_discount", orderDiscount);
     formData.append("is_percentage", orderDiscountType === "percent");
 
@@ -198,11 +317,20 @@
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body: formData.toString()
-    }).then(res => {
-      if (res.redirected) {
-        window.location.href = res.url;
-      }
-    });
+    }).then(res => { if (res.redirected) window.location.href = res.url; });
   }
+
+  // ======================= INIT =======================
+  document.addEventListener("DOMContentLoaded", () => {
+    updateCartUI();
+    document.getElementById("order-discount")?.addEventListener("change", () => {
+      orderDiscount = parseFloat(document.getElementById("order-discount").value || 0);
+      updateCartUI();
+    });
+    document.getElementById("order-discount-type")?.addEventListener("change", () => {
+      orderDiscountType = document.getElementById("order-discount-type").value;
+      updateCartUI();
+    });
+  });
 </script>
 {% endblock %}

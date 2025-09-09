@@ -1,0 +1,149 @@
+{% extends layout_path %}
+{% block title %}Supplier Purchases{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+  <h4 class="fw-bold mb-2 mb-md-0">
+    Purchases for Supplier
+  </h4>
+  <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+    <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
+      <i class="bx bx-file"></i> Export
+    </button>
+    <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
+      <i class="bx bxs-file-pdf"></i> Export PDF
+    </button>
+    <a href="/supplier-list/" class="btn btn-primary">
+      <i class="bx bx-arrow-back"></i> Back to Suppliers
+    </a>
+  </div>
+</div>
+
+<!-- 🔹 Date Filter -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <form id="filterForm" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label for="startDate" class="form-label">Start Date</label>
+        <input type="date" id="startDate" class="form-control">
+      </div>
+      <div class="col-md-4">
+        <label for="endDate" class="form-label">End Date</label>
+        <input type="date" id="endDate" class="form-control">
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1">
+          <i class="bx bx-filter-alt"></i> Apply Filter
+        </button>
+        <button type="button" class="btn btn-secondary flex-grow-1" id="resetFilterBtn">
+          <i class="bx bx-reset"></i> Reset Filter
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Purchases Table -->
+<div class="card shadow-sm">
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover align-middle mb-0" id="purchasesTable">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Date</th>
+          <th>Variant</th>
+          <th>Qty</th>
+          <th>Purchase Price</th>
+          <th>Discount</th>
+          <th>GST</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="purchasesBody">
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">Loading...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const supplierId = "{{ pk }}";  // supplier id passed from view
+  const purchasesUrl = `/admin_api/supplier-purchases/${supplierId}/`;
+
+  const tbody = document.getElementById("purchasesBody");
+
+  function fetchPurchases(startDate = "", endDate = "") {
+    let url = purchasesUrl;
+    if (startDate && endDate) {
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        tbody.innerHTML = "";
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(p => {
+            let row = `
+              <tr>
+                <td>${p.id}</td>
+                <td>${p.date}</td>
+                <td>${p.variant}</td>
+                <td>${p.quantity}</td>
+                <td>₹ ${p.purchase_price}</td>
+                <td>₹ ${p.discount}</td>
+                <td>${p.gst}%</td>
+                <td>₹ ${p.total_price}</td>
+              </tr>
+            `;
+            tbody.insertAdjacentHTML("beforeend", row);
+          });
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No purchases found.</td>
+            </tr>`;
+        }
+      });
+  }
+
+  // Initial fetch
+  fetchPurchases();
+
+  // Filter
+  document.getElementById("filterForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    fetchPurchases(
+      document.getElementById("startDate").value,
+      document.getElementById("endDate").value
+    );
+  });
+
+  // Reset filter
+  document.getElementById("resetFilterBtn").addEventListener("click", function () {
+    document.getElementById("startDate").value = "";
+    document.getElementById("endDate").value = "";
+    fetchPurchases();
+  });
+
+  // Auto-open date picker
+  [document.getElementById("startDate"), document.getElementById("endDate")].forEach(input => {
+    input.addEventListener("focus", () => {
+      if (input.showPicker) input.showPicker();
+    });
+  });
+
+  // Export buttons
+  document.getElementById("exportPdfBtn").addEventListener("click", function () {
+    window.location.href = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
+  });
+
+  document.getElementById("exportExcelBtn").addEventListener("click", function () {
+    window.location.href = `/admin_api/supplier-purchases/${supplierId}/export_excel/`;
+  });
+});
+</script>
+{% endblock %}
