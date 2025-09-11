@@ -154,6 +154,11 @@ class ProductVariant(models.Model):
         gst_amount = price_after_discount * self.gst / 100
         self.total_price = price_after_discount + gst_amount
         super().save(*args, **kwargs)
+        
+        Inventory.objects.get_or_create(
+            variant=self,
+            defaults={'quantity': 0}
+        )
 
     def __str__(self):
         return f"{self.product.name} - {self.size}"
@@ -162,7 +167,7 @@ class ProductVariant(models.Model):
 # ---------- INVENTORY ----------
 class Inventory(models.Model):
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=0)
+    quantity = models.IntegerField(default=0)
 
     class Meta:
         unique_together = ('variant',)
@@ -178,6 +183,7 @@ class Purchase(models.Model):
     quantity = models.PositiveIntegerField()
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) 
+    discount_price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     gst = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  
     total_price = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=0.00)
     date = models.DateField(auto_now_add=True)
@@ -204,14 +210,26 @@ class Purchase(models.Model):
     def __str__(self):
         return f"Purchase of {self.variant} from {self.supplier}"
 
-
 # ---------- CART ----------
 class Cart(models.Model):
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     date_added = models.DateTimeField(auto_now_add=True)
     item_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    is_percentage = models.BooleanField(default=True)
+    is_percentage = models.BooleanField(default=True)  # True if item_discount is %
+    gst = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # in %
+
+    def discount_price(self):
+        total = self.variant.price * self.quantity
+        if self.is_percentage:
+            return (total * self.item_discount) / Decimal(100)
+        return self.item_discount
+
+    def gst_amount(self):
+        return ((self.variant.price * self.quantity - self.discount_price()) * self.gst) / Decimal(100)
+
+    def total_price(self):
+        return (self.variant.price * self.quantity) - self.discount_price() + self.gst_amount()
 
     def __str__(self):
         return f"{self.variant} x {self.quantity}"
@@ -219,6 +237,11 @@ class Cart(models.Model):
 
 # ---------- ORDER ----------
 class Order(models.Model):
+    PAYMENT_TYPE_CHOICES = (
+        ('cod', 'cod'),
+        ('online', 'online'),
+    )
+    
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="orders", null=True, blank=True
     )
@@ -226,17 +249,24 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     order_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  
-    is_percentage = models.BooleanField(default=True)  # True if discount is %
+    is_percentage = models.BooleanField(default=True)  
+    pay_type = models.CharField(max_length=200, choices=PAYMENT_TYPE_CHOICES, blank=True, null=True)
+    is_paid = models.BooleanField(default=False)
+    note = models.TextField(blank=True, null=True)
+    pod_number = models.CharField(max_length=255, blank=True, null=True)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    def subtotal(self):
+        return sum(item.total_price() for item in self.items.all())
 
-    def calculate_total(self):
-        subtotal = sum(item.subtotal() for item in self.items.all())
-
+    def discount_value(self):
+        subtotal = self.subtotal()
         if self.is_percentage:
-            discount_value = (subtotal * self.order_discount) / Decimal(100)
-        else:
-            discount_value = self.order_discount
+            return (subtotal * self.order_discount) / Decimal(100)
+        return self.order_discount
 
-        return subtotal - discount_value
+    def get_total_amount(self):
+        return self.subtotal() - self.discount_value()
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer.name if self.customer else 'No Customer'}"
@@ -250,19 +280,20 @@ class OrderItem(models.Model):
 
     item_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_percentage = models.BooleanField(default=True)  # True if discount is %
+    gst = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
 
-    def subtotal(self):
-        """
-        Subtotal considering product-wise discount.
-        """
-        total = self.quantity * self.price_at_sale
-
+    def discount_price(self):
+        total = self.price_at_sale * self.quantity
         if self.is_percentage:
-            discount_value = (total * self.item_discount) / Decimal(100)
-        else:
-            discount_value = self.item_discount
+            return (total * self.item_discount) / Decimal(100)
+        return self.item_discount
 
-        return total - discount_value
+    def gst_amount(self):
+        return ((self.price_at_sale * self.quantity - self.discount_price()) * self.gst) / Decimal(100)
+
+    def total_price(self):
+        return (self.price_at_sale * self.quantity) - self.discount_price() + self.gst_amount()
+
 
     def __str__(self):
         return f"{self.variant} x {self.quantity}"

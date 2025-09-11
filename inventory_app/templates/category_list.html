@@ -8,6 +8,9 @@
   {% comment %} <button type="button" class="btn btn-outline-success" id="exportCategoryExcelBtn" disabled>
     <i class="bx bx-file"></i> Export
   </button> {% endcomment %}
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search categories...">
+  </div>
   <a href="/category/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Category
   </a>
@@ -86,20 +89,21 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function loadCategories(search = "") {
   const tbody = document.getElementById("categories-table-body");
   const loader = document.getElementById("categories-loader-row");
 
-  fetch("/admin_api/categories/")
+  tbody.innerHTML = "";
+
+  fetch(`/admin_api/categories/?search=${encodeURIComponent(search)}`)
     .then(res => res.json())
     .then(data => {
-      loader.style.display = "none";
       tbody.innerHTML = "";
 
       data.forEach(cat => {
         const row = `
           <tr>
-            <td><a href="/category/detail/${ cat.id }/">${ cat.name }</a></td>
+            <td><a href="/category/detail/${cat.id}/">${cat.name}</a></td>
             <td>${cat.description || ""}</td>
             <td>
               <div class="dropdown">
@@ -131,9 +135,32 @@ document.addEventListener("DOMContentLoaded", () => {
       tbody.insertAdjacentHTML("beforeend", totalRow);
     })
     .catch(err => {
-      loader.style.display = "none";
       console.error("Error loading categories:", err);
     });
+}
+
+// Initial load & search handling
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox"); // Add this input in your HTML
+
+  function triggerSearch() {
+    loadCategories(searchBox.value.trim());
+  }
+
+  // Debounce for typing
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerSearch, 400);
+  });
+
+  // Press Enter to search immediately
+  searchBox.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") triggerSearch();
+  });
+
+  // Initial load
+  loadCategories();
 });
 
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {

@@ -5,6 +5,11 @@
 {% block content %}
 <h4 class="mb-3">Products & Variants</h4>
 <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+  <!-- Search box -->
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search products...">
+  </div>
+
   <a href="/product/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Product
   </a>
@@ -21,7 +26,6 @@
           <th>Category</th>
           <th>Size</th>
           <th>Price</th>
-          <th>Total Price</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -75,26 +79,26 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function loadProducts(search = "") {
   const tbody = document.getElementById("products-variants-body");
   const loader = document.getElementById("loader-row");
 
-  fetch("/admin_api/products/?include_variants=true") // ensure your API returns variants
+  tbody.innerHTML = "";
+
+  fetch(`/admin_api/products/?include_variants=true&search=${encodeURIComponent(search)}`)
     .then(res => res.json())
     .then(products => {
-      loader.style.display = "none";
       tbody.innerHTML = "";
 
       products.forEach(prod => {
         const variants = prod.variants || [];
         if (variants.length === 0) {
-          // No variants, single row
           tbody.insertAdjacentHTML("beforeend", `
             <tr>
               <td>${prod.photo ? `<img src="${prod.photo}" width="50" height="50">` : ""}</td>
-              <td><a href="/product/detail/${ prod.id }/">${prod.name}</td>
+              <td><a href="/product/detail/${prod.id}/">${prod.name}</a></td>
               <td>${prod.category_name}</td>
-              <td colspan="5" class="text-muted">No variants</td>
+              <td colspan="2" class="text-muted">No variants</td>
               <td>
                 <div class="dropdown">
                   <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
@@ -116,22 +120,17 @@ document.addEventListener("DOMContentLoaded", () => {
           variants.forEach((variant, index) => {
             let rowHtml = "<tr>";
             if (index === 0) {
-              // First variant row includes product info + actions with rowspan
               rowHtml += `
                 <td rowspan="${variants.length}">${prod.photo ? `<img src="${prod.photo}" width="50" height="50">` : ""}</td>
-                <td rowspan="${variants.length}"><a href="/product/detail/${ prod.id }/">${prod.name}</td>
+                <td rowspan="${variants.length}"><a href="/product/detail/${prod.id}/">${prod.name}</a></td>
                 <td rowspan="${variants.length}">${prod.category_name}</td>
               `;
             }
-            // Variant-specific columns
             rowHtml += `
               <td>${variant.size}</td>
               <td>${variant.price}</td>
-              <td>${variant.total_price}</td>
             `;
-
             if (index === 0) {
-              // Actions dropdown only in first row
               rowHtml += `
                 <td rowspan="${variants.length}">
                   <div class="dropdown">
@@ -150,13 +149,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 </td>
               `;
             }
-
             rowHtml += "</tr>";
             tbody.insertAdjacentHTML("beforeend", rowHtml);
           });
         }
       });
     });
+}
+
+// Load all products initially
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox");
+
+  function triggerSearch() {
+    loadProducts(searchBox.value.trim());
+  }
+
+  // Debounce for typing
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerSearch, 400);
+  });
+
+  // Press Enter to search immediately
+  searchBox.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") triggerSearch();
+  });
+
+  // Initial load
+  loadProducts();
 });
 
 // Confirm delete

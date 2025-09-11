@@ -3,12 +3,40 @@
 
 {% block title %}POS Products{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block page_css %}
+<style>
+  /* Categories Bar */
+  #categories-list { min-height: 40px; padding: 4px 8px !important; }
+  .category-tab { cursor: pointer; padding: 6px 12px; margin-right: 6px; border-radius: 5px; white-space: nowrap; background: transparent; transition: 0.2s; font-weight: 500; font-size: 14px; }
+  .category-tab.active { background: #08397B; color: white; }
+
+  /* Product Cards */
+  #products-grid .card { transition: transform 0.2s ease-in-out; position: relative; overflow: hidden; }
+  #products-grid .col-lg-2 { flex: 0 0 20%; max-width: 20%; }
+
+  /* Variant overlay on hover */
+  .variant-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.2s ease-in-out; padding: 10px; overflow-y: auto; }
+  .card:hover .variant-overlay { opacity: 1; }
+  .variant-btn { margin: 3px 0; font-size: 13px; padding: 5px 10px; width: 100%; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid p-0">
 
+  <!-- Search Bar -->
+  <div class="d-flex p-3 border-bottom bg-white">
+    <input type="text" id="productSearchBox" class="form-control" placeholder="Search products..." />
+  </div>
+
   <!-- Categories Row -->
   <div id="categories-list" class="d-flex overflow-auto border-bottom bg-white py-2 px-3">
-    <!-- All category will be injected here -->
+    <!-- All categories will be injected here -->
   </div>
 
   <!-- Products Grid -->
@@ -27,227 +55,140 @@
     0
   </span>
 </a>
-
 {% endblock %}
 
 {% block page_js %}
-<style>
-  /* Slimmer category bar */
-  #categories-list {
-    min-height: 40px;
-    padding: 4px 8px !important;
-  }
-  .category-tab {
-    cursor: pointer;
-    padding: 6px 12px;
-    margin-right: 6px;
-    border-radius: 5px;
-    white-space: nowrap;
-    background: transparent;
-    transition: background 0.2s, color 0.2s;
-    font-weight: 500;
-    font-size: 14px;
-  }
-  .category-tab.active {
-    background: #08397B;
-    color: white;
-  }
 
-  /* Wider product cards */
-  #products-grid .card {
-    transition: transform 0.2s ease-in-out;
-    position: relative;
-    overflow: hidden;
-  }
-  #products-grid .col-lg-2 {
-    flex: 0 0 20%;
-    max-width: 20%;
-  }
+<!-- jQuery (required by Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-  /* Hover variant list overlay */
-  .variant-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0.95);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    padding: 10px;
-    overflow-y: auto;
-  }
-  .card:hover .variant-overlay {
-    opacity: 1;
-  }
-  .variant-btn {
-    margin: 3px 0;
-    font-size: 13px;
-    padding: 5px 10px;
-    width: 100%;
-  }
-</style>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-  let selectedCategory = "all";
-  let cart = JSON.parse(localStorage.getItem("cart")) || [];
+let selectedCategory = "all";
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+let searchQuery = "";
 
-  function updateCartCount() {
-    fetch("/admin_api/cart/")
-      .then(res => res.json())
-      .then(data => {
-        console.log("Cart API response:", data); // check in console
-
-        if (Array.isArray(data)) {
-          // sum up all quantities
-          let totalQty = data.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-          document.getElementById("cart-count").textContent = totalQty;
-        }
-      })
-      .catch(err => {
-        console.error("Cart count error:", err);
-        // fallback to localStorage
-        let localQty = cart.reduce((sum, i) => sum + (i.quantity || i.qty || 1), 0);
-        document.getElementById("cart-count").textContent = localQty;
-      });
-}
-
-  function loadCategories() {
-    fetch("/admin_api/categories/")
-      .then(res => res.json())
-      .then(categories => {
-        const catList = document.getElementById("categories-list");
-        catList.innerHTML = "";
-
-        catList.insertAdjacentHTML("beforeend", `
-          <div class="category-tab active" data-category="all">All</div>
-        `);
-
-        categories.forEach(cat => {
-          catList.insertAdjacentHTML("beforeend", `
-            <div class="category-tab" data-category="${cat.id}">${cat.name}</div>
-          `);
-        });
-      });
-  }
-
-  function loadPurchases() {
-    const grid = document.getElementById("products-grid");
-    grid.innerHTML = `<div class="col-12 text-center py-5" id="purchases-loader">
-      <div class="spinner-border text-primary"></div>
-    </div>`;
-
-    let url = "/admin_api/purchase-products/";
-    if (selectedCategory !== "all") {
-      url += `?category_id=${selectedCategory}`;
-    }
-
-    fetch(url)
-      .then(res => res.json())
-      .then(items => {
-        grid.innerHTML = "";
-        if (items.length === 0) {
-          grid.innerHTML = `<div class="col-12 text-center text-muted py-5">No products found.</div>`;
-          return;
-        }
-
-        // Group by product
-        const grouped = {};
-        items.forEach(i => {
-          if (!grouped[i.product_name]) {
-            grouped[i.product_name] = {
-              product_name: i.product_name,
-              product_photo: i.product_photo,
-              category_id: i.category_id,
-              variants: []
-            };
-          }
-          grouped[i.product_name].variants.push(i);
-        });
-
-        // Render cards
-        Object.values(grouped).forEach(prod => {
-          let variantsHTML = "";
-          prod.variants.forEach(v => {
-            variantsHTML += `
-              <button class="btn btn-sm btn-primary variant-btn"
-                onclick="addVariantToCart(${v.variant}, '${prod.product_name} - ${v.size}', '${prod.product_photo}', ${v.price})">
-                ${v.size} - ₹${v.price}
-              </button>
-            `;
-          });
-
-          grid.insertAdjacentHTML("beforeend", `
-            <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-4">
-              <div class="card h-100 border-0 shadow-sm position-relative">
-                <img src="${prod.product_photo || '/static/no-image.png'}" class="card-img-top" style="height:150px; object-fit:cover;">
-                <div class="card-body text-center p-2">
-                  <h6 class="card-title text-truncate">${prod.product_name}</h6>
-                </div>
-                <div class="variant-overlay">
-                  ${variantsHTML}
-                </div>
-              </div>
-            </div>
-          `);
-        });
-      });
-  }
-
-  function addVariantToCart(variantId, name, photo, price, replace = false, qty = 1) {
-    fetch("/admin_api/cart/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCSRFToken()
-      },
-      body: JSON.stringify({
-        variantId: variantId,
-        qty: qty,
-        replace: replace
-      })
-    })
+// Update cart count from backend or localStorage
+function updateCartCount() {
+  fetch("/admin_api/cart/")
     .then(res => res.json())
     .then(data => {
-      if (data.success) {
-        // ✅ Just refresh count from backend after update
-        updateCartCount();
-      }
+      let totalQty = Array.isArray(data) ? data.reduce((sum, i) => sum + (i.quantity || 0), 0) : 0;
+      document.getElementById("cart-count").textContent = totalQty;
     })
-    .catch(err => console.error("Cart API error:", err));
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    loadCategories();
-    loadPurchases();
-    updateCartCount();
-
-    document.getElementById("categories-list").addEventListener("click", e => {
-      if (e.target.classList.contains("category-tab")) {
-        document.querySelectorAll(".category-tab").forEach(tab => tab.classList.remove("active"));
-        e.target.classList.add("active");
-        selectedCategory = e.target.dataset.category;
-        loadPurchases();
-      }
+    .catch(() => {
+      let localQty = cart.reduce((sum, i) => sum + (i.quantity || 1), 0);
+      document.getElementById("cart-count").textContent = localQty;
     });
+}
+
+// Load categories
+function loadCategories() {
+  fetch("/admin_api/categories/")
+    .then(res => res.json())
+    .then(categories => {
+      const catList = document.getElementById("categories-list");
+      catList.innerHTML = `<div class="category-tab active" data-category="all">All</div>`;
+      categories.forEach(cat => {
+        catList.insertAdjacentHTML("beforeend", `<div class="category-tab" data-category="${cat.id}">${cat.name}</div>`);
+      });
+    });
+}
+
+// Load all products with search & category filter
+function loadProducts() {
+  const grid = document.getElementById("products-grid");
+  grid.innerHTML = `<div class="col-12 text-center py-5" id="products-loader"><div class="spinner-border text-primary"></div></div>`;
+
+  let url = "/admin_api/products/?search=" + encodeURIComponent(searchQuery);
+  if (selectedCategory !== "all") url += `&category=${selectedCategory}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(products => {
+      grid.innerHTML = "";
+      if (!products.length) {
+        grid.innerHTML = `<div class="col-12 text-center text-muted py-5">No products found.</div>`;
+        return;
+      }
+
+      products.forEach(prod => {
+        let variantsHTML = "";
+        (prod.variants || []).forEach(v => {
+          variantsHTML += `<button class="btn btn-sm btn-primary variant-btn"
+            onclick="addVariantToCart(${v.id}, '${prod.name} - ${v.size}', '${prod.photo || '/static/no-image.png'}', ${v.price})">
+            ${v.size} - ₹${v.price}
+          </button>`;
+        });
+
+        grid.insertAdjacentHTML("beforeend", `
+          <div class="col-6 col-sm-4 col-md-3 col-lg-2 mb-4">
+            <div class="card h-100 border-0 shadow-sm position-relative">
+              <img src="${prod.photo || '/static/no-image.png'}" class="card-img-top" style="height:150px; object-fit:cover;">
+              <div class="card-body text-center p-2">
+                <h6 class="card-title text-truncate">${prod.name}</h6>
+              </div>
+              <div class="variant-overlay">${variantsHTML}</div>
+            </div>
+          </div>
+        `);
+      });
+    });
+}
+
+// Add variant to cart
+function addVariantToCart(variantId, name, photo, price, qty = 1) {
+  fetch("/admin_api/cart/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ variantId: variantId, qty: qty })
+  })
+  .then(res => res.json())
+  .then(data => { if (data.success) updateCartCount(); })
+  .catch(err => console.error("Cart API error:", err));
+}
+
+// CSRF token helper
+function getCSRFToken() {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    document.cookie.split(';').forEach(cookie => {
+      cookie = cookie.trim();
+      if (cookie.startsWith('csrftoken=')) cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
+    });
+  }
+  return cookieValue;
+}
+
+// Init
+document.addEventListener("DOMContentLoaded", () => {
+  loadCategories();
+  loadProducts();
+  updateCartCount();
+
+  // Category click
+  document.getElementById("categories-list").addEventListener("click", e => {
+    if (e.target.classList.contains("category-tab")) {
+      document.querySelectorAll(".category-tab").forEach(tab => tab.classList.remove("active"));
+      e.target.classList.add("active");
+      selectedCategory = e.target.dataset.category;
+      loadProducts();
+    }
   });
 
-  function getCSRFToken() {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith('csrftoken=')) {
-          cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
+  // Search input with debounce
+  const searchBox = document.getElementById("productSearchBox");
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchQuery = searchBox.value.trim();
+      loadProducts();
+    }, 300);
+  });
+  searchBox.addEventListener("keypress", e => { if (e.key === "Enter") { searchQuery = searchBox.value.trim(); loadProducts(); } });
+});
 </script>
-
 {% endblock %}

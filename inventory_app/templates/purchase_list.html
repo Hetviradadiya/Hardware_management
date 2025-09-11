@@ -7,6 +7,10 @@
   {% comment %} <button type="button" class="btn btn-outline-success" id="exportPurchaseExcelBtn" disabled>
     <i class="bx bx-file"></i> Export
   </button> {% endcomment %}
+  <!-- Search box -->
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search purchases...">
+  </div>
   <a href="/purchase/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Purchase
   </a>
@@ -21,6 +25,7 @@
           <th>Quantity</th>
           <th>Purchase Price</th>
           <th>Discount %</th>
+          <th>Discount Price</th>
           <th>GST %</th>
           <th>Total Price</th>
           <th>Supplier</th>
@@ -91,26 +96,35 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function loadPurchases(search = "") {
   const tbody = document.getElementById("purchases-table-body");
-  const loader = document.getElementById("purchases-loader-row");
 
-  fetch("/admin_api/purchases/")
+  tbody.innerHTML = "";
+
+  let url = "/admin_api/purchases/";
+  if (search) {
+    url += `?search=${encodeURIComponent(search)}`;
+  }
+
+  fetch(url)
     .then(res => res.json())
     .then(data => {
-      loader.style.display = "none";
       tbody.innerHTML = "";
 
-      data.forEach(p => {
+      // handle pagination (if enabled in DRF)
+      const results = data.results || data;
+
+      results.forEach(p => {
         const row = `
           <tr>
-            <td><a href="/purchase/detail/${ p.id }/">${p.product_name || ""}</a></td>
+            <td><a href="/purchase/detail/${p.id}/">${p.product_name || ""}</a></td>
             <td>${p.quantity}</td>
             <td>${p.purchase_price}</td>
             <td>${p.discount || 0}</td>
+            <td>${p.discount_price || 0}</td>
             <td>${p.gst || 0}</td>
             <td>${p.total_price}</td>
-            <td><a href="/supplier/detail/${ p.supplier }/">${p.supplier_name || ""}</a></td>
+            <td><a href="/supplier/detail/${p.supplier}/">${p.supplier_name || ""}</a></td>
             <td>${p.date}</td>
             <td>
               <div class="dropdown">
@@ -134,18 +148,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const totalRow = `
         <tr>
-          <td colspan="9" class="text-end fw-bold text-primary">
-            Total Records: ${data.length}
+          <td colspan="10" class="text-end fw-bold text-primary">
+            Total Records: ${results.length}
           </td>
         </tr>
       `;
       tbody.insertAdjacentHTML("beforeend", totalRow);
     })
     .catch(err => {
-      loader.style.display = "none";
       console.error("Error loading purchases:", err);
     });
+}
+
+
+// 🔎 Search handler
+document.addEventListener("DOMContentLoaded", () => {
+  const searchBox = document.getElementById("searchBox");
+
+  function triggerSearch() {
+    loadPurchases(searchBox.value.trim());
+  }
+
+  // Debounce for typing
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(triggerSearch, 400);
+  });
+
+  // Press Enter to search immediately
+  searchBox.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") triggerSearch();
+  });
+
+  // Initial load
+  loadPurchases();
 });
+
 
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deletePurchaseId) return;
