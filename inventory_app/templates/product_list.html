@@ -61,10 +61,10 @@
 let deleteItemId = null;
 let deleteType = null;
 
-function delete_variant(id) {
+function delete_product(id) {
   deleteItemId = id;
-  deleteType = "variant";
-  document.getElementById("deleteModalMessage").textContent = "Delete this variant?";
+  deleteType = "product";
+  document.getElementById("deleteModalMessage").textContent = "Delete this product and all its variants?";
   new bootstrap.Modal(document.getElementById("deleteConfirmModal")).show();
 }
 
@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Confirm delete
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deleteItemId || !deleteType) return;
-  const url = `/admin_api/products/${deleteProductId}/`;
+  const url = `/admin_api/products/${deleteItemId}/`;
   fetch(url, {
     method: "DELETE",
     headers: { "X-CSRFToken": getCookie("csrftoken") }

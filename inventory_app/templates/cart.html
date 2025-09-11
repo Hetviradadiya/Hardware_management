@@ -36,8 +36,19 @@
     </tbody>
     <tfoot>
       <tr id="total-item-discount-row">
-        <td colspan="8" class="text-end"><strong>Total Item Discount:</strong></td>
-        <td colspan="2">₹ <span id="total-item-discount">0</span></td>
+        <td>-</td>
+        <td>-</td>
+        <td>₹ <span id="total-price">0</span></td>
+        <td>₹ <span id="total-quantity">0</span></td>
+        <td>₹ <span id="total-quantity-price">0</span></td>
+        <td><span id="total-item-discount-percentage">0</span> %</td>
+        <td>₹ <span id="total-item-discount">0</span></td>
+        <td><span id="total-gst">0</span> %</td>
+        <td>₹ <span id="total-gst-amout">0</span></td>
+        <td>₹ <span id="grand-total-price">0</span></td>
+      </tr>
+      <tr>
+        <td rowspan='4' colspan="2" class="text-end"><strong>Payment Type:</strong></td>
       </tr>
       <tr>
         <td colspan="8" class="text-end"><strong>Order Discount:</strong></td>
@@ -55,17 +66,31 @@
           (<span id="grand-total-discount-percent">0</span>%)
         </td>
       </tr>
-      <tr id="total-gst-row">
-        <td colspan="8" class="text-end"><strong>Total GST:</strong></td>
-        <td colspan="2">₹ <span id="total-gst">0</span></td>
-      </tr>
       <tr>
         <td colspan="8" class="text-end"><strong>Grand Total:</strong></td>
         <td colspan="2">₹ <span id="cart-total">0</span></td>
       </tr>
+
     </tfoot>
 
   </table>
+
+  <div class="row mt-3">
+  <div class="col-md-6">
+    <div class="mb-2">
+      <label class="form-label">Payment Type:</label>
+      <select id="pay-type" class="form-control">
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+        <option value="upi">UPI</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Paid Amount:</label>
+      <input type="number" id="paid-amount" class="form-control" min="0" step="0.01">
+    </div>
+  </div>
+</div>
 
   <div class="mt-3 text-end">
     <a href="{% url 'pos' %}" class="btn btn-secondary">⬅ Back to POS</a>
@@ -74,7 +99,7 @@
 </div>
 
 <style>
-  #cart-table input[type="number"] { width: 70px; }
+  #cart-table input[type="number"] { width: 90px; }
   #cart-table select { width: 80px; }
   .product-img { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
 </style>
@@ -89,26 +114,43 @@ function updateCartUI() {
     .then(data => {
       const tbody = document.getElementById("cart-items");
       const totalEl = document.getElementById("cart-total");
+      const totalPriceEl = document.getElementById("total-price");
       const totalGSTEl = document.getElementById("total-gst");
+      const totalGSTAmountEl = document.getElementById("total-gst-amout");
+      const totalQuantityEl = document.getElementById("total-quantity");
+      const totalQuantityPriceEl = document.getElementById("total-quantity-price");
       const totalItemDiscountEl = document.getElementById("total-item-discount");
+      const totalItemDiscountPercentageEl = document.getElementById("total-item-discount-percentage");
       const grandTotalDiscountEl = document.getElementById("grand-total-discount");
       const grandTotalDiscountPercentEl = document.getElementById("grand-total-discount-percent");
+      const grandTotalPriceEl = document.getElementById("grand-total-price");
 
       if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" class="text-center">Your cart is empty.</td></tr>';
         totalEl.textContent = "0";
+        totalPriceEl.textContent = "0";
         totalGSTEl.textContent = "0";
+        totalGSTAmountEl.textContent = "0";
+        totalQuantityEl.textContent = "0";
+        totalQuantityPriceEl.textContent = "0";
         totalItemDiscountEl.textContent = "0";
+        totalItemDiscountPercentageEl.textContent = "0";
         grandTotalDiscountEl.textContent = "0";
         grandTotalDiscountPercentEl.textContent = "0";
+        grandTotalPriceEl.textContent = "0";
         return;
       }
 
       tbody.innerHTML = "";
 
       let subtotal = 0;
+      let totalprice = 0;
       let totalDiscount = 0;
-      let totalGST = 0;
+      let totalDiscountPercentage = 0;
+      let totalgst = 0;
+      let totalGSTAmount = 0;
+      let totalquantity = 0;
+      let grandtotalPrice = 0;
 
       data.forEach(item => {
         const price = parseFloat(item.variant_price);
@@ -121,10 +163,15 @@ function updateCartUI() {
         let discountPrice = isPerc ? (qtyPrice * itemDiscount / 100) : itemDiscount;
         let gstAmount = (qtyPrice - discountPrice) * gst / 100;
         let totalPrice = (qtyPrice - discountPrice) + gstAmount;
-
+        
+        grandtotalPrice +=totalPrice;
+        totalprice += price;
+        totalquantity +=qty;
         subtotal += qtyPrice;
+        totalDiscountPercentage +=itemDiscount;
         totalDiscount += discountPrice;
-        totalGST += gstAmount;
+        totalGSTAmount += gstAmount;
+        totalgst += gst;
 
         const imageUrl = item.variant_photo || "/static/no-image.png";
 
@@ -135,9 +182,28 @@ function updateCartUI() {
             <td>₹${price.toFixed(2)}</td>
             <td><input type="number" value="${qty}" min="1" step="1" onchange="updateQty(${item.id}, this.value)"></td>
             <td>₹${qtyPrice.toFixed(2)}</td>
-            <td>${isPerc ? itemDiscount + "%" : "-"}</td>
-            <td>₹${discountPrice.toFixed(2)}</td>
-            <td>${gst}%</td>
+            <td>
+              <input type="number" 
+                    value="${isPerc ? itemDiscount : ''}" 
+                    min="0" step="0.01" 
+                    onchange="updateItemDiscount(${item.id}, this.value, true)" 
+                    style="width:70px">
+            </td>
+            <td>
+              <input type="number" 
+                    value="${discountPrice.toFixed(2)}" 
+                    min="0" step="0.01" 
+                    onchange="updateDiscountPrice(${item.id}, this.value, ${price}, ${qty})" 
+                    style="width:80px">
+            </td>
+            <td>
+              <select onchange="updateGST(${item.id}, this.value)" style="width:80px">
+                <option value="" ${!gst || gst == 0 ? "selected" : ""}>--</option>
+                <option value="5" ${gst == 5 ? "selected" : ""}>5%</option>
+                <option value="9" ${gst == 9 ? "selected" : ""}>9%</option>
+                <option value="18" ${gst == 18 ? "selected" : ""}>18%</option>
+              </select>
+            </td>
             <td>₹${gstAmount.toFixed(2)}</td>
             <td>₹${totalPrice.toFixed(2)}</td>
             <td><button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✖</button></td>
@@ -162,12 +228,18 @@ function updateCartUI() {
       let grandDiscountPercent = (grandDiscount / subtotal) * 100;
 
       // Update UI
+      totalPriceEl.textContent = totalprice;
+      totalQuantityEl.textContent = totalquantity.toFixed(2);
+      totalQuantityPriceEl.textContent = subtotal.toFixed(2);
       totalItemDiscountEl.textContent = totalDiscount.toFixed(2);
+      totalItemDiscountPercentageEl.textContent = totalDiscountPercentage.toFixed(2);
       grandTotalDiscountEl.textContent = grandDiscount.toFixed(2);
       grandTotalDiscountPercentEl.textContent = grandDiscountPercent.toFixed(2);
 
-      totalGSTEl.textContent = totalGST.toFixed(2);
-      totalEl.textContent = (subtotal - grandDiscount + totalGST).toFixed(2);
+      totalGSTAmountEl.textContent = totalGSTAmount.toFixed(2);
+      totalGSTEl.textContent = totalgst.toFixed(2);
+      totalEl.textContent = (subtotal - grandDiscount + totalGSTAmount).toFixed(2);
+      grandTotalPriceEl.textContent = grandtotalPrice;
     });
 }
 
@@ -300,15 +372,25 @@ function getCSRFToken() {
   // ======================= ORDER PLACEMENT =======================
   function placeOrder() {
     const customerId = document.getElementById("customer_id").value;
-    if (!customerId) {
-      alert("Please select a customer before placing order.");
-      return;
-    }
+  if (!customerId) {
+    alert("Please select a customer before placing order.");
+    return;
+  }
+
+  // Get values
+  const payType = document.getElementById("pay-type").value;
+  const paidAmount = document.getElementById("paid-amount").value;
+
+  const orderDiscountFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
+  const orderDiscountPercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
 
     const formData = new URLSearchParams();
+    formData.appconst formData = new URLSearchParams();
     formData.append("customer_id", customerId);
-    formData.append("order_discount", orderDiscount);
-    formData.append("is_percentage", orderDiscountType === "percent");
+    formData.append("order_discount_flat", orderDiscountFlat);
+    formData.append("order_discount_percent", orderDiscountPercent);
+    formData.append("pay_type", payType);
+    formData.append("paid_amount", paidAmount);
 
     fetch("/place_order/", {
       method: "POST",
