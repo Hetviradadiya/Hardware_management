@@ -267,10 +267,12 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
     def get_subtotal(self, obj):
-        return obj.subtotal()
+        return obj.subtotal
 
     def get_discount_value(self, obj):
-        return obj.discount_value()
+        subtotal = sum([(item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0)
+                    for item in obj.items.all()])
+        return subtotal - obj.total_amount
 
     def get_final_amount(self, obj):
-        return obj.get_total_amount()
+        return obj.total_amount

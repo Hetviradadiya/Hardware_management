@@ -127,6 +127,7 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, unique=True, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+    pending_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     def __str__(self):
         return self.name
@@ -238,17 +239,24 @@ class Cart(models.Model):
 # ---------- ORDER ----------
 class Order(models.Model):
     PAYMENT_TYPE_CHOICES = (
-        ('cod', 'cod'),
+        ('cash', 'cash'),
         ('online', 'online'),
+        ('card', 'card'),
     )
     
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="orders", null=True, blank=True
     )
     order_date = models.DateTimeField(auto_now_add=True)
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-
-    order_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  
+    # totals
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)         # 💡 sum of qty * price
+    total_item_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    order_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    is_percentage = models.BooleanField(default=True)
+    total_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)   # 💡 item + order discount
+    total_gst = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)     # 💡 grand total after discounts + gst
+ 
     is_percentage = models.BooleanField(default=True)  
     pay_type = models.CharField(max_length=200, choices=PAYMENT_TYPE_CHOICES, blank=True, null=True)
     is_paid = models.BooleanField(default=False)
@@ -256,17 +264,17 @@ class Order(models.Model):
     pod_number = models.CharField(max_length=255, blank=True, null=True)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
-    def subtotal(self):
-        return sum(item.total_price() for item in self.items.all())
+    # def subtotal(self):
+    #     return sum(item.total_price() for item in self.items.all())
 
-    def discount_value(self):
-        subtotal = self.subtotal()
-        if self.is_percentage:
-            return (subtotal * self.order_discount) / Decimal(100)
-        return self.order_discount
+    # def discount_value(self):
+    #     subtotal = self.subtotal()
+    #     if self.is_percentage:
+    #         return (subtotal * self.order_discount) / Decimal(100)
+    #     return self.order_discount
 
-    def get_total_amount(self):
-        return self.subtotal() - self.discount_value()
+    # def get_total_amount(self):
+    #     return self.subtotal() - self.discount_value()
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer.name if self.customer else 'No Customer'}"
@@ -303,24 +311,42 @@ class Sale(models.Model):
     order = models.OneToOneField(Order, on_delete=models.CASCADE)
     sale_date = models.DateTimeField(auto_now_add=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)  # NEW
+    profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    paid_amount = models. DecimalField(max_digits=20, decimal_places=2, default=0.0)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
-        total_profit = 0
+        total_profit = Decimal("0.00")
+        order_discount = getattr(self.order, "order_discount", Decimal("0.00"))
+        order_total_before_discount = sum(
+            [(item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0) 
+             for item in self.order.items.all()]
+        )
+
         for item in self.order.items.all():
-            # Get last purchase price for this variant (or average cost)
+            # Get last purchase for cost price
             purchase = Purchase.objects.filter(variant=item.variant).order_by('-date').first()
             if purchase:
-                purchase_cost = (purchase.purchase_price * item.quantity) - purchase.discount
-                gst_amount = (purchase_cost * purchase.gst) / Decimal(100)
-                final_cost = purchase_cost + gst_amount
+                base_cost = purchase.purchase_price * item.quantity
+                cost_after_discount = base_cost - purchase.discount
+                cost_with_gst = cost_after_discount + ((cost_after_discount * purchase.gst) / 100)
+            else:
+                cost_with_gst = Decimal("0.00")
 
-                revenue = item.quantity * item.price_at_sale
-                total_profit += revenue - final_cost
+            # Revenue side
+            revenue = (item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0)
 
-            # Deduct stock from Inventory
+            # Apply proportional order discount
+            if order_discount and order_total_before_discount > 0:
+                share = revenue / order_total_before_discount
+                revenue -= (share * order_discount)
+
+            # Calculate profit
+            profit_per_item = revenue - cost_with_gst
+            total_profit += profit_per_item
+
+            # Deduct stock
             inventory_item = Inventory.objects.get(variant=item.variant)
             inventory_item.quantity -= item.quantity
             inventory_item.save()
