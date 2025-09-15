@@ -317,19 +317,36 @@ class Sale(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
 
-        total_profit = 0
+        total_profit = Decimal("0.00")
+        order_discount = getattr(self.order, "order_discount", Decimal("0.00"))
+        order_total_before_discount = sum(
+            [(item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0) 
+             for item in self.order.items.all()]
+        )
+
         for item in self.order.items.all():
-            # Get last purchase price for this variant (or average cost)
+            # Get last purchase for cost price
             purchase = Purchase.objects.filter(variant=item.variant).order_by('-date').first()
             if purchase:
-                purchase_cost = (purchase.purchase_price * item.quantity) - purchase.discount
-                gst_amount = (purchase_cost * purchase.gst) / Decimal(100)
-                final_cost = purchase_cost + gst_amount
+                base_cost = purchase.purchase_price * item.quantity
+                cost_after_discount = base_cost - purchase.discount
+                cost_with_gst = cost_after_discount + ((cost_after_discount * purchase.gst) / 100)
+            else:
+                cost_with_gst = Decimal("0.00")
 
-                revenue = item.quantity * item.price_at_sale
-                total_profit += revenue - final_cost
+            # Revenue side
+            revenue = (item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0)
 
-            # Deduct stock from Inventory
+            # Apply proportional order discount
+            if order_discount and order_total_before_discount > 0:
+                share = revenue / order_total_before_discount
+                revenue -= (share * order_discount)
+
+            # Calculate profit
+            profit_per_item = revenue - cost_with_gst
+            total_profit += profit_per_item
+
+            # Deduct stock
             inventory_item = Inventory.objects.get(variant=item.variant)
             inventory_item.quantity -= item.quantity
             inventory_item.save()

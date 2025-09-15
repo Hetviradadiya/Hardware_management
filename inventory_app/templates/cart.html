@@ -48,9 +48,6 @@
         <td>₹ <span id="grand-total-price">0</span></td>
       </tr>
       <tr>
-        <td rowspan='4' colspan="2" class="text-end"><strong>Payment Type:</strong></td>
-      </tr>
-      <tr>
         <td colspan="8" class="text-end"><strong>Order Discount:</strong></td>
         <td colspan="2">
           <div class="d-flex gap-2">
@@ -87,7 +84,7 @@
     </div>
     <div>
       <label class="form-label">Paid Amount:</label>
-      <input type="number" id="paid-amount" class="form-control" min="0" step="0.01">
+      <input type="number" id="paid-amount" class="form-control" min="0" step="0.01" value="0">
     </div>
   </div>
 </div>
@@ -370,25 +367,64 @@ function getCSRFToken() {
   });
 
   // ======================= ORDER PLACEMENT =======================
+  {% comment %} function placeOrder() {
+    const customerId = document.getElementById("customer_id").value;
+    if (!customerId) {
+      alert("Please select a customer before placing order.");
+      return;
+    }
+
+    // Get values
+    const payType = document.getElementById("pay-type").value;
+    const paidAmount = document.getElementById("paid-amount").value;
+
+    const orderDiscountFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
+    const orderDiscountPercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
+
+      const formData = new URLSearchParams();
+      formData.append("customer_id", customerId);
+      formData.append("order_discount_flat", orderDiscountFlat);
+      formData.append("order_discount_percent", orderDiscountPercent);
+      formData.append("pay_type", payType);
+      formData.append("paid_amount", paidAmount);
+
+      fetch("/place_order/", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCSRFToken(),
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: formData.toString()
+      }).then(res => { if (res.redirected) window.location.href = res.url; });
+  } {% endcomment %}
   function placeOrder() {
     const customerId = document.getElementById("customer_id").value;
-  if (!customerId) {
-    alert("Please select a customer before placing order.");
-    return;
-  }
+    if (!customerId) {
+      alert("Please select a customer before placing order.");
+      return;
+    }
 
-  // Get values
-  const payType = document.getElementById("pay-type").value;
-  const paidAmount = document.getElementById("paid-amount").value;
+    // Get values from UI (already calculated)
+    const subtotal = document.getElementById("total-quantity-price").textContent;
+    const totalItemDiscount = document.getElementById("total-item-discount").textContent;
+    const orderDiscountFlat = document.getElementById("order-discount-flat").value || 0;
+    const orderDiscountPercent = document.getElementById("order-discount-percent").value || 0;
+    const grandTotalDiscount = document.getElementById("grand-total-discount").textContent;
+    const totalGST = document.getElementById("total-gst-amout").textContent;
+    const grandTotal = document.getElementById("cart-total").textContent;
 
-  const orderDiscountFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
-  const orderDiscountPercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
+    const payType = document.getElementById("pay-type").value;
+    const paidAmount = document.getElementById("paid-amount").value;
 
     const formData = new URLSearchParams();
-    formData.appconst formData = new URLSearchParams();
     formData.append("customer_id", customerId);
+    formData.append("subtotal", subtotal);
+    formData.append("total_item_discount", totalItemDiscount);
     formData.append("order_discount_flat", orderDiscountFlat);
     formData.append("order_discount_percent", orderDiscountPercent);
+    formData.append("total_discount", grandTotalDiscount);
+    formData.append("total_gst", totalGST);
+    formData.append("total_amount", grandTotal);
     formData.append("pay_type", payType);
     formData.append("paid_amount", paidAmount);
 

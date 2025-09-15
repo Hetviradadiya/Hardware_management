@@ -26,7 +26,7 @@
 {% block page_js %}
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-fetch("/api/upcoming-followups/")
+{% comment %} fetch("/api/upcoming-followups/")
   .then(res => res.json())
   .then(data => {
     const count = data?.length || 0;
@@ -55,9 +55,9 @@ fetch("/api/upcoming-followups/")
   })
   .catch(err => {
     console.error("Notification fetch error:", err);
-  });
+  }); {% endcomment %}
  
-  fetch("/all_favourite_leads/")
+  {% comment %} fetch("/all_favourite_leads/")
     .then(res => res.json())
     .then(data => {
       const count = data?.length || 0;
@@ -76,7 +76,7 @@ fetch("/api/upcoming-followups/")
         if (favIcon) favIcon.classList.remove("bell-highlight");
       }
     })
-    .catch(err => console.error("Favourite fetch error:", err));
+    .catch(err => console.error("Favourite fetch error:", err)); {% endcomment %}
 
     function showToast(title, message, status = "primary") {
       const toast = document.getElementById("alert-box");
