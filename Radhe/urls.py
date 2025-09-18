@@ -24,6 +24,7 @@ from inventory_app.views import cors_media_serve
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('inventory_app.urls')),
+    path('', include('pricemanagement_app.urls')),
     # Dashboard urls
     path("", include("apps.dashboards.urls")),
 

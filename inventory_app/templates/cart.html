@@ -1,17 +1,71 @@
 {% extends layout_path %}
 {% block title %}Cart{% endblock %}
 
+{% block page_css %}
+  <style>
+    table td{
+    padding: 0.782rem 1rem;
+    }
+    #cart-table input[type="number"] { width: 90px; }
+    #cart-table select { width: 80px; }
+    .product-img { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
+    .order-summary { gap: 0.6rem; }
+    .order-summary .left-col .form-label,
+    .order-summary .right-col .label { font-size: .85rem; color: #444; }
+    .order-summary .value { font-weight: 600; font-size: .95rem; }
+    #product_suggestions {
+      background-color: #b9b9b9;
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      padding: 0;
+    }
+
+    #product_suggestions li {
+      cursor: pointer;
+      padding: 5px 10px;
+      border-bottom: 1px solid #999;
+    }
+
+    #product_suggestions li:hover {
+      background-color: #9e9e9e;
+      color: #fff;
+    }
+
+    #product_suggestions button {
+      font-size: 12px;
+      margin: 2px;
+    }
+    @media (min-width: 768px) {
+      .order-summary .right-col { align-items: flex-end; text-align: right; }
+    }
+  </style>
+
+{% endblock%}
+
 {% block content %}
-<div class="container py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center">
     <h4>🛒 Your Cart</h4>
 
-    <!-- Customer Selector with Search -->
-    <div class="mb-3 position-relative" style="width: 300px;">
+    <div class="mb-3 position-relative d-flex align-items-center" style="width: 400px;">
       <label for="customer_input" class="form-label fw-bold me-2">Select Customer:</label>
-      <input type="text" id="customer_input" class="form-control" placeholder="Type customer name / phone / email" autocomplete="off">
-      <input type="hidden" id="customer_id" name="customer_id">
-      <ul id="customer_suggestions" class="list-group position-absolute w-100" style="z-index: 1; background-color: #b9b9b9"></ul>
+
+      <!-- Input box -->
+      <div class="flex-grow-1 position-relative">
+        <input type="text" id="customer_input" class="form-control" 
+              placeholder="Type customer name / phone / email" autocomplete="off">
+        <input type="hidden" id="customer_id" name="customer_id">
+        <ul id="customer_suggestions" 
+            class="list-group position-absolute w-100" 
+            style="z-index: 1000; background-color: #fff; max-height: 200px; overflow-y: auto;">
+        </ul>
+      </div>
+
+      <!-- Add customer button -->
+      <button type="button" class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+        +
+      </button>
     </div>
   </div>
 
@@ -35,6 +89,19 @@
       <!-- Items will be injected here -->
     </tbody>
     <tfoot>
+      <!-- Row for Add Product -->
+      <tr>
+        <td colspan="11">
+          <button class="btn btn-primary" id="add-product-btn">+ Add Product</button>
+          
+          <!-- Search box appears when button clicked -->
+          <div id="add-product-box" class="mt-2" style="display:none; width:300px;">
+            <input type="text" id="product_input" class="form-control" 
+                  placeholder="Type product name..." autocomplete="off">
+            <ul id="product_suggestions" class="list-group position-absolute w-100"></ul>
+          </div>
+        </td>
+      </tr>
       <tr id="total-item-discount-row">
         <td>-</td>
         <td>-</td>
@@ -47,47 +114,62 @@
         <td>₹ <span id="total-gst-amout">0</span></td>
         <td>₹ <span id="grand-total-price">0</span></td>
       </tr>
-      <tr>
-        <td colspan="8" class="text-end"><strong>Order Discount:</strong></td>
-        <td colspan="2">
-          <div class="d-flex gap-2">
-            <input type="number" id="order-discount-flat" class="form-control" placeholder="₹ Flat" min="0" step="0.01">
-            <input type="number" id="order-discount-percent" class="form-control" placeholder="% Percent" min="0" step="0.01">
-          </div>
-        </td>
-      </tr>
-      <tr id="total-discount-row">
-        <td colspan="8" class="text-end"><strong>Total Discount (Items + Order):</strong></td>
-        <td colspan="2">
-          ₹ <span id="grand-total-discount">0</span> 
-          (<span id="grand-total-discount-percent">0</span>%)
-        </td>
-      </tr>
-      <tr>
-        <td colspan="8" class="text-end"><strong>Grand Total:</strong></td>
-        <td colspan="2">₹ <span id="cart-total">0</span></td>
-      </tr>
-
     </tfoot>
 
   </table>
 
-  <div class="row mt-3">
-  <div class="col-md-6">
-    <div class="mb-2">
-      <label class="form-label">Payment Type:</label>
-      <select id="pay-type" class="form-control">
-        <option value="cash">Cash</option>
-        <option value="card">Card</option>
-        <option value="upi">UPI</option>
-      </select>
+  <div class="order-summary d-flex flex-column flex-md-row justify-content-between align-items-start p-4 border">
+    <div class="left-col d-flex flex-column gap-2" style="min-width:200px;">
+      <div>
+        <label class="form-label mb-1">Payment Type</label>
+        <select id="pay-type" class="form-select form-select-sm">
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="upi">UPI</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label mb-1">Paid Amount</label>
+        <input type="number" id="paid-amount" class="form-control form-control-sm" min="0" step="0.01" value="0" style="width:150px;">
+      </div>
+
+      <div>
+        <div>
+        <label class="form-label mb-1">Pending Amount</label>
+        <div id="customer-pending" class="value">₹ 0.00</div>
+        <div>
+        <label class="form-label mb-1">Advance Payment</label>
+        <div id="advance-payment" class="value">₹ 0.00</div>
+        </div>
+      </div>
+      </div>
     </div>
-    <div>
-      <label class="form-label">Paid Amount:</label>
-      <input type="number" id="paid-amount" class="form-control" min="0" step="0.01" value="0">
+
+    <div class="right-col d-flex flex-column gap-2" style="min-width:260px; max-width:45%;">
+      <div class="d-flex align-items-center gap-2" style="justify-content:flex-end;">
+        <span class="label me-2">Order Discount:</span>
+        <input type="number" id="order-discount-flat" class="form-control form-control-sm" placeholder="₹ Flat" min="0" step="0.01" style="width:90px;">
+        <input type="number" id="order-discount-percent" class="form-control form-control-sm" placeholder="% Percent" min="0" step="0.01" style="width:90px;">
+      </div>
+
+      <div class="d-flex align-items-center" style="justify-content:flex-end; gap:.75rem;">
+        <span class="label">Total Discount (Items + Order):</span>
+        <span class="value">₹ <span id="grand-total-discount">0</span> 
+        (<span id="grand-total-discount-percent">0</span>%)</span>
+      </div>
+
+      <div class="d-flex align-items-center" style="justify-content:flex-end; gap:.75rem;">
+        <span class="label">Grand Total:</span>
+        <span class="value">₹ <span id="cart-total">0</span></span>
+      </div>
+
+      <div class="d-flex align-items-center" style="justify-content:flex-end; gap:.75rem;">
+        <span class="label">Customer Total:</span>
+        <span class="value">₹ <span id="customer-total">0</span></span>
+      </div>
     </div>
   </div>
-</div>
 
   <div class="mt-3 text-end">
     <a href="{% url 'pos' %}" class="btn btn-secondary">⬅ Back to POS</a>
@@ -95,298 +177,366 @@
   </div>
 </div>
 
-<style>
-  #cart-table input[type="number"] { width: 90px; }
-  #cart-table select { width: 80px; }
-  .product-img { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
-</style>
+<!-- Add Customer Modal -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addCustomerForm">
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Name</label>
+            <div class="col-sm-10">
+              <input type="text" id="cust_name" class="form-control" required>
+            </div>
+          </div>
 
-<script>
-let orderDiscountFlat = 0;
-let orderDiscountPercent = 0;
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Phone</label>
+            <div class="col-sm-10">
+              <input type="text" id="cust_phone" class="form-control" >
+            </div>
+          </div>
 
-function updateCartUI() {
-  fetch("/admin_api/cart/")
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.getElementById("cart-items");
-      const totalEl = document.getElementById("cart-total");
-      const totalPriceEl = document.getElementById("total-price");
-      const totalGSTEl = document.getElementById("total-gst");
-      const totalGSTAmountEl = document.getElementById("total-gst-amout");
-      const totalQuantityEl = document.getElementById("total-quantity");
-      const totalQuantityPriceEl = document.getElementById("total-quantity-price");
-      const totalItemDiscountEl = document.getElementById("total-item-discount");
-      const totalItemDiscountPercentageEl = document.getElementById("total-item-discount-percentage");
-      const grandTotalDiscountEl = document.getElementById("grand-total-discount");
-      const grandTotalDiscountPercentEl = document.getElementById("grand-total-discount-percent");
-      const grandTotalPriceEl = document.getElementById("grand-total-price");
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Email</label>
+            <div class="col-sm-10">
+              <input type="email" id="cust_email" class="form-control">
+            </div>
+          </div>
 
-      if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center">Your cart is empty.</td></tr>';
-        totalEl.textContent = "0";
-        totalPriceEl.textContent = "0";
-        totalGSTEl.textContent = "0";
-        totalGSTAmountEl.textContent = "0";
-        totalQuantityEl.textContent = "0";
-        totalQuantityPriceEl.textContent = "0";
-        totalItemDiscountEl.textContent = "0";
-        totalItemDiscountPercentageEl.textContent = "0";
-        grandTotalDiscountEl.textContent = "0";
-        grandTotalDiscountPercentEl.textContent = "0";
-        grandTotalPriceEl.textContent = "0";
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">Address</label>
+            <div class="col-sm-10">
+              <textarea id="cust_address" class="form-control"></textarea>
+            </div>
+          </div>
+
+          <div class="text-end">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+  <script>
+    let orderDiscountFlat = 0;
+    let orderDiscountPercent = 0;
+
+    function updateCartUI() {
+      fetch("/admin_api/cart/")
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.getElementById("cart-items");
+          const totalEl = document.getElementById("cart-total");
+          const totalPriceEl = document.getElementById("total-price");
+          const totalGSTEl = document.getElementById("total-gst");
+          const totalGSTAmountEl = document.getElementById("total-gst-amout");
+          const totalQuantityEl = document.getElementById("total-quantity");
+          const totalQuantityPriceEl = document.getElementById("total-quantity-price");
+          const totalItemDiscountEl = document.getElementById("total-item-discount");
+          const totalItemDiscountPercentageEl = document.getElementById("total-item-discount-percentage");
+          const grandTotalDiscountEl = document.getElementById("grand-total-discount");
+          const grandTotalDiscountPercentEl = document.getElementById("grand-total-discount-percent");
+          const grandTotalPriceEl = document.getElementById("grand-total-price");
+
+          if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center">Your cart is empty.</td></tr>';
+            totalEl.textContent = "0";
+            totalPriceEl.textContent = "0";
+            totalGSTEl.textContent = "0";
+            totalGSTAmountEl.textContent = "0";
+            totalQuantityEl.textContent = "0";
+            totalQuantityPriceEl.textContent = "0";
+            totalItemDiscountEl.textContent = "0";
+            totalItemDiscountPercentageEl.textContent = "0";
+            grandTotalDiscountEl.textContent = "0";
+            grandTotalDiscountPercentEl.textContent = "0";
+            grandTotalPriceEl.textContent = "0";
+            return;
+          }
+
+          tbody.innerHTML = "";
+
+          let subtotal = 0;
+          let totalprice = 0;
+          let totalDiscount = 0;
+          let totalDiscountPercentage = 0;
+          let totalgst = 0;
+          let totalGSTAmount = 0;
+          let totalquantity = 0;
+          let grandtotalPrice = 0;
+
+          data.forEach(item => {
+            const price = parseFloat(item.variant_price);
+            const qty = parseInt(item.quantity);
+            const isPerc = item.is_percentage;
+            const itemDiscount = parseFloat(item.item_discount || 0);
+            const gst = parseFloat(item.gst || 0);
+
+            let qtyPrice = price * qty;
+            let discountPrice = isPerc ? (qtyPrice * itemDiscount / 100) : itemDiscount;
+            let gstAmount = (qtyPrice - discountPrice) * gst / 100;
+            let totalPrice = (qtyPrice - discountPrice) + gstAmount;
+            
+            grandtotalPrice +=totalPrice;
+            totalprice += price;
+            totalquantity +=qty;
+            subtotal += qtyPrice;
+            totalDiscountPercentage +=itemDiscount;
+            totalDiscount += discountPrice;
+            totalGSTAmount += gstAmount;
+            totalgst += gst;
+
+            const imageUrl = item.variant_photo || "/static/no-image.png";
+
+            tbody.insertAdjacentHTML("beforeend", `
+              <tr>
+                <td><img src="${imageUrl}" class="product-img"> ${item.variant_name}</td>
+                <td>${item.variant_size}</td>
+                <td>₹${price.toFixed(2)}</td>
+                <td><input type="number" value="${qty}" min="1" step="1" onchange="updateQty(${item.id}, this.value)"></td>
+                <td>₹${qtyPrice.toFixed(2)}</td>
+                <td>
+                  <input type="number" 
+                        value="${isPerc ? itemDiscount : ''}" 
+                        min="0" step="0.01" 
+                        onchange="updateItemDiscount(${item.id}, this.value, true)" 
+                        style="width:70px">
+                </td>
+                <td>
+                  <input type="number" 
+                        value="${discountPrice.toFixed(2)}" 
+                        min="0" step="0.01" 
+                        onchange="updateDiscountPrice(${item.id}, this.value, ${price}, ${qty})" 
+                        style="width:80px">
+                </td>
+                <td>
+                  <select onchange="updateGST(${item.id}, this.value)" style="width:80px">
+                    <option value="" ${!gst || gst == 0 ? "selected" : ""}>--</option>
+                    <option value="5" ${gst == 5 ? "selected" : ""}>5%</option>
+                    <option value="9" ${gst == 9 ? "selected" : ""}>9%</option>
+                    <option value="18" ${gst == 18 ? "selected" : ""}>18%</option>
+                  </select>
+                </td>
+                <td>₹${gstAmount.toFixed(2)}</td>
+                <td>₹${totalPrice.toFixed(2)}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✖</button></td>
+              </tr>
+            `);
+          });
+
+          // Order discount
+          let orderDiscountValueFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
+          let orderDiscountValuePercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
+
+          // If flat entered, calculate percent; if percent entered, calculate flat
+          if (orderDiscountValueFlat > 0) {
+            orderDiscountValuePercent = (orderDiscountValueFlat / subtotal) * 100;
+            document.getElementById("order-discount-percent").value = orderDiscountValuePercent.toFixed(2);
+          } else if (orderDiscountValuePercent > 0) {
+            orderDiscountValueFlat = (subtotal * orderDiscountValuePercent / 100);
+            document.getElementById("order-discount-flat").value = orderDiscountValueFlat.toFixed(2);
+          }
+
+          let grandDiscount = totalDiscount + orderDiscountValueFlat;
+          let grandDiscountPercent = totalDiscountPercentage + orderDiscountValuePercent;
+
+          // Update UI
+          totalPriceEl.textContent = totalprice;
+          totalQuantityEl.textContent = totalquantity.toFixed(2);
+          totalQuantityPriceEl.textContent = subtotal.toFixed(2);
+          totalItemDiscountEl.textContent = totalDiscount.toFixed(2);
+          totalItemDiscountPercentageEl.textContent = totalDiscountPercentage.toFixed(2);
+          grandTotalDiscountEl.textContent = grandDiscount.toFixed(2);
+          grandTotalDiscountPercentEl.textContent = grandDiscountPercent.toFixed(2);
+
+          totalGSTAmountEl.textContent = totalGSTAmount.toFixed(2);
+          totalGSTEl.textContent = totalgst.toFixed(2);
+          totalEl.textContent = (subtotal - grandDiscount + totalGSTAmount).toFixed(2);
+          grandTotalPriceEl.textContent = grandtotalPrice;
+
+        });
+    }
+
+    // Event listeners for new inputs
+    document.addEventListener("DOMContentLoaded", () => {
+      updateCartUI();
+      document.getElementById("order-discount-flat")?.addEventListener("input", () => {
+        document.getElementById("order-discount-percent").value = "";
+        updateCartUI();
+      });
+      document.getElementById("order-discount-percent")?.addEventListener("input", () => {
+        document.getElementById("order-discount-flat").value = "";
+        updateCartUI();
+      });
+    });
+
+
+    // Update qty/discount/GST/remove
+    function updateQty(cartId, qty) {
+      fetch(`/admin_api/cart/${cartId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+        body: JSON.stringify({ quantity: parseInt(qty) })
+      }).then(updateCartUI);
+    }
+    function updateItemDiscount(cartId, val, isPercentage) {
+      val = parseFloat(val);
+      fetch(`/admin_api/cart/${cartId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+        body: JSON.stringify({ item_discount: val, is_percentage: isPercentage })
+      }).then(updateCartUI);
+    }
+    function updateDiscountPrice(cartId, discountPrice, price, qty) {
+      discountPrice = parseFloat(discountPrice);
+      let percent = (discountPrice / (price * qty)) * 100;
+      fetch(`/admin_api/cart/${cartId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+        body: JSON.stringify({ item_discount: percent, is_percentage: true })
+      }).then(updateCartUI);
+    }
+    function updateGST(cartId, gst) {
+      let gstValue = gst === "" ? null : parseFloat(gst);
+      fetch(`/admin_api/cart/${cartId}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+        body: JSON.stringify({ gst: gstValue })
+      }).then(updateCartUI);
+    }
+    function removeItem(cartId) {
+      fetch(`/admin_api/cart/${cartId}/`, {
+        method: "DELETE",
+        headers: { "X-CSRFToken": getCSRFToken() }
+      }).then(updateCartUI);
+    }
+
+    function getCSRFToken() {
+      let cookieValue = null;
+      document.cookie.split(';').forEach(cookie => {
+        cookie = cookie.trim();
+        if (cookie.startsWith('csrftoken=')) cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
+      });
+      return cookieValue;
+    }
+
+    const customerInput = document.getElementById("customer_input");
+    const customerSuggestionBox = document.getElementById("customer_suggestions");
+    const customerHiddenId = document.getElementById("customer_id");
+    const CustomerPendingAmount = document.getElementById('customer-pending');
+    const CustomerAdvancePayment = document.getElementById('advance-payment');
+
+    // Fetch and render customers
+    function fetchCustomers(query = "") {
+      let url = "/admin_api/customers/";
+      if (query) {
+        url += `?search=${encodeURIComponent(query)}`;
+      }
+
+      fetch(url)
+        .then((res) => res.json())
+        .then((data) => {
+          const customers = data.results ? data.results : data; // DRF paginated or plain list
+          customerSuggestionBox.innerHTML = "";
+
+          if (customers.length === 0) {
+            customerSuggestionBox.innerHTML = `<li class="list-group-item">No results</li>`;
+            return;
+          }
+
+          customers.forEach((cust) => {
+            const li = document.createElement("li");
+            li.textContent = `${cust.name} (${cust.phone || cust.email || ""})`;
+            li.classList.add("list-group-item");
+            li.style.cursor = "pointer";
+
+            li.addEventListener("click", function () {
+              customerInput.value = cust.name;      // show customer name
+              customerHiddenId.value = cust.id;     // save customer id
+              customerSuggestionBox.innerHTML = ""; // close dropdown
+              const pending = parseFloat(cust.pending_amount || 0);
+              const advance = parseFloat(cust.advance_payment || 0);
+              CustomerPendingAmount.textContent = `₹ ${pending.toFixed(2)}`;
+              CustomerAdvancePayment.textContent = `₹ ${advance.toFixed(2)}`;
+              
+              const pendingEl = document.getElementById("customer-pending");
+              const advanceEl = document.getElementById('advance-payment');
+              const customerTotalEl = document.getElementById('customer-total');
+              pendingEl.value = pending;
+
+              let grandtotalPrice = parseFloat(document.getElementById("grand-total-price").textContent || 0);
+              customerTotalEl.textContent = (pending + grandtotalPrice).toFixed(2);
+            });
+
+            customerSuggestionBox.appendChild(li);
+          });
+        })
+        .catch((err) => {
+          console.error("Error fetching customers:", err);
+          customerSuggestionBox.innerHTML = "";
+        });
+    }
+
+    // Show all customers when clicking the input
+    customerInput.addEventListener("focus", function () {
+      fetchCustomers();
+    });
+
+    // Filter customers while typing
+    customerInput.addEventListener("input", function () {
+      const query = this.value.trim();
+      fetchCustomers(query);
+    });
+
+    // Close suggestion box when clicking outside
+    document.addEventListener("click", function (e) {
+      if (!customerInput.contains(e.target) && !customerSuggestionBox.contains(e.target)) {
+        customerSuggestionBox.innerHTML = "";
+      }
+    });
+
+    function placeOrder() {
+      const customerId = document.getElementById("customer_id").value;
+      if (!customerId) {
+        alert("Please select a customer before placing order.");
         return;
       }
 
-      tbody.innerHTML = "";
+      // Get values from UI (already calculated)
+      const subtotal = document.getElementById("total-quantity-price").textContent;
+      const totalItemDiscount = document.getElementById("total-item-discount").textContent;
+      const orderDiscountFlat = document.getElementById("order-discount-flat").value || 0;
+      const orderDiscountPercent = document.getElementById("order-discount-percent").value || 0;
+      const grandTotalDiscount = document.getElementById("grand-total-discount").textContent;
+      const totalGST = document.getElementById("total-gst-amout").textContent;
+      const grandTotal = document.getElementById("cart-total").textContent;
 
-      let subtotal = 0;
-      let totalprice = 0;
-      let totalDiscount = 0;
-      let totalDiscountPercentage = 0;
-      let totalgst = 0;
-      let totalGSTAmount = 0;
-      let totalquantity = 0;
-      let grandtotalPrice = 0;
-
-      data.forEach(item => {
-        const price = parseFloat(item.variant_price);
-        const qty = parseInt(item.quantity);
-        const isPerc = item.is_percentage;
-        const itemDiscount = parseFloat(item.item_discount || 0);
-        const gst = parseFloat(item.gst || 0);
-
-        let qtyPrice = price * qty;
-        let discountPrice = isPerc ? (qtyPrice * itemDiscount / 100) : itemDiscount;
-        let gstAmount = (qtyPrice - discountPrice) * gst / 100;
-        let totalPrice = (qtyPrice - discountPrice) + gstAmount;
-        
-        grandtotalPrice +=totalPrice;
-        totalprice += price;
-        totalquantity +=qty;
-        subtotal += qtyPrice;
-        totalDiscountPercentage +=itemDiscount;
-        totalDiscount += discountPrice;
-        totalGSTAmount += gstAmount;
-        totalgst += gst;
-
-        const imageUrl = item.variant_photo || "/static/no-image.png";
-
-        tbody.insertAdjacentHTML("beforeend", `
-          <tr>
-            <td><img src="${imageUrl}" class="product-img"> ${item.variant_name}</td>
-            <td>${item.variant_size}</td>
-            <td>₹${price.toFixed(2)}</td>
-            <td><input type="number" value="${qty}" min="1" step="1" onchange="updateQty(${item.id}, this.value)"></td>
-            <td>₹${qtyPrice.toFixed(2)}</td>
-            <td>
-              <input type="number" 
-                    value="${isPerc ? itemDiscount : ''}" 
-                    min="0" step="0.01" 
-                    onchange="updateItemDiscount(${item.id}, this.value, true)" 
-                    style="width:70px">
-            </td>
-            <td>
-              <input type="number" 
-                    value="${discountPrice.toFixed(2)}" 
-                    min="0" step="0.01" 
-                    onchange="updateDiscountPrice(${item.id}, this.value, ${price}, ${qty})" 
-                    style="width:80px">
-            </td>
-            <td>
-              <select onchange="updateGST(${item.id}, this.value)" style="width:80px">
-                <option value="" ${!gst || gst == 0 ? "selected" : ""}>--</option>
-                <option value="5" ${gst == 5 ? "selected" : ""}>5%</option>
-                <option value="9" ${gst == 9 ? "selected" : ""}>9%</option>
-                <option value="18" ${gst == 18 ? "selected" : ""}>18%</option>
-              </select>
-            </td>
-            <td>₹${gstAmount.toFixed(2)}</td>
-            <td>₹${totalPrice.toFixed(2)}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="removeItem(${item.id})">✖</button></td>
-          </tr>
-        `);
-      });
-
-      // Order discount
-      let orderDiscountValueFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
-      let orderDiscountValuePercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
-
-      // If flat entered, calculate percent; if percent entered, calculate flat
-      if (orderDiscountValueFlat > 0) {
-        orderDiscountValuePercent = (orderDiscountValueFlat / subtotal) * 100;
-        document.getElementById("order-discount-percent").value = orderDiscountValuePercent.toFixed(2);
-      } else if (orderDiscountValuePercent > 0) {
-        orderDiscountValueFlat = (subtotal * orderDiscountValuePercent / 100);
-        document.getElementById("order-discount-flat").value = orderDiscountValueFlat.toFixed(2);
-      }
-
-      let grandDiscount = totalDiscount + orderDiscountValueFlat;
-      let grandDiscountPercent = (grandDiscount / subtotal) * 100;
-
-      // Update UI
-      totalPriceEl.textContent = totalprice;
-      totalQuantityEl.textContent = totalquantity.toFixed(2);
-      totalQuantityPriceEl.textContent = subtotal.toFixed(2);
-      totalItemDiscountEl.textContent = totalDiscount.toFixed(2);
-      totalItemDiscountPercentageEl.textContent = totalDiscountPercentage.toFixed(2);
-      grandTotalDiscountEl.textContent = grandDiscount.toFixed(2);
-      grandTotalDiscountPercentEl.textContent = grandDiscountPercent.toFixed(2);
-
-      totalGSTAmountEl.textContent = totalGSTAmount.toFixed(2);
-      totalGSTEl.textContent = totalgst.toFixed(2);
-      totalEl.textContent = (subtotal - grandDiscount + totalGSTAmount).toFixed(2);
-      grandTotalPriceEl.textContent = grandtotalPrice;
-    });
-}
-
-// Event listeners for new inputs
-document.addEventListener("DOMContentLoaded", () => {
-  updateCartUI();
-  document.getElementById("order-discount-flat")?.addEventListener("input", () => {
-    document.getElementById("order-discount-percent").value = "";
-    updateCartUI();
-  });
-  document.getElementById("order-discount-percent")?.addEventListener("input", () => {
-    document.getElementById("order-discount-flat").value = "";
-    updateCartUI();
-  });
-});
-
-
-// Update qty/discount/GST/remove
-function updateQty(cartId, qty) {
-  fetch(`/admin_api/cart/${cartId}/`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-    body: JSON.stringify({ quantity: parseInt(qty) })
-  }).then(updateCartUI);
-}
-function updateItemDiscount(cartId, val, isPercentage) {
-  val = parseFloat(val);
-  fetch(`/admin_api/cart/${cartId}/`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-    body: JSON.stringify({ item_discount: val, is_percentage: isPercentage })
-  }).then(updateCartUI);
-}
-function updateDiscountPrice(cartId, discountPrice, price, qty) {
-  discountPrice = parseFloat(discountPrice);
-  let percent = (discountPrice / (price * qty)) * 100;
-  fetch(`/admin_api/cart/${cartId}/`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-    body: JSON.stringify({ item_discount: percent, is_percentage: true })
-  }).then(updateCartUI);
-}
-function updateGST(cartId, gst) {
-  let gstValue = gst === "" ? null : parseFloat(gst);
-  fetch(`/admin_api/cart/${cartId}/`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-    body: JSON.stringify({ gst: gstValue })
-  }).then(updateCartUI);
-}
-function removeItem(cartId) {
-  fetch(`/admin_api/cart/${cartId}/`, {
-    method: "DELETE",
-    headers: { "X-CSRFToken": getCSRFToken() }
-  }).then(updateCartUI);
-}
-
-// CSRF helper
-function getCSRFToken() {
-  let cookieValue = null;
-  document.cookie.split(';').forEach(cookie => {
-    cookie = cookie.trim();
-    if (cookie.startsWith('csrftoken=')) cookieValue = decodeURIComponent(cookie.substring('csrftoken='.length));
-  });
-  return cookieValue;
-}
-
-// ======================= CUSTOMER SEARCH =======================
-  const customerInput = document.getElementById("customer_input");
-  const customerSuggestionBox = document.getElementById("customer_suggestions");
-  const customerHiddenId = document.getElementById("customer_id");
-
-  // Fetch and render customers
-  function fetchCustomers(query = "") {
-    let url = "/admin_api/customers/";
-    if (query) {
-      url += `?search=${encodeURIComponent(query)}`;
-    }
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        const customers = data.results ? data.results : data; // DRF paginated or plain list
-        customerSuggestionBox.innerHTML = "";
-
-        if (customers.length === 0) {
-          customerSuggestionBox.innerHTML = `<li class="list-group-item">No results</li>`;
-          return;
-        }
-
-        customers.forEach((cust) => {
-          const li = document.createElement("li");
-          li.textContent = `${cust.name} (${cust.phone || cust.email || ""})`;
-          li.classList.add("list-group-item");
-          li.style.cursor = "pointer";
-
-          li.addEventListener("click", function () {
-            customerInput.value = cust.name;      // show customer name
-            customerHiddenId.value = cust.id;     // save customer id
-            customerSuggestionBox.innerHTML = ""; // close dropdown
-          });
-
-          customerSuggestionBox.appendChild(li);
-        });
-      })
-      .catch((err) => {
-        console.error("Error fetching customers:", err);
-        customerSuggestionBox.innerHTML = "";
-      });
-  }
-
-  // Show all customers when clicking the input
-  customerInput.addEventListener("focus", function () {
-    fetchCustomers();
-  });
-
-  // Filter customers while typing
-  customerInput.addEventListener("input", function () {
-    const query = this.value.trim();
-    fetchCustomers(query);
-  });
-
-  // Close suggestion box when clicking outside
-  document.addEventListener("click", function (e) {
-    if (!customerInput.contains(e.target) && !customerSuggestionBox.contains(e.target)) {
-      customerSuggestionBox.innerHTML = "";
-    }
-  });
-
-  // ======================= ORDER PLACEMENT =======================
-  {% comment %} function placeOrder() {
-    const customerId = document.getElementById("customer_id").value;
-    if (!customerId) {
-      alert("Please select a customer before placing order.");
-      return;
-    }
-
-    // Get values
-    const payType = document.getElementById("pay-type").value;
-    const paidAmount = document.getElementById("paid-amount").value;
-
-    const orderDiscountFlat = parseFloat(document.getElementById("order-discount-flat").value || 0);
-    const orderDiscountPercent = parseFloat(document.getElementById("order-discount-percent").value || 0);
+      const payType = document.getElementById("pay-type").value;
+      const paidAmount = document.getElementById("paid-amount").value;
+      const customerTotal = document.getElementById('customer-total').value;
 
       const formData = new URLSearchParams();
       formData.append("customer_id", customerId);
+      formData.append("subtotal", subtotal);
+      formData.append("total_item_discount", totalItemDiscount);
       formData.append("order_discount_flat", orderDiscountFlat);
       formData.append("order_discount_percent", orderDiscountPercent);
+      formData.append("total_discount", grandTotalDiscount);
+      formData.append("total_gst", totalGST);
+      formData.append("total_amount", grandTotal);
       formData.append("pay_type", payType);
       formData.append("paid_amount", paidAmount);
+      formData.append("customer-total", customerTotal);
 
       fetch("/place_order/", {
         method: "POST",
@@ -396,59 +546,108 @@ function getCSRFToken() {
         },
         body: formData.toString()
       }).then(res => { if (res.redirected) window.location.href = res.url; });
-  } {% endcomment %}
-  function placeOrder() {
-    const customerId = document.getElementById("customer_id").value;
-    if (!customerId) {
-      alert("Please select a customer before placing order.");
-      return;
     }
 
-    // Get values from UI (already calculated)
-    const subtotal = document.getElementById("total-quantity-price").textContent;
-    const totalItemDiscount = document.getElementById("total-item-discount").textContent;
-    const orderDiscountFlat = document.getElementById("order-discount-flat").value || 0;
-    const orderDiscountPercent = document.getElementById("order-discount-percent").value || 0;
-    const grandTotalDiscount = document.getElementById("grand-total-discount").textContent;
-    const totalGST = document.getElementById("total-gst-amout").textContent;
-    const grandTotal = document.getElementById("cart-total").textContent;
+    document.getElementById("addCustomerForm").addEventListener("submit", function (e) {
+      e.preventDefault();
 
-    const payType = document.getElementById("pay-type").value;
-    const paidAmount = document.getElementById("paid-amount").value;
+      const payload = {
+        name: document.getElementById("cust_name").value,
+        phone: document.getElementById("cust_phone").value,
+        email: document.getElementById("cust_email").value,
+        address: document.getElementById("cust_address").value,
+      };
 
-    const formData = new URLSearchParams();
-    formData.append("customer_id", customerId);
-    formData.append("subtotal", subtotal);
-    formData.append("total_item_discount", totalItemDiscount);
-    formData.append("order_discount_flat", orderDiscountFlat);
-    formData.append("order_discount_percent", orderDiscountPercent);
-    formData.append("total_discount", grandTotalDiscount);
-    formData.append("total_gst", totalGST);
-    formData.append("total_amount", grandTotal);
-    formData.append("pay_type", payType);
-    formData.append("paid_amount", paidAmount);
+      fetch("/admin_api/customers/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(), // if Django CSRF
+        },
+        body: JSON.stringify(payload),
+      })
+        .then(res => res.json())
+        .then(data => {
+          // Close modal
+          bootstrap.Modal.getInstance(document.getElementById("addCustomerModal")).hide();
 
-    fetch("/place_order/", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": getCSRFToken(),
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: formData.toString()
-    }).then(res => { if (res.redirected) window.location.href = res.url; });
-  }
-
-  // ======================= INIT =======================
-  document.addEventListener("DOMContentLoaded", () => {
-    updateCartUI();
-    document.getElementById("order-discount")?.addEventListener("change", () => {
-      orderDiscount = parseFloat(document.getElementById("order-discount").value || 0);
-      updateCartUI();
+          // Set newly created customer as selected
+          customerInput.value = data.name;
+          customerHiddenId.value = data.id;
+          CustomerPendingAmount.textContent = `₹ ${data.pending_amount || 0}`;
+        })
+        .catch(err => console.error("Error adding customer:", err));
     });
-    document.getElementById("order-discount-type")?.addEventListener("change", () => {
-      orderDiscountType = document.getElementById("order-discount-type").value;
-      updateCartUI();
+
+    // Show search box when + button clicked
+    document.getElementById("add-product-btn").addEventListener("click", function () {
+      const box = document.getElementById("add-product-box");
+      box.style.display = box.style.display === "none" ? "block" : "none";
+      document.getElementById("product_input").focus();
     });
-  });
-</script>
+
+    const productInput = document.getElementById("product_input");
+    const productSuggestionBox = document.getElementById("product_suggestions");
+
+    // Fetch products on typing
+    productInput.addEventListener("keyup", function () {
+      const query = this.value.trim();
+      if (!query) {
+        productSuggestionBox.innerHTML = "<li class='list-group-item'>Type to search...</li>";
+        return;
+      }
+
+      fetch(`/admin_api/products/?search=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+          const products = data.results ? data.results : data;
+          productSuggestionBox.innerHTML = "";
+
+          if (!products.length) {
+            productSuggestionBox.innerHTML = `<li class="list-group-item">No products found</li>`;
+            return;
+          }
+
+          products.forEach(prod => {
+            let variantsHTML = "";
+            (prod.variants || []).forEach(v => {
+              variantsHTML += `
+                <button class="btn btn-sm btn-outline-primary m-1"
+                  onclick="addVariantToCart(${v.id}, '${prod.name} - ${v.size}', '${prod.photo || '/static/no-image.png'}', ${v.price})">
+                  ${v.size} - ₹${v.price}
+                </button>
+              `;
+            });
+
+            const li = document.createElement("li");
+            li.className = "list-group-item";
+            li.innerHTML = `
+              <div><strong>${prod.name}</strong></div>
+              <div class="mt-1 d-flex flex-wrap">${variantsHTML}</div>
+            `;
+            productSuggestionBox.appendChild(li);
+          });
+        });
+    });
+
+    // Function to add product variant to cart
+    function addVariantToCart(variantId, name, photo, price, qty = 1) {
+      fetch("/admin_api/cart/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(), // make sure you have this function
+        },
+        body: JSON.stringify({ variantId: variantId, qty: qty }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          updateCartUI(); // refresh cart
+          productInput.value = "";
+          productSuggestionBox.innerHTML = "";
+          document.getElementById("add-product-box").style.display = "none";
+        })
+        .catch(err => console.error("Error adding to cart:", err));
+    }
+  </script>
 {% endblock %}

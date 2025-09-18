@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'import_export',
     'django_filters',
-    'inventory_app', 
+    'inventory_app',
+    'pricemanagement_app',
     'apps.dashboards',
     'apps.authentication',
 ]

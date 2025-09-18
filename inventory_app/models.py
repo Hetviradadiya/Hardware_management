@@ -128,6 +128,7 @@ class Customer(models.Model):
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     pending_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    advance_payment = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
 
     def __str__(self):
         return self.name
