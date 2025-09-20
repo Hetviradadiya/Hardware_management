@@ -111,7 +111,21 @@ def place_order(request):
     if paid_amount < total_amount:
         unpaid_amount = total_amount - paid_amount
         customer.pending_amount += unpaid_amount
-        customer.save()
+
+    elif paid_amount > total_amount:
+        overpaid_amount = paid_amount - total_amount
+
+        if customer.pending_amount > 0:
+            if overpaid_amount >= customer.pending_amount:
+                remaining = overpaid_amount - customer.pending_amount
+                customer.pending_amount = 0
+                customer.advance_payment += remaining
+            else:
+                customer.pending_amount -= overpaid_amount
+        else:
+            customer.advance_payment += overpaid_amount
+
+    customer.save()
 
     # Save each cart item
     cart_items = Cart.objects.all()
@@ -133,96 +147,6 @@ def place_order(request):
     cart_items.delete()
 
     return redirect("bill_page", order_id=order.id)
-
-
-# def place_order(request):
-#     customer_id = request.POST.get("customer_id")
-#     customer = get_object_or_404(Customer, id=customer_id)
-
-#     # ✅ Get discounts properly
-#     order_discount_flat = Decimal(request.POST.get("order_discount_flat", "0"))
-#     order_discount_percent = Decimal(request.POST.get("order_discount_percent", "0"))
-
-#     pay_type = request.POST.get("pay_type")
-#     paid_amount = Decimal(request.POST.get("paid_amount", "0"))
-
-#     # Fetch all cart items
-#     cart_items = Cart.objects.all()
-#     if not cart_items.exists():
-#         return redirect("cart_page")
-
-#     # Step 1: Calculate totals from cart
-#     subtotal = Decimal(0)
-#     total_item_discount = Decimal(0)
-#     total_gst = Decimal(0)
-
-#     for cart_item in cart_items:
-#         item_total = cart_item.variant.price * cart_item.quantity
-#         subtotal += item_total
-
-#         # Item discount
-#         if cart_item.is_percentage:
-#             item_discount_val = (item_total * cart_item.item_discount) / Decimal(100)
-#         else:
-#             item_discount_val = cart_item.item_discount
-#         total_item_discount += item_discount_val
-
-#         # GST on discounted price
-#         total_gst += ((item_total - item_discount_val) * cart_item.gst) / Decimal(100)
-
-#     # ✅ Apply order discount (flat or %)
-#     if order_discount_flat > 0:
-#         order_discount_val = order_discount_flat
-#         is_percentage = False
-#     elif order_discount_percent > 0:
-#         order_discount_val = (subtotal * order_discount_percent) / Decimal(100)
-#         is_percentage = True
-#     else:
-#         order_discount_val = Decimal(0)
-#         is_percentage = False
-
-#     total_discount = total_item_discount + order_discount_val
-#     grand_total = subtotal - total_discount + total_gst
-
-#     # Step 2: Create Order
-#     order = Order.objects.create(
-#         customer=customer,
-#         subtotal=subtotal,
-#         total_item_discount=total_item_discount,
-#         order_discount=order_discount_val,
-#         is_percentage=is_percentage,
-#         total_discount=total_discount,
-#         total_gst=total_gst,
-#         total_amount=grand_total,
-#         pay_type=pay_type,
-#         paid_amount=paid_amount,
-#         is_paid=(paid_amount >= grand_total)  # mark paid if full
-#     )
-
-#     # Step 3: Create OrderItems
-#     for cart_item in cart_items:
-#         OrderItem.objects.create(
-#             order=order,
-#             variant=cart_item.variant,
-#             quantity=cart_item.quantity,
-#             price_at_sale=cart_item.variant.price,
-#             item_discount=cart_item.item_discount,
-#             is_percentage=cart_item.is_percentage,
-#             gst=cart_item.gst,
-#         )
-
-#     # Step 4: Create Sale (profit + inventory handling is in Sale.save)
-#     Sale.objects.create(
-#         order=order,
-#         total_amount=grand_total,
-#         paid_amount=paid_amount
-#     )
-
-#     # Step 5: Clear cart
-#     cart_items.delete()
-
-#     return redirect("bill_page", order_id=order.id)
-
 
 def bill_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
