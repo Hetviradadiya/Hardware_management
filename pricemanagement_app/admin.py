@@ -5,19 +5,19 @@ from .models import Product
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "name", "hsn_code", "size", "mrp",
+        "id", "name", "hsn_code", "size", "pcs_size","mrp",
         "purchase_price", "purchase_discount", "purchase_tax",
         "sale_price", "sale_discount", "sale_tax",
         "current_purchase_total", "current_sale_total",
         "created_at", "updated_at",
     )
-    search_fields = ("name", "hsn_code", "size")
+    search_fields = ("name", "hsn_code", "size","pcs_size")
     list_filter = ("created_at", "updated_at")
     readonly_fields = ("created_at", "updated_at", "current_purchase_total", "current_sale_total")
 
     fieldsets = (
         ("Basic Info", {
-            "fields": ("photo", "name", "hsn_code", "size", "mrp")
+            "fields": ("photo", "name", "hsn_code", "size","pcs_size", "mrp")
         }),
         ("Purchase Details", {
             "fields": ("purchase_price", "purchase_discount", "purchase_tax",

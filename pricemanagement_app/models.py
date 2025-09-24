@@ -7,6 +7,7 @@ class Product(models.Model):
     photo = models.ImageField(upload_to="products/", blank=True, null=True)
     name = models.CharField(max_length=255)
     size = models.CharField(max_length=50, blank=True, null=True)
+    pcs_size = models.CharField(max_length=50, blank=True, null=True)
     mrp = models.FloatField()
 
     purchase_price = models.FloatField()
