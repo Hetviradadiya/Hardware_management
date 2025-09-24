@@ -108,22 +108,29 @@ def place_order(request):
         is_paid=(paid_amount >= total_amount),
     )
     
-    if paid_amount < total_amount:
-        unpaid_amount = total_amount - paid_amount
-        customer.pending_amount += unpaid_amount
+    total_paid = paid_amount
+    advance_used = Decimal("0")
 
-    elif paid_amount > total_amount:
-        overpaid_amount = paid_amount - total_amount
-
-        if customer.pending_amount > 0:
-            if overpaid_amount >= customer.pending_amount:
-                remaining = overpaid_amount - customer.pending_amount
-                customer.pending_amount = 0
-                customer.advance_payment += remaining
+    if customer.advance_payment > 0:
+        needed = total_amount - total_paid
+        if needed > 0:
+            if customer.advance_payment >= needed:
+                advance_used = needed
+                customer.advance_payment -= needed
+                total_paid += needed
             else:
-                customer.pending_amount -= overpaid_amount
-        else:
-            customer.advance_payment += overpaid_amount
+                advance_used = customer.advance_payment
+                total_paid += customer.advance_payment
+                customer.advance_payment = 0
+
+    # Handle pending / overpaid
+    if total_paid < total_amount:
+        customer.pending_amount += (total_amount - total_paid)
+    elif total_paid > total_amount:
+        customer.advance_payment += (total_paid - total_amount)
+        
+    order.is_paid = (total_paid >= total_amount)
+    order.save()
 
     customer.save()
 
