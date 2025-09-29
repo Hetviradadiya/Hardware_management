@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from ..models import Cart, ProductVariant,Customer, Order, OrderItem, Sale, Inventory
@@ -9,7 +10,7 @@ from decimal import Decimal
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         variant_id = request.data.get("variantId")

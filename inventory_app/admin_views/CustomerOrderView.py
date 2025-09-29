@@ -5,8 +5,11 @@ from ..serializers import OrderSerializer
 from rest_framework.response import Response
 from datetime import datetime
 from django.utils.dateparse import parse_date
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def customer_orders(request, pk):
     orders = Order.objects.filter(customer=pk).order_by("-order_date")
 
@@ -27,6 +30,7 @@ def customer_orders(request, pk):
     return Response(serializer.data)
     
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def order_detail_api(request, id):
     order = get_object_or_404(Order, id=id)
     serializer = OrderSerializer(order)

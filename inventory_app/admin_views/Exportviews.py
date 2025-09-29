@@ -1,9 +1,11 @@
 from django.http import HttpResponse
 from openpyxl import Workbook
 from inventory_app.models import Order
-from inventory_app.serializers import OrderSerializer  # import your serializer
+from inventory_app.serializers import OrderSerializer 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
-
+@permission_classes([IsAuthenticated])
 def export_customer_orders_excel(request, pk):
     # Fetch orders for this customer
     orders = Order.objects.filter(customer_id=pk)
@@ -75,6 +77,7 @@ from inventory_app.models import Order, Customer
 from inventory_app.serializers import OrderSerializer
 from django.utils.dateparse import parse_date
 
+@permission_classes([IsAuthenticated])
 def export_customer_orders_pdf(request, pk):
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")

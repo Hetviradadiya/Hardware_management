@@ -5,16 +5,18 @@ from rest_framework import generics,viewsets,permissions,filters
 from ..models import *
 from django.http import JsonResponse
 from django.utils.dateparse import parse_date
-
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 class SupplierView(viewsets.ModelViewSet):
     queryset=Supplier.objects.all()
     serializer_class=SupplierSerializer
-    permission_classes=[permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'name','email','phone','address'      
     ]
-    
+
+@permission_classes([IsAuthenticated])    
 def supplier_purchases(request, pk):
     purchases = Purchase.objects.filter(supplier=pk).order_by("-date")
 
