@@ -47,6 +47,13 @@
         padding: 12px;
         margin-top: 10px;
       }
+      .readonly-field {
+        background-color: #f8f9fa;
+      }
+      #toggleFormBtn:hover {
+        transform: scale(1.1);
+        transition: 0.2s;
+      }
     </style>
   </head>
   <body class="bg-light">
@@ -65,8 +72,29 @@
           placeholder="🔍 Search product..."
           style="max-width: 300px"
         />
+        {% comment %}
         <button class="btn btn-success btn-sm" id="toggleFormBtn">
           ➕ Add Product
+        </button>
+        {% endcomment %}
+        <button
+          id="toggleFormBtn"
+          class="btn btn-primary rounded-circle"
+          style="
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+          "
+        >
+          +
         </button>
       </div>
 
@@ -103,12 +131,22 @@
 
               <div class="col-md-6">
                 <label class="form-label">MRP</label>
-                <input type="number" id="mrp" class="form-control" />
+                <input
+                  type="number"
+                  id="mrp"
+                  class="form-control"
+                  step="0.01"
+                />
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Purchase Price</label>
-                <input type="number" id="purchase_price" class="form-control" />
+                <input
+                  type="number"
+                  id="purchase_price"
+                  class="form-control"
+                  step="0.01"
+                />
               </div>
 
               <div class="col-md-6">
@@ -117,12 +155,21 @@
                   type="number"
                   id="purchase_discount"
                   class="form-control"
+                  step="0.01"
+                  min="0"
+                  max="100"
                 />
               </div>
 
               <div class="col-md-6">
                 <label class="form-label">Purchase Tax (%)</label>
-                <input type="number" id="purchase_tax" class="form-control" />
+                <input
+                  type="number"
+                  id="purchase_tax"
+                  class="form-control"
+                  step="0.01"
+                  min="0"
+                />
               </div>
 
               <!-- Purchase Calculation Fields -->
@@ -136,8 +183,8 @@
                     <input
                       type="number"
                       id="calc_purchase_discount"
-                      class="form-control"
-                      readonly
+                      class="form-control readonly-field"
+                      step="0.01"
                     />
                   </div>
                   <div class="col-md-4">
@@ -145,7 +192,8 @@
                     <input
                       type="number"
                       id="calc_purchase_tax"
-                      class="form-control"
+                      class="form-control readonly-field"
+                      step="0.01"
                       readonly
                     />
                   </div>
@@ -154,7 +202,8 @@
                     <input
                       type="number"
                       id="calc_final_purchase"
-                      class="form-control text-success fw-bold"
+                      class="form-control text-success fw-bold readonly-field"
+                      step="0.01"
                       readonly
                     />
                   </div>
@@ -163,17 +212,35 @@
 
               <div class="col-md-6 mt-3">
                 <label class="form-label">Sale Price</label>
-                <input type="number" id="sale_price" class="form-control" />
+                <input
+                  type="number"
+                  id="sale_price"
+                  class="form-control"
+                  step="0.01"
+                />
               </div>
 
               <div class="col-md-6 mt-3">
                 <label class="form-label">Sale Discount (%)</label>
-                <input type="number" id="sale_discount" class="form-control" />
+                <input
+                  type="number"
+                  id="sale_discount"
+                  class="form-control"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                />
               </div>
 
               <div class="col-md-6 mt-3">
                 <label class="form-label">Sale Tax (%)</label>
-                <input type="number" id="sale_tax" class="form-control" />
+                <input
+                  type="number"
+                  id="sale_tax"
+                  class="form-control"
+                  step="0.01"
+                  min="0"
+                />
               </div>
 
               <!-- Sale Calculation Fields -->
@@ -185,7 +252,8 @@
                     <input
                       type="number"
                       id="calc_sale_discount"
-                      class="form-control"
+                      class="form-control readonly-field"
+                      step="0.01"
                       readonly
                     />
                   </div>
@@ -194,7 +262,8 @@
                     <input
                       type="number"
                       id="calc_sale_tax"
-                      class="form-control"
+                      class="form-control readonly-field"
+                      step="0.01"
                       readonly
                     />
                   </div>
@@ -203,7 +272,8 @@
                     <input
                       type="number"
                       id="calc_final_sale"
-                      class="form-control text-success fw-bold"
+                      class="form-control text-success fw-bold readonly-field"
+                      step="0.01"
                       readonly
                     />
                   </div>
@@ -231,79 +301,177 @@
     <script>
       const API_URL = "/api/products/";
 
-      function calculateFinals() {
-        const purchasePrice =
+      // =================== PURCHASE CALCULATION ===================
+      function calculatePurchaseDiscountAmount() {
+        const price =
           parseFloat(document.getElementById("purchase_price").value) || 0;
-        const purchaseDiscount =
+        const discountPercent =
           parseFloat(document.getElementById("purchase_discount").value) || 0;
-        const purchaseTax =
+        return (price * discountPercent) / 100;
+      }
+
+      function calculatePurchaseTax(subtotal) {
+        const taxPercent =
           parseFloat(document.getElementById("purchase_tax").value) || 0;
+        return (subtotal * taxPercent) / 100;
+      }
 
-        const salePrice =
-          parseFloat(document.getElementById("sale_price").value) || 0;
-        const saleDiscount =
-          parseFloat(document.getElementById("sale_discount").value) || 0;
-        const saleTax =
-          parseFloat(document.getElementById("sale_tax").value) || 0;
+      function updatePurchaseFinals() {
+        const price =
+          parseFloat(document.getElementById("purchase_price").value) || 0;
+        const discountAmount = calculatePurchaseDiscountAmount();
+        const subtotal = price - discountAmount;
+        const taxAmount = calculatePurchaseTax(subtotal);
+        const finalPrice = subtotal + taxAmount;
 
-        // Purchase calculations
-        const purchaseDiscountPrice = (purchasePrice * purchaseDiscount) / 100;
-        const purchaseSubtotal = purchasePrice - purchaseDiscountPrice;
-        const purchaseTaxPrice = (purchaseSubtotal * purchaseTax) / 100;
-        const finalPurchasePrice = purchaseSubtotal + purchaseTaxPrice;
-
-        // Sale calculations
-        const saleDiscountPrice = (salePrice * saleDiscount) / 100;
-        const saleSubtotal = salePrice - saleDiscountPrice;
-        const saleTaxPrice = (saleSubtotal * saleTax) / 100;
-        const finalSalePrice = saleSubtotal + saleTaxPrice;
-
-        // Update UI
         document.getElementById("calc_purchase_discount").value =
-          purchaseDiscountPrice.toFixed(2);
+          discountAmount.toFixed(2);
         document.getElementById("calc_purchase_tax").value =
-          purchaseTaxPrice.toFixed(2);
+          taxAmount.toFixed(2);
         document.getElementById("calc_final_purchase").value =
-          finalPurchasePrice.toFixed(2);
+          finalPrice.toFixed(2);
+      }
+
+      // =================== SALE CALCULATION ===================
+      function calculateSaleDiscountAmount() {
+        const price =
+          parseFloat(document.getElementById("sale_price").value) || 0;
+        const discountPercent =
+          parseFloat(document.getElementById("sale_discount").value) || 0;
+        return (price * discountPercent) / 100;
+      }
+
+      function calculateSaleTax(subtotal) {
+        const taxPercent =
+          parseFloat(document.getElementById("sale_tax").value) || 0;
+        return (subtotal * taxPercent) / 100;
+      }
+
+      function updateSaleFinals() {
+        const price =
+          parseFloat(document.getElementById("sale_price").value) || 0;
+        const discountAmount = calculateSaleDiscountAmount();
+        const subtotal = price - discountAmount;
+        const taxAmount = calculateSaleTax(subtotal);
+        const finalPrice = subtotal + taxAmount;
 
         document.getElementById("calc_sale_discount").value =
-          saleDiscountPrice.toFixed(2);
-        document.getElementById("calc_sale_tax").value =
-          saleTaxPrice.toFixed(2);
+          discountAmount.toFixed(2);
+        document.getElementById("calc_sale_tax").value = taxAmount.toFixed(2);
         document.getElementById("calc_final_sale").value =
-          finalSalePrice.toFixed(2);
+          finalPrice.toFixed(2);
+      }
+
+      // =================== COMBINED CALCULATION HELPER ===================
+      function calculateFinals() {
+        updatePurchaseFinals();
+        updateSaleFinals();
 
         return {
-          purchaseDiscountPrice,
-          purchaseTaxPrice,
-          finalPurchasePrice,
-          saleDiscountPrice,
-          saleTaxPrice,
-          finalSalePrice,
+          purchaseDiscountPrice:
+            parseFloat(
+              document.getElementById("calc_purchase_discount").value
+            ) || 0,
+          purchaseTaxPrice:
+            parseFloat(document.getElementById("calc_purchase_tax").value) || 0,
+          finalPurchasePrice:
+            parseFloat(document.getElementById("calc_final_purchase").value) ||
+            0,
+          saleDiscountPrice:
+            parseFloat(document.getElementById("calc_sale_discount").value) ||
+            0,
+          saleTaxPrice:
+            parseFloat(document.getElementById("calc_sale_tax").value) || 0,
+          finalSalePrice:
+            parseFloat(document.getElementById("calc_final_sale").value) || 0,
         };
       }
 
-      // Auto update when typing
-      [
-        "purchase_price",
-        "purchase_discount",
-        "purchase_tax",
-        "sale_price",
-        "sale_discount",
-        "sale_tax",
-      ].forEach((id) => {
-        document.getElementById(id).addEventListener("input", calculateFinals);
+      // =================== AUTO UPDATE PRODUCT FIELD VIA API ===================
+      async function autoUpdateProductField(fieldId) {
+        const id = document.getElementById("productId").value;
+        if (!id) return; // Only update if product already exists
+
+        const val = document.getElementById(fieldId).value;
+        const vals = calculateFinals();
+
+        const updatePayload = {
+          [fieldId]: val,
+          purchase_discount_price: vals.purchaseDiscountPrice.toFixed(2),
+          purchase_tax_price: vals.purchaseTaxPrice.toFixed(2),
+          final_purchase_price: vals.finalPurchasePrice.toFixed(2),
+          sale_discount_price: vals.saleDiscountPrice.toFixed(2),
+          sale_tax_price: vals.saleTaxPrice.toFixed(2),
+          final_sale_price: vals.finalSalePrice.toFixed(2),
+        };
+
+        const res = await fetch(API_URL + id + "/", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+
+        if (res.ok) {
+          const updated = await res.json();
+          refreshFormWithProduct(updated);
+        }
+      }
+
+      // =================== EVENT BINDINGS ===================
+      document.addEventListener("DOMContentLoaded", () => {
+        // Purchase side events
+        document
+          .getElementById("purchase_price")
+          .addEventListener("input", () => {
+            updatePurchaseFinals();
+            autoUpdateProductField("purchase_price");
+          });
+
+        document
+          .getElementById("purchase_discount")
+          .addEventListener("input", () => {
+            updatePurchaseFinals();
+            autoUpdateProductField("purchase_discount");
+          });
+
+        document
+          .getElementById("purchase_tax")
+          .addEventListener("input", () => {
+            updatePurchaseFinals();
+            autoUpdateProductField("purchase_tax");
+          });
+
+        // Sale side events
+        document.getElementById("sale_price").addEventListener("input", () => {
+          updateSaleFinals();
+          autoUpdateProductField("sale_price");
+        });
+
+        document
+          .getElementById("sale_discount")
+          .addEventListener("input", () => {
+            updateSaleFinals();
+            autoUpdateProductField("sale_discount");
+          });
+
+        document.getElementById("sale_tax").addEventListener("input", () => {
+          updateSaleFinals();
+          autoUpdateProductField("sale_tax");
+        });
       });
 
-      // ----------- FETCH PRODUCTS -----------
+      // =================== FETCH PRODUCTS ===================
       async function fetchProducts(query = "") {
         let url = API_URL;
         if (query) url += "?search=" + encodeURIComponent(query);
         const res = await fetch(url);
         const products = await res.json();
+        renderProductList(products);
+      }
+
+      function renderProductList(products) {
         let html = "";
         products.forEach((p) => {
-          // auto-calculate final prices for display
           const purchaseDiscountPrice =
             (p.purchase_price * p.purchase_discount) / 100;
           const purchaseSubtotal = p.purchase_price - purchaseDiscountPrice;
@@ -316,96 +484,87 @@
           const finalSalePrice = saleSubtotal + saleTaxPrice;
 
           html += `
-      <div class="col-md-4 col-12 mb-3">
-        <div class="card shadow-sm h-100">
-          ${
-            p.photo
-              ? `<img src="${p.photo}" class="card-img-top product-img" alt="${p.name}">`
-              : ""
-          }
-          <div class="card-body">
-            <h5 class="card-title">${p.name}</h5>
-            <p class="card-text">
-              <strong>HSN:</strong> ${p.hsn_code || "-"} <br>
-              <strong>Size:</strong> ${p.size || "-"} | <strong>PCS:</strong> ${
-            p.pcs_size || "-"
-          } <br>
-              <strong>MRP:</strong> ${p.mrp} <br>
-              <strong>Purchase:</strong> ${
-                p.purchase_price
-              } → ${finalPurchasePrice.toFixed(2)} <br>
-              <strong>Sale:</strong> ${p.sale_price} → ${finalSalePrice.toFixed(
-            2
-          )} <br>
-              <strong>Purchase Disc:</strong> ${
-                p.purchase_discount
-              }% | <strong>Sale Disc:</strong> ${p.sale_discount}% <br>
-              <strong>Purchase Tax:</strong> ${
-                p.purchase_tax
-              }% | <strong>Sale Tax:</strong> ${p.sale_tax}% <br>
-            </p>
-            <div class="d-flex">
-              <button class="btn btn-warning btn-sm me-2 flex-fill" onclick="editProduct(${
-                p.id
-              })">✏ Edit</button>
-              <button class="btn btn-danger btn-sm flex-fill" onclick="deleteProduct(${
-                p.id
-              })">🗑 Delete</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
+            <div class="col-md-4 col-12 mb-3">
+              <div class="card shadow-sm h-100">
+                ${
+                  p.photo
+                    ? `<img src="${p.photo}" class="card-img-top product-img" alt="${p.name}">`
+                    : ""
+                }
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="card-title mb-0" style= "color:red;">${
+                      p.name
+                    }</h5>
+                    <div>
+                      <span class="text-warning me-2" style="cursor:pointer;" onclick="editProduct(${
+                        p.id
+                      })">✏</span>
+                      <span class="text-danger" style="cursor:pointer;" onclick="deleteProduct(${
+                        p.id
+                      })">🗑</span>
+                    </div>
+                  </div>
+                  <p class="card-text">
+                    <strong>HSN:</strong> ${p.hsn_code || "-"} <br>
+                    <strong>Size:</strong> ${
+                      p.size || "-"
+                    } | <strong>PCS:</strong> ${p.pcs_size || "-"} <br>
+                    <strong>MRP:</strong> ${p.mrp} <br>
+                    <strong>Purchase:</strong> ${
+                      p.purchase_price
+                    } → ${finalPurchasePrice.toFixed(2)} <br>
+                    <strong>Sale:</strong> ${
+                      p.sale_price
+                    } → ${finalSalePrice.toFixed(2)} <br>
+                    <strong>Purchase Disc:</strong> ${
+                      p.purchase_discount
+                    }% | <strong>Sale Disc:</strong> ${p.sale_discount}% <br>
+                    <strong>Purchase Tax:</strong> ${
+                      p.purchase_tax
+                    }% | <strong>Sale Tax:</strong> ${p.sale_tax}% <br>
+                  </p>
+                  {% comment %} <div class="d-flex">
+                    <button class="btn btn-warning btn-sm me-2 flex-fill" onclick="editProduct(${
+                      p.id
+                    })">✏ Edit</button>
+                    <button class="btn btn-danger btn-sm flex-fill" onclick="deleteProduct(${
+                      p.id
+                    })">🗑 Delete</button>
+                  </div> {% endcomment %}
+                </div>
+              </div>
+            </div>`;
         });
         document.getElementById("productList").innerHTML =
           html || "<p class='text-center text-muted'>No products found</p>";
       }
 
-      // ----------- ADD / UPDATE PRODUCT -----------
+      // =================== ADD / UPDATE PRODUCT ===================
       document
         .getElementById("productForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
           const id = document.getElementById("productId").value;
-          const vals = calculateFinals(); // get auto-calculated values
+          const vals = calculateFinals();
 
           const formData = new FormData();
-          formData.append(
+          [
             "hsn_code",
-            document.getElementById("hsn_code").value
-          );
-          formData.append("name", document.getElementById("name").value);
-          formData.append("size", document.getElementById("size").value);
-          formData.append(
+            "name",
+            "size",
             "pcs_size",
-            document.getElementById("pcs_size").value
-          );
-          formData.append("mrp", document.getElementById("mrp").value);
-          formData.append(
+            "mrp",
             "sale_price",
-            document.getElementById("sale_price").value
-          );
-          formData.append(
             "sale_discount",
-            document.getElementById("sale_discount").value
-          );
-          formData.append(
             "sale_tax",
-            document.getElementById("sale_tax").value
-          );
-          formData.append(
             "purchase_price",
-            document.getElementById("purchase_price").value
-          );
-          formData.append(
             "purchase_discount",
-            document.getElementById("purchase_discount").value
-          );
-          formData.append(
             "purchase_tax",
-            document.getElementById("purchase_tax").value
+          ].forEach((f) =>
+            formData.append(f, document.getElementById(f).value)
           );
 
-          // append calculated values
           formData.append(
             "purchase_discount_price",
             vals.purchaseDiscountPrice.toFixed(2)
@@ -431,7 +590,7 @@
           let res;
           if (id)
             res = await fetch(API_URL + id + "/", {
-              method: "PUT",
+              method: "PATCH",
               body: formData,
             });
           else res = await fetch(API_URL, { method: "POST", body: formData });
@@ -442,13 +601,25 @@
             document.getElementById("formTitle").innerText = "➕ Add Product";
             document.getElementById("productId").value = "";
             document.getElementById("productFormCard").style.display = "none";
+
+            // Clear calculation fields after reset
+            document.getElementById("calc_purchase_discount").value = "";
+            document.getElementById("calc_purchase_tax").value = "";
+            document.getElementById("calc_final_purchase").value = "";
+            document.getElementById("calc_sale_discount").value = "";
+            document.getElementById("calc_sale_tax").value = "";
+            document.getElementById("calc_final_sale").value = "";
           } else alert("Error saving product");
         });
 
-      // ----------- EDIT PRODUCT -----------
+      // =================== EDIT PRODUCT ===================
       async function editProduct(id) {
         const res = await fetch(API_URL + id + "/");
         const p = await res.json();
+        refreshFormWithProduct(p);
+      }
+
+      function refreshFormWithProduct(p) {
         document.getElementById("productId").value = p.id;
         document.getElementById("hsn_code").value = p.hsn_code || "";
         document.getElementById("name").value = p.name;
@@ -462,11 +633,15 @@
         document.getElementById("purchase_discount").value =
           p.purchase_discount;
         document.getElementById("purchase_tax").value = p.purchase_tax;
+
+        // Update calculation fields
+        calculateFinals();
+
         document.getElementById("formTitle").innerText = "✏ Update Product";
         document.getElementById("productFormCard").style.display = "block";
       }
 
-      // ----------- DELETE PRODUCT -----------
+      // =================== DELETE PRODUCT ===================
       async function deleteProduct(id) {
         if (!confirm("Are you sure?")) return;
         const res = await fetch(API_URL + id + "/", { method: "DELETE" });
@@ -474,7 +649,7 @@
         else alert("Delete failed");
       }
 
-      // ----------- FORM TOGGLE -----------
+      // =================== FORM TOGGLE ===================
       document.getElementById("toggleFormBtn").addEventListener("click", () => {
         document.getElementById("productFormCard").style.display = "block";
       });
@@ -484,9 +659,17 @@
         document.getElementById("productForm").reset();
         document.getElementById("formTitle").innerText = "➕ Add Product";
         document.getElementById("productId").value = "";
+
+        // Clear calculation fields when closing form
+        document.getElementById("calc_purchase_discount").value = "";
+        document.getElementById("calc_purchase_tax").value = "";
+        document.getElementById("calc_final_purchase").value = "";
+        document.getElementById("calc_sale_discount").value = "";
+        document.getElementById("calc_sale_tax").value = "";
+        document.getElementById("calc_final_sale").value = "";
       });
 
-      // ----------- SEARCH -----------
+      // =================== SEARCH ===================
       document.getElementById("searchInput").addEventListener("keyup", (e) => {
         fetchProducts(e.target.value.trim());
       });
@@ -496,334 +679,3 @@
     </script>
   </body>
 </html>
-
-{% comment %} <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Product Management</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Bootstrap 5 -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <style>
-      .card {
-        border-radius: 12px;
-      }
-      .product-img {
-        max-height: 80px;
-        object-fit: cover;
-        border-radius: 8px;
-      }
-      .mobile-form {
-        max-width: 600px;
-        margin: auto;
-        display: none;
-      }
-      .form-label {
-        font-size: 0.9rem;
-      }
-      .form-control {
-        font-size: 0.9rem;
-        padding: 6px 10px;
-      }
-      .card-title {
-        font-size: 1rem;
-        font-weight: 600;
-      }
-      .card-text {
-        font-size: 0.85rem;
-        line-height: 1.4;
-      }
-      .btn-sm {
-        font-size: 0.8rem;
-        padding: 4px 10px;
-      }
-    </style>
-  </head>
-  <body class="bg-light">
-    <div class="container py-3">
-      <!-- Header -->
-      <div class="text-center mb-3">
-        <h2 class="fw-bold">📦 Product Management</h2>
-      </div>
-
-      <!-- Search + Add Button -->
-      <div
-        class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
-      >
-        <input
-          type="text"
-          id="searchInput"
-          class="form-control"
-          placeholder="🔍 Search product..."
-          style="max-width: 300px"
-        />
-        <button class="btn btn-success btn-sm" id="toggleFormBtn">
-          ➕ Add Product
-        </button>
-      </div>
-
-      <!-- Product Form -->
-      <div class="card shadow-sm mb-4 mobile-form" id="productFormCard">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 id="formTitle">Add Product</h5>
-            <button class="btn btn-sm btn-outline-secondary" id="closeFormBtn">
-              ✖
-            </button>
-          </div>
-
-          <form id="productForm">
-            <input type="hidden" id="productId" />
-
-            <div class="row g-2">
-              <div class="col-md-6">
-                <label class="form-label">HSN Code</label>
-                <input type="text" id="hsn_code" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Name</label>
-                <input type="text" id="name" class="form-control" required />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Size</label>
-                <input type="text" id="size" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">PCS Size</label>
-                <input type="text" id="pcs_size" class="form-control" />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">MRP</label>
-                <input type="number" id="mrp" class="form-control" />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Purchase Price</label>
-                <input type="number" id="purchase_price" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Purchase Discount</label>
-                <input
-                  type="number"
-                  id="purchase_discount"
-                  class="form-control"
-                />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Purchase Tax</label>
-                <input type="number" id="purchase_tax" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Sale Price</label>
-                <input type="number" id="sale_price" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Sale Discount</label>
-                <input type="number" id="sale_discount" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Sale Tax</label>
-                <input type="number" id="sale_tax" class="form-control" />
-              </div>
-
-              <div class="col-md-12">
-                <label class="form-label">Photo</label>
-                <input type="file" id="photo" class="form-control" />
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 mt-3">
-              Save
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Product List -->
-      <div class="row" id="productList"></div>
-    </div>
-
-    <!-- Bootstrap + JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      const API_URL = "/api/products/";
-
-      // Fetch and display products
-      async function fetchProducts(query = "") {
-        let url = API_URL;
-        if (query) url += "?search=" + encodeURIComponent(query);
-        const res = await fetch(url);
-        const products = await res.json();
-        let html = "";
-        products.forEach((p) => {
-          html += `
-        <div class="col-md-4 col-12 mb-3">
-          <div class="card shadow-sm h-100">
-            ${
-              p.photo
-                ? `<img src="${p.photo}" class="card-img-top product-img" alt="${p.name}">`
-                : ""
-            }
-            <div class="card-body">
-              <h5 class="card-title">${p.name}</h5>
-              <p class="card-text">
-                <strong>HSN:</strong> ${p.hsn_code || "-"} <br>
-                <strong>Size:</strong> ${
-                  p.size || "-"
-                } | <strong>PCS:</strong> ${p.pcs_size || "-"} <br>
-                <strong>MRP:</strong> ${p.mrp} <br>
-                <strong>Purchase:</strong> ${
-                  p.purchase_price
-                } | <strong>Sale:</strong> ${p.sale_price} <br> 
-                <strong>Purchase Disc:</strong> ${
-                  p.purchase_discount
-                }% | <strong>Sale Disc:</strong> ${p.sale_discount}% <br>
-                <strong>Purchase Tax:</strong> ${
-                  p.purchase_tax
-                }% | <strong>Sale Tax:</strong> ${p.sale_tax}% <br>
-              </p>
-              <div class="d-flex">
-                <button class="btn btn-warning btn-sm me-2 flex-fill" onclick="editProduct(${
-                  p.id
-                })">✏ Edit</button>
-                <button class="btn btn-danger btn-sm flex-fill" onclick="deleteProduct(${
-                  p.id
-                })">🗑 Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-        });
-        document.getElementById("productList").innerHTML =
-          html || "<p class='text-center text-muted'>No products found</p>";
-      }
-
-      // Add or Update product
-      document
-        .getElementById("productForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const id = document.getElementById("productId").value;
-
-          const formData = new FormData();
-          formData.append(
-            "hsn_code",
-            document.getElementById("hsn_code").value
-          );
-          formData.append("name", document.getElementById("name").value);
-          formData.append("size", document.getElementById("size").value);
-          formData.append(
-            "pcs_size",
-            document.getElementById("pcs_size").value
-          );
-          formData.append("mrp", document.getElementById("mrp").value);
-          formData.append(
-            "sale_price",
-            document.getElementById("sale_price").value
-          );
-          formData.append(
-            "sale_discount",
-            document.getElementById("sale_discount").value
-          );
-          formData.append(
-            "sale_tax",
-            document.getElementById("sale_tax").value
-          );
-          formData.append(
-            "purchase_price",
-            document.getElementById("purchase_price").value
-          );
-          formData.append(
-            "purchase_discount",
-            document.getElementById("purchase_discount").value
-          );
-          formData.append(
-            "purchase_tax",
-            document.getElementById("purchase_tax").value
-          );
-
-          const photoFile = document.getElementById("photo").files[0];
-          if (photoFile) formData.append("photo", photoFile);
-
-          let res;
-          if (id) {
-            res = await fetch(API_URL + id + "/", {
-              method: "PUT",
-              body: formData,
-            });
-          } else {
-            res = await fetch(API_URL, {
-              method: "POST",
-              body: formData,
-            });
-          }
-
-          if (res.ok) {
-            fetchProducts();
-            document.getElementById("productForm").reset();
-            document.getElementById("formTitle").innerText = "➕ Add Product";
-            document.getElementById("productId").value = "";
-            document.getElementById("productFormCard").style.display = "none"; // hide after save
-          } else {
-            alert("Error saving product");
-          }
-        });
-
-      // Edit product
-      async function editProduct(id) {
-        const res = await fetch(API_URL + id + "/");
-        const p = await res.json();
-        document.getElementById("productId").value = p.id;
-        document.getElementById("hsn_code").value = p.hsn_code || "";
-        document.getElementById("name").value = p.name;
-        document.getElementById("size").value = p.size || "";
-        document.getElementById("pcs_size").value = p.pcs_size || "";
-        document.getElementById("mrp").value = p.mrp;
-        document.getElementById("sale_price").value = p.sale_price;
-        document.getElementById("sale_discount").value = p.sale_discount;
-        document.getElementById("sale_tax").value = p.sale_tax;
-        document.getElementById("purchase_price").value = p.purchase_price;
-        document.getElementById("purchase_discount").value =
-          p.purchase_discount;
-        document.getElementById("purchase_tax").value = p.purchase_tax;
-        document.getElementById("formTitle").innerText = "✏ Update Product";
-        document.getElementById("productFormCard").style.display = "block";
-      }
-
-      // Delete product
-      async function deleteProduct(id) {
-        if (!confirm("Are you sure?")) return;
-        const res = await fetch(API_URL + id + "/", { method: "DELETE" });
-        if (res.ok) fetchProducts();
-        else alert("Delete failed");
-      }
-
-      // Toggle form
-      document.getElementById("toggleFormBtn").addEventListener("click", () => {
-        document.getElementById("productFormCard").style.display = "block";
-      });
-
-      document.getElementById("closeFormBtn").addEventListener("click", () => {
-        document.getElementById("productFormCard").style.display = "none";
-        document.getElementById("productForm").reset();
-        document.getElementById("formTitle").innerText = "➕ Add Product";
-        document.getElementById("productId").value = "";
-      });
-
-      // Search products
-      document.getElementById("searchInput").addEventListener("keyup", (e) => {
-        const query = e.target.value.trim();
-        fetchProducts(query);
-      });
-
-      // Load products initially
-      fetchProducts();
-    </script>
-  </body>
-</html>
-{% endcomment %}
