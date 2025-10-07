@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from inventory_app.models import (
     Category, Supplier, Customer,
-    Product, ProductVariant, Purchase, Cart
+    Product, ProductVariant, Purchase,Order,Inventory
 )
 
 
@@ -41,21 +41,21 @@ class DashboardStatsAPIView(APIView):
         total_purchases = Purchase.objects.filter(purchase_filter).count()
 
         # Inventory
-        low_stock_products = ProductVariant.objects.filter(stock__lt=5).count()
+        low_stock_products = Inventory.objects.filter(quantity__lt=5).count()
 
         # Orders
-        today_orders = Cart.objects.filter(
-            order_filter, status=1,  # 1 = Ordered
-            created_at__range=(today_start, today_end)
+        today_orders = Order.objects.filter(
+            order_filter,
+            order_date__range=(today_start, today_end)
         ).count()
 
-        last_10_days_orders = Cart.objects.filter(
-            order_filter, status=1,
-            created_at__gte=ten_days_ago
+        last_10_days_orders = Order.objects.filter(
+            order_filter,
+            order_date__gte=ten_days_ago
         ).count()
 
-        total_sales_amount = Cart.objects.filter(order_filter, status=1).aggregate(
-            total=Sum("price")
+        total_sales_amount = Order.objects.filter(order_filter).aggregate(
+            total=Sum("total_amount")
         )["total"] or 0
 
         data = {
@@ -82,13 +82,13 @@ class DashboardDataAPIView(APIView):
         recent_products = list(
             Product.objects.select_related("category", "supplier")
             .order_by("-id")[:5]
-            .values("id", "name", "category__name", "price", "supplier__name")
+            .values("id", "name", "category__name", )
         )
 
         # Recent Purchases
         recent_purchases = list(
             Purchase.objects.order_by("-id")[:5]
-            .values("id", "invoice_no", "purchase_date", "total_amount")
+            .values("id", "date", "total_price", "supplier__name")
         )
 
         # Recent Customers
@@ -100,7 +100,7 @@ class DashboardDataAPIView(APIView):
         # Recent Suppliers
         recent_suppliers = list(
             Supplier.objects.order_by("-id")[:5]
-            .values("id", "name", "contact", "email")
+            .values("id", "name", "phone", "email")
         )
 
         return Response({

@@ -1,104 +1,334 @@
-{% extends layout_path %}
-{% load static %}
-{% block title %}Hardware Shop - Sales Analysis{% endblock %}
-
-{% block page_js %}
+{% extends layout_path %} {% load static %} {% block title %}Hardware Shop -
+Dashboard{% endblock %} {% block page_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // Fetch Dashboard Analysis
-    fetch("/admin_api/hardware-dashboard-analysis/")
-      .then(res => res.json())
-      .then(data => {
-        // Fill daily stats
-        document.getElementById("today-orders").innerText = data.daily_orders;
-        document.getElementById("today-sales").innerText = "₹" + data.daily_sales;
+    // --- Fetch Stats ---
+    fetch("/admin_api/hardware-dashboard-stats/")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("total-categories").innerText =
+          data.total_categories;
+        document.getElementById("total-products").innerText =
+          data.total_products;
+        document.getElementById("total-suppliers").innerText =
+          data.total_suppliers;
+        document.getElementById("total-customers").innerText =
+          data.total_customers;
+        document.getElementById("total-purchases").innerText =
+          data.total_purchases;
+        document.getElementById("low-stock-products").innerText =
+          data.low_stock_products;
+        document.getElementById("today-orders").innerText = data.today_orders;
+        document.getElementById("total-sales-amount").innerText =
+          "₹" + data.total_sales_amount;
 
-        // Fill weekly stats
-        document.getElementById("weekly-orders").innerText = data.weekly_orders;
-        document.getElementById("weekly-sales").innerText = "₹" + data.weekly_sales;
-
-        // Fill monthly stats
-        document.getElementById("monthly-orders").innerText = data.monthly_orders;
-        document.getElementById("monthly-sales").innerText = "₹" + data.monthly_sales;
-
-        // Chart: Last 10 Days Orders
-        renderOrdersChart(data.last_10_days);
+        renderOrdersChart(data.last_10_days_orders || []);
       });
 
+    // --- Fetch Recent Data ---
+    fetch("/admin_api/hardware-dashboard-data/")
+      .then((res) => res.json())
+      .then((data) => {
+        renderRecentData("recent-products", data.recent_products, [
+          "name",
+          "category__name",
+        ]);
+        renderRecentData("recent-purchases", data.recent_purchases, [
+          "date",
+          "total_price",
+          "supplier__name",
+        ]);
+        renderRecentData("recent-customers", data.recent_customers, [
+          "name",
+          "phone",
+          "email",
+        ]);
+        renderRecentData("recent-suppliers", data.recent_suppliers, [
+          "name",
+          "phone",
+          "email",
+        ]);
+      });
+
+    // --- Chart ---
     function renderOrdersChart(last10Days) {
       const ctx = document.getElementById("ordersChart").getContext("2d");
-      const labels = last10Days.map(item => item.date);
-      const values = last10Days.map(item => item.count);
+      const labels = Array.isArray(last10Days)
+        ? last10Days.map((_, i) => `Day ${i + 1}`)
+        : ["Last 10 Days"];
+      const values = Array.isArray(last10Days)
+        ? last10Days.map((v) => v.count || 0)
+        : [last10Days];
 
       new Chart(ctx, {
-        type: "line",
+        type: "bar",
         data: {
           labels: labels,
-          datasets: [{
-            label: "Orders",
-            data: values,
-            borderColor: "#4e73df",
-            backgroundColor: "rgba(78, 115, 223, 0.1)",
-            fill: true,
-            tension: 0.3
-          }]
+          datasets: [
+            {
+              label: "Orders",
+              data: values,
+              backgroundColor: "rgba(78, 115, 223, 0.6)",
+              borderColor: "#4e73df",
+              borderWidth: 1,
+              borderRadius: 8,
+            },
+          ],
         },
         options: {
           responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
+          scales: { y: { beginAtZero: true } },
+        },
+      });
+    }
+
+    // --- Render Tables ---
+    function renderRecentData(tableId, items, fields) {
+      const tbody = document.getElementById(tableId);
+      tbody.innerHTML = "";
+
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${fields.length}" class="text-center text-muted">No records found</td></tr>`;
+        return;
+      }
+
+      items.forEach((item) => {
+        const row = document.createElement("tr");
+        fields.forEach((field) => {
+          const cell = document.createElement("td");
+          cell.textContent = item[field] ?? "-";
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
       });
     }
   });
 </script>
-{% endblock page_js %}
+{% endblock page_js %} {% block content %}
+<style>
+  .dashboard-card {
+    border: none;
+    border-radius: 1rem;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+  .card-body i {
+    font-size: 2rem;
+    opacity: 0.85;
+  }
+  .card-body h4 {
+    font-weight: bold;
+    margin-top: 8px;
+  }
+  .bg-blue {
+    background: linear-gradient(135deg, #4e73df, #224abe);
+  }
+  .bg-green {
+    background: linear-gradient(135deg, #1cc88a, #0f9d58);
+  }
+  .bg-orange {
+    background: linear-gradient(135deg, #f6c23e, #e0a800);
+  }
+  .bg-red {
+    background: linear-gradient(135deg, #e74a3b, #be2617);
+  }
+  .bg-teal {
+    background: linear-gradient(135deg, #20c9a6, #0f766e);
+  }
+  .bg-purple {
+    background: linear-gradient(135deg, #6f42c1, #4b0082);
+  }
+  .bg-pink {
+    background: linear-gradient(135deg, #e83e8c, #b71c64);
+  }
+  .bg-dark {
+    background: linear-gradient(135deg, #5a5c69, #2e2f37);
+  }
+  .card.chart-card {
+    border-radius: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  .table th {
+    background-color: #f8f9fc;
+  }
+  .recent-card {
+    border-radius: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+</style>
 
-{% block content %}
-<div class="row">
-  <!-- Today's Orders -->
-  <div class="col-md-6 col-xl-3 mb-4">
-    <div class="card h-100 hover-shadow">
-      <div class="card-body">
-        <p class="mb-1">Today's Orders</p>
-        <h4 class="card-title mb-2" id="today-orders">0</h4>
-        <p class="text-muted mb-0">Sales: <span id="today-sales">₹0</span></p>
+<div class="container-fluid">
+  <!-- Summary Cards -->
+  <div class="row g-4">
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-blue">
+        <div class="card-body text-center">
+          <i class="bi bi-tags-fill"></i>
+          <p>Total Categories</p>
+          <h4 id="total-categories">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-green">
+        <div class="card-body text-center">
+          <i class="bi bi-box-seam"></i>
+          <p>Total Products</p>
+          <h4 id="total-products">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-orange">
+        <div class="card-body text-center">
+          <i class="bi bi-truck"></i>
+          <p>Total Suppliers</p>
+          <h4 id="total-suppliers">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-purple">
+        <div class="card-body text-center">
+          <i class="bi bi-people-fill"></i>
+          <p>Total Customers</p>
+          <h4 id="total-customers">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-teal">
+        <div class="card-body text-center">
+          <i class="bi bi-bag-fill"></i>
+          <p>Total Purchases</p>
+          <h4 id="total-purchases">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-red">
+        <div class="card-body text-center">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <p>Low Stock Products</p>
+          <h4 id="low-stock-products">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-pink">
+        <div class="card-body text-center">
+          <i class="bi bi-basket-fill"></i>
+          <p>Today's Orders</p>
+          <h4 id="today-orders">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-dark">
+        <div class="card-body text-center">
+          <i class="bi bi-currency-rupee"></i>
+          <p>Total Sales Amount</p>
+          <h4 id="total-sales-amount">₹0</h4>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Weekly Orders -->
-  <div class="col-md-6 col-xl-3 mb-4">
-    <div class="card h-100 hover-shadow">
-      <div class="card-body">
-        <p class="mb-1">Weekly Orders</p>
-        <h4 class="card-title mb-2" id="weekly-orders">0</h4>
-        <p class="text-muted mb-0">Sales: <span id="weekly-sales">₹0</span></p>
-      </div>
+  <!-- Orders Chart -->
+  <div class="card chart-card mt-5">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">📊 Orders Overview (Last 10 Days)</h5>
     </div>
+    <div class="card-body"><canvas id="ordersChart" height="120"></canvas></div>
   </div>
 
-  <!-- Monthly Orders -->
-  <div class="col-md-6 col-xl-3 mb-4">
-    <div class="card h-100 hover-shadow">
-      <div class="card-body">
-        <p class="mb-1">Monthly Orders</p>
-        <h4 class="card-title mb-2" id="monthly-orders">0</h4>
-        <p class="text-muted mb-0">Sales: <span id="monthly-sales">₹0</span></p>
+  <!-- Recent Data Section -->
+  <div class="row mt-5">
+    <div class="col-md-6">
+      <div class="card recent-card mb-4">
+        <div class="card-header bg-light">
+          <strong>🧾 Recent Purchases</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Supplier Name</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="recent-purchases"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card recent-card">
+        <div class="card-header bg-light">
+          <strong>🧍 Recent Customers</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody id="recent-customers"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card recent-card mb-4">
+        <div class="card-header bg-light">
+          <strong>📦 Recent Products</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody id="recent-products"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card recent-card">
+        <div class="card-header bg-light">
+          <strong>🚚 Recent Suppliers</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody id="recent-suppliers"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Orders Trend Chart -->
-<div class="card mt-4">
-  <div class="card-header">
-    <h5 class="mb-0">Orders Trend - Last 10 Days</h5>
-  </div>
-  <div class="card-body">
-    <canvas id="ordersChart" height="120"></canvas>
-  </div>
-</div>
+<!-- Bootstrap Icons -->
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+  rel="stylesheet"
+/>
 {% endblock %}
