@@ -9,54 +9,86 @@
       rel="stylesheet"
     />
     <style>
-      .card {
-        min-height: 340px; /* Adjust based on your card content */
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-      .product-img {
-        width: 100%;
-        height: 150px; /* You can adjust this height as needed (e.g. 120px or 180px) */
-        object-fit: contain; /* Keeps image aspect ratio */
-        background-color: #fff; /* Optional: gives a clean background behind transparent images */
-        border-radius: 8px;
-        display: block;
-        margin: 0 auto;
-        padding: 4px;
-      }
-      .mobile-form {
-        max-width: 700px;
-        margin: auto;
-        display: none;
-      }
-      .form-label {
-        font-size: 0.9rem;
-        margin-bottom: 0;
-      }
-      .form-control {
-        font-size: 0.9rem;
-        padding: 2px 10px;
-      }
-      .card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        width: 70%;
-      }
-      .card-text {
-        font-size: 0.85rem;
-        line-height: 1.4;
+      .form-control-sm {
+        font-size: 0.8rem;
+        padding: 2px 6px;
       }
       .btn-sm {
-        font-size: 0.8rem;
-        padding: 4px 10px;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+      }
+      td input {
+        width: 100px;
+      }
+      td input[type="file"] {
+        width: 75px;
       }
       .readonly-field {
         background-color: #f8f9fa;
       }
-      #toggleFormBtn:hover {
-        transform: scale(1.1);
-        transition: 0.2s;
+      #addRowBtn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1;
+      }
+      .table-responsive {
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      table thead th { white-space: nowrap; }
+      .table-responsive {
+        position: relative;
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: 80vh;
+      }
+
+      /* Sticky header */
+      #productTable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+      }
+
+      /* Sticky first column for header */
+      #productTable thead th:first-child {
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 4; /* above other header cells */
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+      }
+
+      /* Sticky first column for body rows */
+      #productTable tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2; /* above normal td, below header */
+        background: #fff;
+        border: 1px solid #dee2e6;
+      }
+
+      /* Photo column width */
+      #productTable th:first-child,
+      #productTable td:first-child {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+        text-align: center;
+      }
+
+      /* Optional: smooth scrollbars */
+      .table-responsive::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+      .table-responsive::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
       }
     </style>
   </head>
@@ -66,387 +98,72 @@
         <h2 class="fw-bold">📦 Product Management</h2>
       </div>
 
-      <div
-        class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
-      >
+      <div class="d-flex justify-content-start mb-3">
         <input
           type="text"
           id="searchInput"
-          class="form-control"
+          class="form-control form-control-sm"
           placeholder="🔍 Search product..."
           style="max-width: 300px"
         />
-        {% comment %}
-        <button class="btn btn-success btn-sm" id="toggleFormBtn">
-          ➕ Add Product
-        </button>
-        {% endcomment %}
-        <button
-          id="toggleFormBtn"
-          class="btn btn-primary rounded-circle"
-          style="
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-            z-index: 1;
-          "
+      </div>
+
+      <div class="table-responsive">
+        <table
+          class="table table-bordered table-hover align-middle"
+          id="productTable"
         >
-          +
-        </button>
+          <thead class="table-light">
+            <tr>
+              <th>Photo</th>
+              <th>HSN</th>
+              <th>Name</th>
+              <th>Size</th>
+              <th>PCS</th>
+              <th>MRP</th>
+              <th>Purchase Price</th>
+              <th>Purchase Disc (%)</th>
+              <th>Purchase Tax (%)</th>
+              <th>Purchase Total</th>
+              <th>Purchase 100</th>
+              <th>Purchase 100 Tax</th>
+              <th>Sale Price</th>
+              <th>Sale Disc (%)</th>
+              <th>Sale Tax (%)</th>
+              <th>Sale Total</th>
+              <th>Sale 100</th>
+              <th>Sale 100 Tax</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productList"></tbody>
+        </table>
       </div>
 
-      <!-- Product Form -->
-      <div class="card shadow-sm mb-4 mobile-form" id="productFormCard">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 id="formTitle">Add Product</h5>
-            <button class="btn btn-sm btn-outline-secondary" id="closeFormBtn">
-              ✖
-            </button>
-          </div>
-
-          <form id="productForm">
-            <input type="hidden" id="productId" />
-            <div class="row g-2">
-              <div class="col-md-6">
-                <label class="form-label">HSN Code</label>
-                <input type="text" id="hsn_code" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Product Name</label>
-                <input type="text" id="name" class="form-control" required />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Size</label>
-                <input type="text" id="size" class="form-control" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">PCS Size</label>
-                <input type="text" id="pcs_size" class="form-control" />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">MRP</label>
-                <input
-                  type="number"
-                  id="mrp"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Purchase Price</label>
-                <input
-                  type="number"
-                  id="purchase_price"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Purchase Discount (%)</label>
-                <input
-                  type="number"
-                  id="purchase_discount"
-                  class="form-control"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Discount Amount</label>
-                <input
-                  type="number"
-                  id="calc_purchase_discount"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Purchase Tax (%)</label>
-                <input
-                  type="number"
-                  id="purchase_tax"
-                  class="form-control"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Tax Amount</label>
-                <input
-                  type="number"
-                  id="calc_purchase_tax"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Final Purchase Price</label>
-                <input
-                  type="number"
-                  id="calc_final_purchase"
-                  class="form-control text-success fw-bold readonly-field"
-                  step="0.01"
-                  readonly
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Sale Price</label>
-                <input
-                  type="number"
-                  id="sale_price"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Sale Discount (%)</label>
-                <input
-                  type="number"
-                  id="sale_discount"
-                  class="form-control"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Discount Amount</label>
-                <input
-                  type="number"
-                  id="calc_sale_discount"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Sale Tax (%)</label>
-                <input
-                  type="number"
-                  id="sale_tax"
-                  class="form-control"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">Tax Amount</label>
-                <input
-                  type="number"
-                  id="calc_sale_tax"
-                  class="form-control"
-                  step="0.01"
-                />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Final Sale Price</label>
-                <input
-                  type="number"
-                  id="calc_final_sale"
-                  class="form-control text-success fw-bold readonly-field"
-                  step="0.01"
-                  readonly
-                />
-              </div>
-
-              <div class="col-md-12 mt-3">
-                <label class="form-label">Photo</label>
-                <input type="file" id="photo" class="form-control" />
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 mt-3">
-             Save Product
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div class="row" id="productList"></div>
+      <button id="addRowBtn" class="btn btn-primary rounded-circle">+</button>
     </div>
 
-    <!-- Bootstrap + JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% csrf_token %}
     <script>
       const API_URL = "/api/products/";
 
-      // =================== PURCHASE CALCULATION ===================
-      function calculatePurchaseDiscountAmount() {
-        const price =
-          parseFloat(document.getElementById("purchase_price").value) || 0;
-        const discountPercent =
-          parseFloat(document.getElementById("purchase_discount").value) || 0;
-        return (price * discountPercent) / 100;
-      }
-
-      function calculatePurchaseTax(subtotal) {
-        const taxPercent =
-          parseFloat(document.getElementById("purchase_tax").value) || 0;
-        return (subtotal * taxPercent) / 100;
-      }
-
-      function updatePurchaseFinals() {
-        const price =
-          parseFloat(document.getElementById("purchase_price").value) || 0;
-        const discountAmount = calculatePurchaseDiscountAmount();
-        const subtotal = price - discountAmount;
-        const taxAmount = calculatePurchaseTax(subtotal);
-        const finalPrice = subtotal + taxAmount;
-
-        document.getElementById("calc_purchase_discount").value =
-          discountAmount.toFixed(2);
-        document.getElementById("calc_purchase_tax").value =
-          taxAmount.toFixed(2);
-        document.getElementById("calc_final_purchase").value =
-          finalPrice.toFixed(2);
-      }
-
-      // =================== SALE CALCULATION ===================
-      function calculateSaleDiscountAmount() {
-        const price =
-          parseFloat(document.getElementById("sale_price").value) || 0;
-        const discountPercent =
-          parseFloat(document.getElementById("sale_discount").value) || 0;
-        return (price * discountPercent) / 100;
-      }
-
-      function calculateSaleTax(subtotal) {
-        const taxPercent =
-          parseFloat(document.getElementById("sale_tax").value) || 0;
-        return (subtotal * taxPercent) / 100;
-      }
-
-      function updateSaleFinals() {
-        const price =
-          parseFloat(document.getElementById("sale_price").value) || 0;
-        const discountAmount = calculateSaleDiscountAmount();
-        const subtotal = price - discountAmount;
-        const taxAmount = calculateSaleTax(subtotal);
-        const finalPrice = subtotal + taxAmount;
-
-        document.getElementById("calc_sale_discount").value =
-          discountAmount.toFixed(2);
-        document.getElementById("calc_sale_tax").value = taxAmount.toFixed(2);
-        document.getElementById("calc_final_sale").value =
-          finalPrice.toFixed(2);
-      }
-
-      // =================== COMBINED CALCULATION HELPER ===================
-      function calculateFinals() {
-        updatePurchaseFinals();
-        updateSaleFinals();
-
-        return {
-          purchaseDiscountPrice:
-            parseFloat(
-              document.getElementById("calc_purchase_discount").value
-            ) || 0,
-          purchaseTaxPrice:
-            parseFloat(document.getElementById("calc_purchase_tax").value) || 0,
-          finalPurchasePrice:
-            parseFloat(document.getElementById("calc_final_purchase").value) ||
-            0,
-          saleDiscountPrice:
-            parseFloat(document.getElementById("calc_sale_discount").value) ||
-            0,
-          saleTaxPrice:
-            parseFloat(document.getElementById("calc_sale_tax").value) || 0,
-          finalSalePrice:
-            parseFloat(document.getElementById("calc_final_sale").value) || 0,
-        };
-      }
-
-      // =================== AUTO UPDATE PRODUCT FIELD VIA API ===================
-      async function autoUpdateProductField(fieldId) {
-        const id = document.getElementById("productId").value;
-        if (!id) return; // Only update if product already exists
-
-        const val = document.getElementById(fieldId).value;
-        const vals = calculateFinals();
-
-        const updatePayload = {
-          [fieldId]: val,
-          purchase_discount_price: vals.purchaseDiscountPrice.toFixed(2),
-          purchase_tax_price: vals.purchaseTaxPrice.toFixed(2),
-          final_purchase_price: vals.finalPurchasePrice.toFixed(2),
-          sale_discount_price: vals.saleDiscountPrice.toFixed(2),
-          sale_tax_price: vals.saleTaxPrice.toFixed(2),
-          final_sale_price: vals.finalSalePrice.toFixed(2),
-        };
-
-        const res = await fetch(API_URL + id + "/", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatePayload),
-        });
-
-        if (res.ok) {
-          const updated = await res.json();
-          refreshFormWithProduct(updated);
+      // Helper: get CSRF
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
         }
+        return cookieValue;
       }
-
-      // =================== EVENT BINDINGS ===================
-      document.addEventListener("DOMContentLoaded", () => {
-        // Purchase side events
-        document
-          .getElementById("purchase_price")
-          .addEventListener("input", () => {
-            updatePurchaseFinals();
-            autoUpdateProductField("purchase_price");
-          });
-
-        document
-          .getElementById("purchase_discount")
-          .addEventListener("input", () => {
-            updatePurchaseFinals();
-            autoUpdateProductField("purchase_discount");
-          });
-
-        document
-          .getElementById("purchase_tax")
-          .addEventListener("input", () => {
-            updatePurchaseFinals();
-            autoUpdateProductField("purchase_tax");
-          });
-
-        // Sale side events
-        document.getElementById("sale_price").addEventListener("input", () => {
-          updateSaleFinals();
-          autoUpdateProductField("sale_price");
-        });
-
-        document
-          .getElementById("sale_discount")
-          .addEventListener("input", () => {
-            updateSaleFinals();
-            autoUpdateProductField("sale_discount");
-          });
-
-        document.getElementById("sale_tax").addEventListener("input", () => {
-          updateSaleFinals();
-          autoUpdateProductField("sale_tax");
-        });
-      });
+      const csrftoken = getCookie("csrftoken");
 
       // =================== FETCH PRODUCTS ===================
       async function fetchProducts(query = "") {
@@ -458,84 +175,178 @@
       }
 
       function renderProductList(products) {
-        let html = "";
+        const tbody = document.getElementById("productList");
+        if (!products || products.length === 0) {
+          tbody.innerHTML =
+            "<tr><td colspan='19' class='text-center text-muted'>No products found</td></tr>";
+          return;
+        }
+
+        tbody.innerHTML = "";
+
         products.forEach((p) => {
           const purchaseDiscountPrice =
-            (p.purchase_price * p.purchase_discount) / 100;
-          const purchaseSubtotal = p.purchase_price - purchaseDiscountPrice;
-          const purchaseTaxPrice = (purchaseSubtotal * p.purchase_tax) / 100;
+            p.purchase_price && p.purchase_discount
+              ? (p.purchase_price * p.purchase_discount) / 100
+              : 0;
+          const purchaseSubtotal = (p.purchase_price || 0) - purchaseDiscountPrice;
+          const purchaseTaxPrice = purchaseSubtotal * ((p.purchase_tax || 0) / 100);
           const finalPurchasePrice = purchaseSubtotal + purchaseTaxPrice;
 
-          const saleDiscountPrice = (p.sale_price * p.sale_discount) / 100;
-          const saleSubtotal = p.sale_price - saleDiscountPrice;
-          const saleTaxPrice = (saleSubtotal * p.sale_tax) / 100;
+          const saleDiscountPrice =
+            p.sale_price && p.sale_discount
+              ? (p.sale_price * p.sale_discount) / 100
+              : 0;
+          const saleSubtotal = (p.sale_price || 0) - saleDiscountPrice;
+          const saleTaxPrice = saleSubtotal * ((p.sale_tax || 0) / 100);
           const finalSalePrice = saleSubtotal + saleTaxPrice;
 
-          html += `
-            <div class="col-md-4 col-12 mb-3">
-              <div class="card shadow-sm h-100">
-                ${
-                  p.photo
-                    ? `<img src="${p.photo}" class="card-img-top product-img" alt="${p.name}">`
-                    : ""
-                }
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="card-title mb-0" style= "color:#406ba1;">${
-                      p.name
-                    }</h5>
-                    <div>
-                      <span class="text-warning me-2" style="cursor:pointer;" onclick="editProduct(${
-                        p.id
-                      })">✏</span>
-                      <span class="text-danger" style="cursor:pointer;" onclick="deleteProduct(${
-                        p.id
-                      })">🗑</span>
-                    </div>
-                  </div>
-                  <p class="card-text">
-                    <strong>HSN:</strong> ${p.hsn_code || "-"} <br>
-                    <strong>Size:</strong> ${
-                      p.size || "-"
-                    } | <strong>PCS:</strong> ${p.pcs_size || "-"} <br>
-                    <strong>MRP:</strong> ${p.mrp} <br>
-                    <strong>Purchase:</strong> ${
-                      p.purchase_price
-                    } → ${finalPurchasePrice.toFixed(2)} <br>
-                    <strong>Sale:</strong> ${
-                      p.sale_price
-                    } → ${finalSalePrice.toFixed(2)} <br>
-                    <strong>Purchase Disc:</strong> ${
-                      p.purchase_discount
-                    }% | <strong>Sale Disc:</strong> ${p.sale_discount}% <br>
-                    <strong>Purchase Tax:</strong> ${
-                      p.purchase_tax
-                    }% | <strong>Sale Tax:</strong> ${p.sale_tax}% <br>
-                  </p>
-                  {% comment %} <div class="d-flex">
-                    <button class="btn btn-warning btn-sm me-2 flex-fill" onclick="editProduct(${
-                      p.id
-                    })">✏ Edit</button>
-                    <button class="btn btn-danger btn-sm flex-fill" onclick="deleteProduct(${
-                      p.id
-                    })">🗑 Delete</button>
-                  </div> {% endcomment %}
-                </div>
-              </div>
-            </div>`;
+          tbody.innerHTML += `
+            <!-- First row -->
+            <tr id="row_${p.id}">
+              <td>${
+                p.photo
+                  ? `<img src="${p.photo}" style="width:50px;height:50px;object-fit:cover;">`
+                  : "-"
+              }</td>
+              <td>${p.hsn_code || "-"}</td>
+              <td>${p.name}</td>
+              <td>${p.size || "-"}</td>
+              <td>${p.pcs_size || "-"}</td>
+              <td>${p.mrp != null ? p.mrp.toFixed(2) : "-"}</td>
+              <td>${p.purchase_price != null ? p.purchase_price.toFixed(2) : "-"}</td>
+              <td>${p.purchase_discount != null ? p.purchase_discount + "%" : "-"}<br>(${purchaseDiscountPrice.toFixed(2)})</td>
+              <td>${p.purchase_tax != null ? p.purchase_tax + "%" : "-"}<br>(${purchaseTaxPrice.toFixed(2)})</td>
+              <td>${finalPurchasePrice.toFixed(2)}</td>
+              <td>${p.purchase_price_100 != null ? p.purchase_price_100.toFixed(2) : "-"}</td>
+              <td>${p.purchase_tax_100 != null ? p.purchase_tax_100 + "%" : "0"}</td>
+              <td>${p.sale_price != null ? p.sale_price.toFixed(2) : "-"}</td>
+              <td>${p.sale_discount != null ? p.sale_discount + "%" : "0"}<br>(${saleDiscountPrice.toFixed(2)})</td>
+              <td>${p.sale_tax != null ? p.sale_tax + "%" : "0"}<br>(${saleTaxPrice.toFixed(2)})</td>
+              <td>${finalSalePrice.toFixed(2)}</td>
+              <td>${p.sale_price_100 != null ? p.sale_price_100.toFixed(2) : "-"}</td>
+              <td>${p.sale_tax_100 != null ? p.sale_tax_100 + "%" : "0"}</td>
+              <td>
+                <span class="text-warning me-2" style="cursor:pointer;" onclick="editProduct(${p.id})">✏</span>
+                <span class="text-danger" style="cursor:pointer;" onclick="deleteProduct(${p.id})">🗑</span>
+              </td>
+            </tr>
+          `;
         });
-        document.getElementById("productList").innerHTML =
-          html || "<p class='text-center text-muted'>No products found</p>";
       }
 
-      // =================== ADD / UPDATE PRODUCT ===================
+      // =================== SEARCH ===================
       document
-        .getElementById("productForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const id = document.getElementById("productId").value;
-          const vals = calculateFinals();
+        .getElementById("searchInput")
+        .addEventListener("keyup", (e) => fetchProducts(e.target.value.trim()));
 
+      // =================== DELETE PRODUCT ===================
+      async function deleteProduct(id) {
+        if (!confirm("Are you sure?")) return;
+        const res = await fetch(API_URL + id + "/", {
+          method: "DELETE",
+          headers: { "X-CSRFToken": csrftoken },
+        });
+        if (res.ok) fetchProducts();
+        else alert("Delete failed");
+      }
+
+      // =================== ADD NEW INLINE ROW ===================
+      document.getElementById("addRowBtn").addEventListener("click", () => {
+        const tbody = document.getElementById("productList");
+
+        if (document.getElementById("newProductRow")) return;
+
+        const tr = document.createElement("tr");
+        tr.id = "newProductRow";
+
+        tr.innerHTML = generateEditableRow(null, true);
+        tbody.prepend(tr);
+        setupCalculationListeners("new");
+        setupSaveCancel("new", tr);
+
+        tr.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+
+      // =================== EDIT PRODUCT ===================
+      async function editProduct(id) {
+        const res = await fetch(API_URL + id + "/");
+        const p = await res.json();
+
+        const row = document.getElementById("row_" + id);
+        if (!row) return;
+
+        row.innerHTML = generateEditableRow(p, false);
+        setupCalculationListeners("edit_" + id);
+        setupSaveCancel("edit_" + id, row, id);
+      }
+
+      // =================== GENERATE EDITABLE ROW HTML ===================
+      function generateEditableRow(p, isNew = false) {
+        const prefix = isNew ? "new" : "edit_" + p.id;
+        const val = (f) => (p && p[f] !== null && p[f] !== undefined ? p[f] : "");
+
+        return `
+          <td><input type="file" id="${prefix}_photo" class="form-control form-control-sm"></td>
+          <td><input type="text" id="${prefix}_hsn_code" value="${val("hsn_code")}" class="form-control form-control-sm"></td>
+          <td><input type="text" id="${prefix}_name" value="${val("name")}" class="form-control form-control-sm"></td>
+          <td><input type="text" id="${prefix}_size" value="${val("size")}" class="form-control form-control-sm"></td>
+          <td><input type="text" id="${prefix}_pcs_size" value="${val("pcs_size")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_mrp" value="${val("mrp")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_purchase_price" value="${val("purchase_price")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_purchase_discount" value="${val("purchase_discount")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_purchase_tax" value="${val("purchase_tax")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_final_purchase" class="form-control form-control-sm readonly-field" readonly></td>
+          <td><input type="number" id="${prefix}_purchase_price_100" value="${val("purchase_price_100")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_purchase_tax_100" value="${val("purchase_tax_100")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_sale_price" value="${val("sale_price")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_sale_discount" value="${val("sale_discount")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_sale_tax" value="${val("sale_tax")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_final_sale" class="form-control form-control-sm readonly-field" readonly></td>
+          <td><input type="number" id="${prefix}_sale_price_100" value="${val("sale_price_100")}" class="form-control form-control-sm"></td>
+          <td><input type="number" id="${prefix}_sale_tax_100" value="${val("sale_tax_100")}" class="form-control form-control-sm"></td>
+          <td>
+            <button class="btn btn-sm btn-success me-1" id="${prefix}_save">💾</button>
+            <button class="btn btn-sm btn-secondary" id="${prefix}_cancel">✖</button>
+          </td>
+        `;
+      }
+
+      // =================== CALCULATION LISTENERS ===================
+      function setupCalculationListeners(prefix) {
+        const updatePurchase = () => {
+          const price = parseFloat(document.getElementById(prefix + "_purchase_price").value) || 0;
+          const discount = parseFloat(document.getElementById(prefix + "_purchase_discount").value) || 0;
+          const tax = parseFloat(document.getElementById(prefix + "_purchase_tax").value) || 0;
+          const total = (price - (price * discount) / 100) * (1 + tax / 100);
+          document.getElementById(prefix + "_final_purchase").value = total.toFixed(2);
+        };
+        const updateSale = () => {
+          const price = parseFloat(document.getElementById(prefix + "_sale_price").value) || 0;
+          const discount = parseFloat(document.getElementById(prefix + "_sale_discount").value) || 0;
+          const tax = parseFloat(document.getElementById(prefix + "_sale_tax").value) || 0;
+          const total = (price - (price * discount) / 100) * (1 + tax / 100);
+          document.getElementById(prefix + "_final_sale").value = total.toFixed(2);
+        };
+        ["purchase_price", "purchase_discount", "purchase_tax"].forEach((f) =>
+          document
+            .getElementById(prefix + "_" + f)
+            .addEventListener("input", updatePurchase)
+        );
+        ["sale_price", "sale_discount", "sale_tax"].forEach((f) =>
+          document
+            .getElementById(prefix + "_" + f)
+            .addEventListener("input", updateSale)
+        );
+      }
+
+      // =================== SAVE & CANCEL ===================
+      function setupSaveCancel(prefix, tr, id = null) {
+        document.getElementById(prefix + "_cancel").addEventListener("click", () => {
+          fetchProducts();
+        });
+
+        document.getElementById(prefix + "_save").addEventListener("click", async () => {
           const formData = new FormData();
           [
             "hsn_code",
@@ -543,126 +354,40 @@
             "size",
             "pcs_size",
             "mrp",
-            "sale_price",
-            "sale_discount",
-            "sale_tax",
             "purchase_price",
             "purchase_discount",
             "purchase_tax",
-          ].forEach((f) =>
-            formData.append(f, document.getElementById(f).value)
-          );
-
-          formData.append(
-            "purchase_discount_price",
-            vals.purchaseDiscountPrice.toFixed(2)
-          );
-          formData.append(
-            "purchase_tax_price",
-            vals.purchaseTaxPrice.toFixed(2)
-          );
-          formData.append(
-            "final_purchase_price",
-            vals.finalPurchasePrice.toFixed(2)
-          );
-          formData.append(
-            "sale_discount_price",
-            vals.saleDiscountPrice.toFixed(2)
-          );
-          formData.append("sale_tax_price", vals.saleTaxPrice.toFixed(2));
-          formData.append("final_sale_price", vals.finalSalePrice.toFixed(2));
-
-          const photoFile = document.getElementById("photo").files[0];
+            "purchase_price_100",
+            "purchase_tax_100",
+            "sale_price",
+            "sale_discount",
+            "sale_tax",
+            "sale_price_100",
+            "sale_tax_100",
+          ].forEach((f) => {
+            const el = document.getElementById(prefix + "_" + f);
+            formData.append(f, el.value);
+          });
+          formData.append("final_purchase", document.getElementById(prefix + "_final_purchase").value);
+          formData.append("final_sale", document.getElementById(prefix + "_final_sale").value);
+          const photoFile = document.getElementById(prefix + "_photo").files[0];
           if (photoFile) formData.append("photo", photoFile);
 
-          let res;
-          if (id)
-            res = await fetch(API_URL + id + "/", {
-              method: "PATCH",
-              body: formData,
-            });
-          else res = await fetch(API_URL, { method: "POST", body: formData });
+          const method = id ? "PUT" : "POST";
+          const url = id ? API_URL + id + "/" : API_URL;
 
+          const res = await fetch(url, {
+            method,
+            body: formData,
+            headers: { "X-CSRFToken": csrftoken },
+          });
           if (res.ok) {
             fetchProducts();
-            document.getElementById("productForm").reset();
-            document.getElementById("formTitle").innerText = "➕ Add Product";
-            document.getElementById("productId").value = "";
-            document.getElementById("productFormCard").style.display = "none";
-
-            // Clear calculation fields after reset
-            document.getElementById("calc_purchase_discount").value = "";
-            document.getElementById("calc_purchase_tax").value = "";
-            document.getElementById("calc_final_purchase").value = "";
-            document.getElementById("calc_sale_discount").value = "";
-            document.getElementById("calc_sale_tax").value = "";
-            document.getElementById("calc_final_sale").value = "";
-          } else alert("Error saving product");
+          } else alert("Error saving");
         });
-
-      // =================== EDIT PRODUCT ===================
-      async function editProduct(id) {
-        const res = await fetch(API_URL + id + "/");
-        const p = await res.json();
-        refreshFormWithProduct(p);
       }
 
-      function refreshFormWithProduct(p) {
-        document.getElementById("productId").value = p.id;
-        document.getElementById("hsn_code").value = p.hsn_code || "";
-        document.getElementById("name").value = p.name;
-        document.getElementById("size").value = p.size || "";
-        document.getElementById("pcs_size").value = p.pcs_size || "";
-        document.getElementById("mrp").value = p.mrp;
-        document.getElementById("sale_price").value = p.sale_price;
-        document.getElementById("sale_discount").value = p.sale_discount;
-        document.getElementById("sale_tax").value = p.sale_tax;
-        document.getElementById("purchase_price").value = p.purchase_price;
-        document.getElementById("purchase_discount").value =
-          p.purchase_discount;
-        document.getElementById("purchase_tax").value = p.purchase_tax;
-
-        // Update calculation fields
-        calculateFinals();
-
-        document.getElementById("formTitle").innerText = "✏ Update Product";
-        document.getElementById("productFormCard").style.display = "block";
-      }
-
-      // =================== DELETE PRODUCT ===================
-      async function deleteProduct(id) {
-        if (!confirm("Are you sure?")) return;
-        const res = await fetch(API_URL + id + "/", { method: "DELETE" });
-        if (res.ok) fetchProducts();
-        else alert("Delete failed");
-      }
-
-      // =================== FORM TOGGLE ===================
-      document.getElementById("toggleFormBtn").addEventListener("click", () => {
-        document.getElementById("productFormCard").style.display = "block";
-      });
-
-      document.getElementById("closeFormBtn").addEventListener("click", () => {
-        document.getElementById("productFormCard").style.display = "none";
-        document.getElementById("productForm").reset();
-        document.getElementById("formTitle").innerText = "➕ Add Product";
-        document.getElementById("productId").value = "";
-
-        // Clear calculation fields when closing form
-        document.getElementById("calc_purchase_discount").value = "";
-        document.getElementById("calc_purchase_tax").value = "";
-        document.getElementById("calc_final_purchase").value = "";
-        document.getElementById("calc_sale_discount").value = "";
-        document.getElementById("calc_sale_tax").value = "";
-        document.getElementById("calc_final_sale").value = "";
-      });
-
-      // =================== SEARCH ===================
-      document.getElementById("searchInput").addEventListener("keyup", (e) => {
-        fetchProducts(e.target.value.trim());
-      });
-
-      // Initial load
+      // =================== INITIAL LOAD ===================
       fetchProducts();
     </script>
   </body>
