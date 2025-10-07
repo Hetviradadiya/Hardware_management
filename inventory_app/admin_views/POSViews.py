@@ -78,21 +78,23 @@ class CartViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True, context={"request": request})
         return Response(serializer.data)
 
+from decimal import Decimal
+from django.shortcuts import get_object_or_404, redirect
+
 def place_order(request):
     customer_id = request.POST.get("customer_id")
     customer = get_object_or_404(Customer, id=customer_id)
 
-    # Read already-calculated values
-    subtotal = Decimal(request.POST.get("subtotal", "0"))
-    total_item_discount = Decimal(request.POST.get("total_item_discount", "0"))
-    order_discount_flat = Decimal(request.POST.get("order_discount_flat", "0"))
-    order_discount_percent = Decimal(request.POST.get("order_discount_percent", "0"))
-    total_discount = Decimal(request.POST.get("total_discount", "0"))
-    total_gst = Decimal(request.POST.get("total_gst", "0"))
-    total_amount = Decimal(request.POST.get("total_amount", "0"))
-
+    # Read already-calculated values from frontend
+    subtotal = to_decimal(request.POST.get("subtotal"))
+    total_item_discount = to_decimal(request.POST.get("total_item_discount"))
+    order_discount_flat = to_decimal(request.POST.get("order_discount_flat"))
+    order_discount_percent = to_decimal(request.POST.get("order_discount_percent"))
+    total_discount = to_decimal(request.POST.get("total_discount"))
+    total_gst = to_decimal(request.POST.get("total_gst"))
+    total_amount = to_decimal(request.POST.get("total_amount"))
+    paid_amount = to_decimal(request.POST.get("paid_amount"))
     pay_type = request.POST.get("pay_type")
-    paid_amount = Decimal(request.POST.get("paid_amount", "0"))
 
     # Create Order
     order = Order.objects.create(
@@ -106,36 +108,72 @@ def place_order(request):
         total_amount=total_amount,
         pay_type=pay_type,
         paid_amount=paid_amount,
-        is_paid=(paid_amount >= total_amount),
     )
-    
-    total_paid = paid_amount
-    advance_used = Decimal("0")
 
-    if customer.advance_payment > 0:
-        needed = total_amount - total_paid
-        if needed > 0:
-            if customer.advance_payment >= needed:
-                advance_used = needed
-                customer.advance_payment -= needed
-                total_paid += needed
+    # ---------------- Payment Calculation ----------------
+    final_total = float(total_amount)
+    paid_amount_float = float(paid_amount)
+    old_unpaid = float(customer.pending_amount or 0.0)
+    old_advance = float(customer.advance_payment or 0.0)
+
+    order_balance = 0.0  # New pending for this order
+    order_advance = 0.0  # New advance created by this order
+    is_paid = False
+
+    # CASE 1: Paid >= Current Order
+    if paid_amount_float >= final_total:
+        extra = paid_amount_float - final_total
+        order_balance = 0.0
+
+        if extra > 0:
+            # Use extra to clear old unpaid first
+            if extra >= old_unpaid:
+                extra -= old_unpaid
+                old_unpaid = 0.0
+                order_advance = extra
+                is_paid = True
             else:
-                advance_used = customer.advance_payment
-                total_paid += customer.advance_payment
-                customer.advance_payment = 0
+                old_unpaid -= extra
+                # Use old advance to clear remaining unpaid
+                if old_advance >= old_unpaid:
+                    old_advance -= old_unpaid
+                    old_unpaid = 0.0
+                    is_paid = True
+                else:
+                    old_unpaid -= old_advance
+                    old_advance = 0.0
+                    is_paid = False
+                order_advance = 0.0
+                order_balance = old_unpaid
+        else:
+            order_advance = 0.0
+            order_balance = old_unpaid
+            is_paid = (old_unpaid == 0)
 
-    # Handle pending / overpaid
-    if total_paid < total_amount:
-        customer.pending_amount += (total_amount - total_paid)
-    elif total_paid > total_amount:
-        customer.advance_payment += (total_paid - total_amount)
-        
-    order.is_paid = (total_paid >= total_amount)
-    order.save()
+    # CASE 2: Paid < Current Order
+    else:
+        remaining_due = final_total - paid_amount_float
+        if old_advance >= remaining_due:
+            old_advance -= remaining_due
+            remaining_due = 0.0
+            order_balance = 0.0
+            is_paid = True
+        else:
+            remaining_due -= old_advance
+            old_advance = 0.0
+            order_balance = old_unpaid + remaining_due
+            is_paid = False
+        order_advance = 0.0
 
+    # Update customer & order
+    customer.advance_payment = Decimal(old_advance + order_advance)
+    customer.pending_amount = Decimal(order_balance)
     customer.save()
 
-    # Save each cart item
+    order.is_paid = is_paid
+    order.save()
+
+    # ---------------- Save OrderItems ----------------
     cart_items = Cart.objects.all()
     for cart_item in cart_items:
         OrderItem.objects.create(
@@ -148,14 +186,21 @@ def place_order(request):
             gst=cart_item.gst,
         )
 
-    # Create Sale record (profit calculation inside model save)
+    # ---------------- Create Sale ----------------
     Sale.objects.create(order=order, total_amount=total_amount, paid_amount=paid_amount)
 
     # Clear cart
     cart_items.delete()
 
+    # Redirect to invoice/bill page
     return redirect("bill_page", order_id=order.id)
 
+def to_decimal(value):
+    try:
+        return Decimal(str(value).strip() or "0")
+    except:
+        return Decimal("0")
+    
 def bill_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     items = order.items.all()

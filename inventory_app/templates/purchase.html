@@ -31,6 +31,311 @@
         <form id="purchase-form" style="display: none;">
           {% csrf_token %}
 
+          <!-- Supplier -->
+          <div class="row mb-4">
+            <label class="col-sm-2 col-form-label" for="supplier">Supplier</label>
+            <div class="col-sm-10">
+              <select id="supplier" class="form-control"></select>
+            </div>
+          </div>
+
+          <!-- Products Table -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <table class="table table-bordered" id="products-table">
+                <thead>
+                  <tr>
+                    <th>Variant</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Discount %</th>
+                    <th>GST %</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="products-tbody">
+                  <!-- Rows added dynamically -->
+                </tbody>
+              </table>
+              <button type="button" id="add-product-btn" class="btn btn-sm btn-primary">+ Add Product</button>
+              <div class="mt-2"><strong>Grand Total: </strong><span id="grand-total">0.00</span></div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="btn-container-save">
+            <div class="row justify-content-end">
+              <div class="col-sm-12">
+                {% if view_only == 'false' %}
+                  <button type="submit" class="btn btn-primary" id="submit-button">Add Purchase</button>
+                {% endif %}
+                <button type="button" class="btn btn-secondary" id="back-button" onclick="window.location.href='/purchase-list/'">Back</button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+const form = document.getElementById("purchase-form");
+const loader = document.getElementById("form-loader");
+const purchaseId = "{{ id|default:'' }}";
+const isView = "{{ view_only|default:'false' }}" === 'true';
+const isEdit = Boolean(purchaseId) && !isView;
+
+let variantsData = [];
+
+document.addEventListener("DOMContentLoaded", () => {
+  const submitBtn = document.getElementById("submit-button");
+  const formHeading = document.querySelector(".card-header h5");
+
+  if (isView) {
+    formHeading.textContent = "View Purchase";
+    document.title = "View Purchase";
+    if (submitBtn) submitBtn.style.display = "none";
+  } else if (isEdit) {
+    formHeading.textContent = "Edit Purchase";
+    document.title = "Edit Purchase";
+    if (submitBtn) submitBtn.textContent = "Update Purchase";
+  } else {
+    formHeading.textContent = "Add Purchase";
+    document.title = "Add Purchase";
+  }
+
+  loadDropdowns().then(() => {
+    if (isEdit || isView) {
+      loadPurchase(purchaseId);
+    } else {
+      addProductRow();  // start with one empty row
+      form.style.display = "block";
+    }
+  });
+});
+
+// Load suppliers & variants
+function loadDropdowns() {
+  return Promise.all([
+    fetch("/admin_api/suppliers/")
+      .then(r => r.json())
+      .then(data => {
+        let supplierSelect = document.getElementById("supplier");
+        supplierSelect.innerHTML = `<option value="">-- Select Supplier --</option>`;
+        data.forEach(s => {
+          supplierSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+      }),
+
+    fetch("/admin_api/product-variants/")
+      .then(r => r.json())
+      .then(data => {
+        variantsData = data;
+      }),
+  ]);
+}
+
+// Add new product row
+document.getElementById("add-product-btn").addEventListener("click", addProductRow);
+
+function addProductRow(rowData={}) {
+  const tbody = document.getElementById("products-tbody");
+  const row = document.createElement("tr");
+
+  let optionsHTML = `<option value="">-- Select Variant --</option>`;
+  variantsData.forEach(v => {
+    const selected = rowData.variant == v.id ? "selected" : "";
+    optionsHTML += `<option value="${v.id}" ${selected}>${v.product_name} - ${v.size}</option>`;
+  });
+
+  row.innerHTML = `
+    <td><select class="form-control variant-select">${optionsHTML}</select></td>
+    <td><input type="number" class="form-control qty" value="${rowData.quantity || 1}" min="1"></td>
+    <td><input type="number" class="form-control price" value="${rowData.purchase_price || 0}" step="0.01"></td>
+    <td><input type="number" class="form-control discount" value="${rowData.discount || 0}" step="0.01"></td>
+    <td><input type="number" class="form-control gst" value="${rowData.gst || 0}" step="0.01"></td>
+    <td class="total">0.00</td>
+    <td><button type="button" class="btn btn-sm btn-danger remove-row">x</button></td>
+  `;
+
+  tbody.appendChild(row);
+
+  // Listeners
+  row.querySelectorAll(".qty, .price, .discount, .gst").forEach(input => {
+    input.addEventListener("input", () => calculateRowTotal(row));
+  });
+  row.querySelector(".remove-row").addEventListener("click", () => {
+    row.remove();
+    calculateGrandTotal();
+  });
+
+  calculateRowTotal(row);
+}
+
+// Row total calculation
+function calculateRowTotal(row) {
+  const qty = parseFloat(row.querySelector(".qty").value) || 0;
+  const price = parseFloat(row.querySelector(".price").value) || 0;
+  const discount = parseFloat(row.querySelector(".discount").value) || 0;
+  const gst = parseFloat(row.querySelector(".gst").value) || 0;
+
+  const discountedPrice = price - (price * discount / 100);
+  const gstAmount = discountedPrice * gst / 100;
+  const total = (discountedPrice + gstAmount) * qty;
+
+  row.querySelector(".total").textContent = total.toFixed(2);
+  calculateGrandTotal();
+}
+
+// Grand total
+function calculateGrandTotal() {
+  let grandTotal = 0;
+  document.querySelectorAll("#products-tbody .total").forEach(td => {
+    grandTotal += parseFloat(td.textContent) || 0;
+  });
+  document.getElementById("grand-total").textContent = grandTotal.toFixed(2);
+}
+
+// Load purchase for edit/view
+function loadPurchase(id) {
+  fetch(`/admin_api/purchases/${id}/`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("supplier").value = data.supplier;
+      data.products.forEach(p => addProductRow(p));
+
+      if (isView) {
+        form.querySelectorAll("input, select, button").forEach(el => {
+          if (el.id !== "back-button") el.disabled = true;
+        });
+      }
+      form.style.display = "block";
+    })
+    .catch(err => showToast("Error", "Failed to load data", "danger"));
+}
+
+// Submit form
+form.addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (isView) return;
+
+  loader.style.display = "block";
+  form.style.display = "none";
+
+  const products = [];
+  document.querySelectorAll("#products-tbody tr").forEach(row => {
+    products.push({
+      variant: row.querySelector(".variant-select").value,
+      quantity: row.querySelector(".qty").value,
+      purchase_price: row.querySelector(".price").value,
+      discount: row.querySelector(".discount").value,
+      gst: row.querySelector(".gst").value
+    });
+  });
+
+  const payload = {
+    supplier: document.getElementById("supplier").value,
+    products: products
+  };
+
+  const url = isEdit ? `/admin_api/purchases/${purchaseId}/` : `/admin_api/purchases/`;
+  const method = isEdit ? "PATCH" : "POST";
+
+  fetch(url, {
+    method: method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie("csrftoken")
+    },
+    body: JSON.stringify(payload)
+  })
+    .then(res => {
+      loader.style.display = "none";
+      if (res.ok) {
+        showToast("Success", `Purchase ${isEdit ? "updated" : "added"} successfully`, "success");
+        setTimeout(() => window.location.href = "/purchase-list/", 1500);
+      } else {
+        res.json().then(data => {
+          form.style.display = "block";
+          const error = data?.detail || "Operation failed.";
+          showToast("Error", error, "danger");
+        });
+      }
+    })
+    .catch(err => {
+      loader.style.display = "none";
+      form.style.display = "block";
+      showToast("Error", "Something went wrong.", "danger");
+    });
+});
+
+// Toast helper
+function showToast(title, message, status) {
+  const toast = document.getElementById("alert-box");
+  document.getElementById("toast-title").textContent = title;
+  document.getElementById("toast-body").textContent = message;
+  document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
+  toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
+  new bootstrap.Toast(toast).show();
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.startsWith(name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+</script>
+{% endblock %}
+
+
+
+{% comment %} {% extends layout_path %}
+{% load static %}
+{% block title %}Manage Purchase{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-xxl">
+    <div class="card mb-6">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">Add Purchase</h5>
+      </div>
+      <div class="card-body">
+
+        <!-- Loader -->
+        <div id="form-loader" class="text-center my-4" style="display: none;">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+
+        <!-- Toast -->
+        <div class="bs-toast toast toast-placement-ex m-2" id="alert-box" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000">
+          <div class="toast-header">
+            <i class="bx bx-bell me-2" id="toast-icon"></i>
+            <div class="me-auto fw-medium" id="toast-title">Notification</div>
+            <small class="toast-time">Now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body" id="toast-body"></div>
+        </div>
+
+        <!-- Form -->
+        <form id="purchase-form" style="display: none;">
+          {% csrf_token %}
+
           <div class="row mb-4">
             <label class="col-sm-2 col-form-label" for="supplier">Supplier</label>
             <div class="col-sm-10">
@@ -274,4 +579,4 @@
     return cookieValue;
   }
 </script>
-{% endblock %}
+{% endblock %} {% endcomment %}

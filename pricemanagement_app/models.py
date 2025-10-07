@@ -18,7 +18,10 @@ class Product(models.Model):
     final_purchase_price = models.FloatField(blank=True,null=True)   
 
     purchase_price_100 = models.FloatField(blank=True, null=True)
+    purchase_discount_100 = models.FloatField(default=0)
+    purchase_discount_price_100 = models.FloatField(default=0)
     purchase_tax_100 = models.FloatField(default=0)
+    purchase_tax_price_100 = models.FloatField(default=0)
 
     sale_price = models.FloatField()
     sale_discount = models.FloatField(default=0)
@@ -28,7 +31,10 @@ class Product(models.Model):
     final_sale_price = models.FloatField(blank=True,null=True)   
 
     sale_price_100 = models.FloatField(blank=True, null=True)
+    sale_discount_100 = models.FloatField(default=0)
+    sale_discount_price_100 = models.FloatField(default=0)
     sale_tax_100 = models.FloatField(default=0)
+    sale_tax_price_100 = models.FloatField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
