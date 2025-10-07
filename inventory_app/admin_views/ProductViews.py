@@ -5,7 +5,7 @@ from ..serializers import ProductSerializer,ProductVariantSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 
 class ProductView(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related("variants")
+    queryset = Product.objects.all().prefetch_related("variants").order_by('-id')
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -13,6 +13,6 @@ class ProductView(viewsets.ModelViewSet):
     filterset_fields = ["category"]
 
 class ProductVariantView(viewsets.ModelViewSet):
-    queryset = ProductVariant.objects.all()
+    queryset = ProductVariant.objects.all().order_by('-id')
     serializer_class = ProductVariantSerializer
     permission_classes = [IsAuthenticated]

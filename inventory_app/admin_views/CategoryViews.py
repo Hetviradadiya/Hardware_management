@@ -7,7 +7,7 @@ from ..models import *
 
 
 class CategoryView(viewsets.ModelViewSet):
-    queryset=Category.objects.all()
+    queryset=Category.objects.all().order_by('-id')
     serializer_class=CategorySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]

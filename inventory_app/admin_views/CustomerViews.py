@@ -7,7 +7,7 @@ from ..models import *
 
 
 class CustomerView(viewsets.ModelViewSet):
-    queryset=Customer.objects.all()
+    queryset=Customer.objects.all().order_by('-id')
     serializer_class=CustomerSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]

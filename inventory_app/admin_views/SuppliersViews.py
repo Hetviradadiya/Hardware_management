@@ -8,7 +8,7 @@ from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 class SupplierView(viewsets.ModelViewSet):
-    queryset=Supplier.objects.all()
+    queryset=Supplier.objects.all().order_by('-id')
     serializer_class=SupplierSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
