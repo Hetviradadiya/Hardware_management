@@ -294,14 +294,34 @@
           <td><input type="text" id="${prefix}_pcs_size" value="${val("pcs_size")}" class="form-control form-control-sm"></td>
           <td><input type="number" id="${prefix}_mrp" value="${val("mrp")}" class="form-control form-control-sm"></td>
           <td><input type="number" id="${prefix}_purchase_price" value="${val("purchase_price")}" class="form-control form-control-sm"></td>
-          <td><input type="number" id="${prefix}_purchase_discount" value="${val("purchase_discount")}" class="form-control form-control-sm"></td>
-          <td><input type="number" id="${prefix}_purchase_tax" value="${val("purchase_tax")}" class="form-control form-control-sm"></td>
+          <td>
+            <div class="two-line">
+              <input type="number" id="${prefix}_purchase_discount" value="${val('purchase_discount')}" class="form-control form-control-sm" placeholder="Disc %">
+              <input type="number" id="${prefix}_purchase_discount_value" class="form-control form-control-sm readonly-field" readonly placeholder="Disc value">
+            </div>
+          </td>
+          <td>
+            <div class="two-line">
+              <input type="number" id="${prefix}_purchase_tax" value="${val('purchase_tax')}" class="form-control form-control-sm" placeholder="Tax %">
+              <input type="number" id="${prefix}_purchase_tax_value" class="form-control form-control-sm readonly-field" readonly placeholder="Tax value">
+            </div>
+          </td>
           <td><input type="number" id="${prefix}_final_purchase" class="form-control form-control-sm readonly-field" readonly></td>
           <td><input type="number" id="${prefix}_purchase_price_100" value="${val("purchase_price_100")}" class="form-control form-control-sm"></td>
           <td><input type="number" id="${prefix}_purchase_tax_100" value="${val("purchase_tax_100")}" class="form-control form-control-sm"></td>
           <td><input type="number" id="${prefix}_sale_price" value="${val("sale_price")}" class="form-control form-control-sm"></td>
-          <td><input type="number" id="${prefix}_sale_discount" value="${val("sale_discount")}" class="form-control form-control-sm"></td>
-          <td><input type="number" id="${prefix}_sale_tax" value="${val("sale_tax")}" class="form-control form-control-sm"></td>
+          <td>
+            <div class="two-line">
+              <input type="number" id="${prefix}_sale_discount" value="${val('sale_discount')}" class="form-control form-control-sm" placeholder="Disc %">
+              <input type="number" id="${prefix}_sale_discount_value" class="form-control form-control-sm readonly-field" readonly placeholder="Disc value">
+            </div>
+          </td>
+          <td>
+            <div class="two-line">
+              <input type="number" id="${prefix}_sale_tax" value="${val('sale_tax')}" class="form-control form-control-sm" placeholder="Tax %">
+              <input type="number" id="${prefix}_sale_tax_value" class="form-control form-control-sm readonly-field" readonly placeholder="Tax value">
+            </div>
+          </td>
           <td><input type="number" id="${prefix}_final_sale" class="form-control form-control-sm readonly-field" readonly></td>
           <td><input type="number" id="${prefix}_sale_price_100" value="${val("sale_price_100")}" class="form-control form-control-sm"></td>
           <td><input type="number" id="${prefix}_sale_tax_100" value="${val("sale_tax_100")}" class="form-control form-control-sm"></td>
@@ -317,29 +337,44 @@
         const updatePurchase = () => {
           const price = parseFloat(document.getElementById(prefix + "_purchase_price").value) || 0;
           const discount = parseFloat(document.getElementById(prefix + "_purchase_discount").value) || 0;
+          const discountValue = (price * discount) / 100;
+
           const tax = parseFloat(document.getElementById(prefix + "_purchase_tax").value) || 0;
-          const total = (price - (price * discount) / 100) * (1 + tax / 100);
+          const taxValue = (price - discountValue) * (tax / 100);
+
+          document.getElementById(prefix + "_purchase_discount_value").value = discountValue.toFixed(2);
+          document.getElementById(prefix + "_purchase_tax_value").value = taxValue.toFixed(2);
+
+          const total = (price - discountValue) + taxValue;
           document.getElementById(prefix + "_final_purchase").value = total.toFixed(2);
         };
+
         const updateSale = () => {
           const price = parseFloat(document.getElementById(prefix + "_sale_price").value) || 0;
           const discount = parseFloat(document.getElementById(prefix + "_sale_discount").value) || 0;
+          const discountValue = (price * discount) / 100;
+
           const tax = parseFloat(document.getElementById(prefix + "_sale_tax").value) || 0;
-          const total = (price - (price * discount) / 100) * (1 + tax / 100);
+          const taxValue = (price - discountValue) * (tax / 100);
+
+          document.getElementById(prefix + "_sale_discount_value").value = discountValue.toFixed(2);
+          document.getElementById(prefix + "_sale_tax_value").value = taxValue.toFixed(2);
+
+          const total = (price - discountValue) + taxValue;
           document.getElementById(prefix + "_final_sale").value = total.toFixed(2);
         };
-        ["purchase_price", "purchase_discount", "purchase_tax"].forEach((f) =>
-          document
-            .getElementById(prefix + "_" + f)
-            .addEventListener("input", updatePurchase)
-        );
-        ["sale_price", "sale_discount", "sale_tax"].forEach((f) =>
-          document
-            .getElementById(prefix + "_" + f)
-            .addEventListener("input", updateSale)
-        );
-      }
 
+        ["purchase_price", "purchase_discount", "purchase_tax"].forEach(f =>
+          document.getElementById(prefix + "_" + f).addEventListener("input", updatePurchase)
+        );
+        ["sale_price", "sale_discount", "sale_tax"].forEach(f =>
+          document.getElementById(prefix + "_" + f).addEventListener("input", updateSale)
+        );
+
+        // Trigger once to initialize discount values
+        updatePurchase();
+        updateSale();
+      }
       // =================== SAVE & CANCEL ===================
       function setupSaveCancel(prefix, tr, id = null) {
         document.getElementById(prefix + "_cancel").addEventListener("click", () => {
