@@ -12,5 +12,5 @@ class ProductViewset(viewsets.ModelViewSet):
     # permission_classes=[permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = [
-        'name','size',
+        'name','size','hsn_code','pcs_size'
     ]
