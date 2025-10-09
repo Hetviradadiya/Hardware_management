@@ -110,56 +110,67 @@ Dashboard{% endblock %} {% block page_js %}
   .dashboard-card {
     border: none;
     border-radius: 1rem;
-    color: #fff;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    color: #333;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   .dashboard-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   }
   .card-body i {
     font-size: 2rem;
-    opacity: 0.85;
+    opacity: 0.8;
   }
   .card-body h4 {
     font-weight: bold;
     margin-top: 8px;
   }
+
+  /* Light / pastel colors */
   .bg-blue {
-    background: linear-gradient(135deg, #4e73df, #224abe);
+    background: linear-gradient(135deg, #cfe2ff, #9ec5fe);
+    color: #0d3c91;
   }
   .bg-green {
-    background: linear-gradient(135deg, #1cc88a, #0f9d58);
+    background: linear-gradient(135deg, #d1f7dd, #a8e6a3);
+    color: #0f5132;
   }
   .bg-orange {
-    background: linear-gradient(135deg, #f6c23e, #e0a800);
+    background: linear-gradient(135deg, #ffe5b4, #ffd580);
+    color: #664d03;
   }
   .bg-red {
-    background: linear-gradient(135deg, #e74a3b, #be2617);
+    background: linear-gradient(135deg, #ffd6d6, #ffabab);
+    color: #7a1c1c;
   }
   .bg-teal {
-    background: linear-gradient(135deg, #20c9a6, #0f766e);
+    background: linear-gradient(135deg, #b2f0ea, #86e5de);
+    color: #0d5f58;
   }
   .bg-purple {
-    background: linear-gradient(135deg, #6f42c1, #4b0082);
+    background: linear-gradient(135deg, #e3d7f5, #c7b3f0);
+    color: #3f0f8a;
   }
   .bg-pink {
-    background: linear-gradient(135deg, #e83e8c, #b71c64);
+    background: linear-gradient(135deg, #fbcce7, #f8a6d9);
+    color: #7a0b58;
   }
   .bg-dark {
-    background: linear-gradient(135deg, #5a5c69, #2e2f37);
+    background: linear-gradient(135deg, #e2e3e5, #d6d8db);
+    color: #212529;
   }
+
   .card.chart-card {
     border-radius: 1rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
   .table th {
     background-color: #f8f9fc;
   }
   .recent-card {
     border-radius: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 </style>
 
