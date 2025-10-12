@@ -4,6 +4,7 @@ from pricemanagement_app.serializers import ProductSerializer, ProductPriceSeria
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 # -------------------- PRODUCT VIEWSET --------------------
 class ProductViewSet(viewsets.ModelViewSet):
@@ -33,7 +34,15 @@ class DealerViewSet(viewsets.ModelViewSet):
 
 
 class BulkProductCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Fetch all products with their nested prices and dealers"""
+        products = Product.objects.prefetch_related(
+            'prices__dealers'
+        ).all().order_by('-id')
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         # Expecting a list of products from frontend
@@ -41,3 +50,15 @@ class BulkProductCreateAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def put(self, request, pk=None):
+        product = get_object_or_404(Product, pk=pk)
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk=None):
+        product = get_object_or_404(Product, pk=pk)
+        product.delete()
+        return Response({'message': 'Product deleted successfully'}, status=status.HTTP_204_NO_CONTENT)

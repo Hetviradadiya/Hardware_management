@@ -1,539 +1,979 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mobile Product Entry</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-body { background-color: #f8f9fa; }
-input[type=number], input[type=text], input[type=date] { width: 100px; }
-.table-responsive { max-height: 80vh; overflow: auto; }
-table th, table td { white-space: nowrap; vertical-align: middle; }
-.readonly-field { background-color: #e9ecef; }
-</style>
-</head>
-<body>
-<div class="container py-3">
-<h3 class="mb-3 text-center">📦 Product Entry</h3>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobile Product Entry</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      input[type="number"],
+      input[type="text"],
+      input[type="date"] {
+        width: 100px;
+      }
+      .table-responsive {
+        max-height: 80vh;
+        overflow: auto;
+      }
+      table th,
+      table td {
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .readonly-field {
+        background-color: #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-3">
+      <h3 class="mb-3 text-center">📦 Product Entry</h3>
 
-<div class="table-responsive">
-<table class="table table-bordered table-hover align-middle" id="productTable">
-<thead class="table-light">
-<tr>
-  <th>Photo</th>
-  <th>Name</th>
-  <th>Size</th>
-  <th>Code</th>
-  <th>HSN</th>
-  <th>MRP</th>
-  <th>Payment Type</th>
-  <th>Price</th>
-  <th>Discount %</th>
-  <th>Discount Price</th>
-  <th>Tax %</th>
-  <th>Tax Price</th>
-  <th>Box</th>
-  <th>Box Discount %</th>
-  <th>Box Discount Price</th>
-  <th>Box Tax %</th>
-  <th>Box Tax Price</th>
-  <th>Dealer Name</th>
-  <th>Slol</th>
-  <th>Date</th>
-  <th>Dealer Price</th>
-  <th>Dealer Discount %</th>
-  <th>Dealer Discount Price</th>
-  <th>Dealer Tax %</th>
-  <th>Dealer Tax Price</th>
-  <th>Dealer Box</th>
-  <th>Dealer Box Discount %</th>
-  <th>Dealer Box Discount Price</th>
-  <th>Dealer Box Tax %</th>
-  <th>Dealer Box Tax Price</th>
-  <th>Actions</th>
-</tr>
-</thead>
-<tbody id="productList"></tbody>
-</table>
-</div>
+      <div class="table-responsive">
+        <table
+          class="table table-bordered table-hover align-middle"
+          id="productTable"
+        >
+          <thead class="table-light">
+            <tr>
+              <th>Photo</th>
+              <th>Name</th>
+              <th>Size</th>
+              <th>Code</th>
+              <th>HSN</th>
+              <th>MRP</th>
+              <th>Payment Type</th>
+              <th>Price</th>
+              <th>Discount %</th>
+              <th>Discount Price</th>
+              <th>Tax %</th>
+              <th>Tax Price</th>
+              <th>Box</th>
+              <th>Box Discount %</th>
+              <th>Box Discount Price</th>
+              <th>Box Tax %</th>
+              <th>Box Tax Price</th>
+              <th>Dealer Name</th>
+              <th>Slol</th>
+              <th>Date</th>
+              <th>Dealer Price</th>
+              <th>Dealer Discount %</th>
+              <th>Dealer Discount Price</th>
+              <th>Dealer Tax %</th>
+              <th>Dealer Tax Price</th>
+              <th>Dealer Box</th>
+              <th>Dealer Box Discount %</th>
+              <th>Dealer Box Discount Price</th>
+              <th>Dealer Box Tax %</th>
+              <th>Dealer Box Tax Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productList"></tbody>
+        </table>
+      </div>
 
-<button class="btn btn-primary mt-2 w-100" id="addProductBtn">+ Add Product</button>
-<button class="btn btn-success mt-2 w-100" id="saveProductsBtn">💾 Save Products</button>
-</div>
+      <button class="btn btn-primary mt-2 w-100" id="addProductBtn">
+        + Add Product
+      </button>
+      <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
+        💾 Save Products
+      </button>
+    </div>
 
-<script>
-let productCount = 0;
-let priceCount = 0;
+    <script>
+      let productCount = 0;
+      let priceCount = 0;
 
-// --- Utilities --- 
-function createInput(type='text', value='', classes='form-control', oninput='') {
-  return `<input type="${type}" class="${classes}" value="${value}" ${oninput}>`;
-}
-function calc(value, percent) { return (parseFloat(value||0) * parseFloat(percent||0)/100).toFixed(2); }
+      // --- Utility Functions ---
+      function createInput(
+        type = "text",
+        value = "",
+        classes = "form-control",
+        extra = ""
+      ) {
+        return `<input type="${type}" class="${classes}" value="${value}" ${extra}>`;
+      }
 
-// --- Add Dealer Row ---
-function addDealerRow(priceRow, productId, priceId) {
-  const dealerRow = document.createElement('tr');
-  dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
-  dealerRow.innerHTML = `
-    <td colspan="17"></td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('date')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control', 'oninput="updateDealerCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>
-      <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
-    </td>
-  `;
-  const existingDealers = document.querySelectorAll(`.product_${productId}_price_${priceId}_dealer`);
-  const insertAfter = existingDealers.length ? existingDealers[existingDealers.length-1] : priceRow;
-  insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
-}
+      function calc(value, percent) {
+        const v = parseFloat(value || 0);
+        const p = parseFloat(percent || 0);
+        return ((v * p) / 100).toFixed(2);
+      }
 
-// --- Add Price Row ---
-function addPriceRow(productId) {
-  const priceId = priceCount++;
-  const priceRow = document.createElement('tr');
-  priceRow.classList.add(`product_${productId}_price`);
-  priceRow.dataset.priceId = priceId;
-  priceRow.innerHTML = `
-    <td colspan="6"></td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td>${createInput('number','', 'form-control','oninput="updatePriceCalc(this)"')}</td>
-    <td>${createInput('number','', 'form-control readonly-field','readonly')}</td>
-    <td colspan="14">
-      <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
-      <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
-    </td>
-  `;
-  let insertAfter = document.getElementById(`product_${productId}`);
-  const allRows = document.querySelectorAll('#productList tr');
-  allRows.forEach(r=>{
-    const classes=Array.from(r.classList);
-    if(classes.some(c=>c===`product_${productId}_price` || c.startsWith(`product_${productId}_price_`))) insertAfter=r;
-  });
-  insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
-}
+      // --- Add Dealer Row ---
+      function addDealerRow(priceRow, productId, priceId) {
+        const dealerRow = document.createElement("tr");
+        dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
 
-// --- Update Price Calc ---
-function updatePriceCalc(input){
-  const tr=input.closest('tr');
-  const price=tr.cells[7].querySelector('input').value;
-  const discount=tr.cells[8].querySelector('input').value;
-  tr.cells[9].querySelector('input').value=calc(price, discount);
-  const tax=tr.cells[10].querySelector('input').value;
-  tr.cells[11].querySelector('input').value=calc(price-tr.cells[9].querySelector('input').value,tax);
-  const box=tr.cells[12].querySelector('input').value;
-  const boxDiscount=tr.cells[13].querySelector('input').value;
-  tr.cells[14].querySelector('input').value=calc(box,boxDiscount);
-  const boxTax=tr.cells[15].querySelector('input').value;
-  tr.cells[16].querySelector('input').value=calc(box-tr.cells[14].querySelector('input').value,boxTax);
-}
+        dealerRow.innerHTML = `
+        <td colspan="17"></td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("date")}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
+        </td>
+      `;
 
-// --- Update Dealer Calc ---
-function updateDealerCalc(input){
-  const tr=input.closest('tr');
-  const price=tr.cells[19].querySelector('input').value;
-  const discount=tr.cells[20].querySelector('input').value;
-  tr.cells[21].querySelector('input').value=calc(price,discount);
-  const tax=tr.cells[22].querySelector('input').value;
-  tr.cells[23].querySelector('input').value=calc(price-tr.cells[21].querySelector('input').value,tax);
-  const box=tr.cells[24].querySelector('input').value;
-  const boxDiscount=tr.cells[25].querySelector('input').value;
-  tr.cells[26].querySelector('input').value=calc(box,boxDiscount);
-  const boxTax=tr.cells[27].querySelector('input').value;
-  tr.cells[28].querySelector('input').value=calc(box-tr.cells[26].querySelector('input').value,boxTax);
-}
+        const existingDealers = document.querySelectorAll(
+          `.product_${productId}_price_${priceId}_dealer`
+        );
+        const insertAfter = existingDealers.length
+          ? existingDealers[existingDealers.length - 1]
+          : priceRow;
 
-// --- Add Product ---
-function addProductRow() {
-  const tbody=document.getElementById('productList');
-  const productId=productCount++;
-  const productRow=document.createElement('tr');
-  productRow.id=`product_${productId}`;
-  productRow.innerHTML=`
-    <td>${createInput('file')}</td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('text')}</td>
-    <td>${createInput('number')}</td>
-    <td colspan="24">
-      <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
-      <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
-    </td>
-  `;
-  tbody.appendChild(productRow);
-}
+        insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
+      }
 
-// --- Delete Product ---
-function deleteProduct(productId){
-  document.querySelectorAll(`.product_${productId}_price`).forEach(r => r.remove());
-  // Select all dealer rows that contain productId in their class
-  document.querySelectorAll(`tr[class*="product_${productId}_price_"][class$="_dealer"]`).forEach(r => r.remove());
-  document.getElementById(`product_${productId}`).remove();
-}
+      // --- Add Price Row ---
+      function addPriceRow(productId) {
+        const priceId = priceCount++;
+        const priceRow = document.createElement("tr");
+        priceRow.classList.add(`product_${productId}_price`);
+        priceRow.dataset.priceId = priceId;
 
-function removePriceRow(productId, priceId, btn) {
-  const dealerRows = document.querySelectorAll(`.product_${productId}_price_${priceId}_dealer`);
-  dealerRows.forEach(r => r.remove());
-  btn.closest('tr').remove();
-  updateRowspan(productId);
-}
-// --- Update Rowspan ---
-function updateRowspan(productId){
-  const productRow=document.getElementById(`product_${productId}`);
-  const priceRows=document.querySelectorAll(`.product_${productId}_price`);
-  let totalRows=0;
-  priceRows.forEach(pr=>{
-    totalRows+=1+document.querySelectorAll(`.product_${productId}_price_${pr.dataset.priceId}_dealer`).length;
-  });
-  ['name','size','code','mrp'].forEach(cls=>{
-    const td=productRow.querySelector(`.${cls}`);
-    if(td) td.setAttribute('rowspan',totalRows||1);
-  });
-}
+        priceRow.innerHTML = `
+        <td colspan="6"></td>
+        <td>${createInput("text")}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td colspan="14">
+          <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
+          <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
+        </td>
+      `;
 
-// --- Event Listeners ---
-document.getElementById('addProductBtn').addEventListener('click',addProductRow);
-document.getElementById('saveProductsBtn').addEventListener('click',()=>{
-  const data=[];
-  const productRows = document.querySelectorAll('#productList tr[id^="product_"]');
-  productRows.forEach(pRow=>{
-    const productId=pRow.id.split('_')[1];
-    const product={
-      name:pRow.cells[1].querySelector('input').value,
-      size:pRow.cells[2].querySelector('input').value,
-      code:pRow.cells[3].querySelector('input').value,
-      hsn:pRow.cells[4].querySelector('input').value,
-      mrp:parseFloat(pRow.cells[5].querySelector('input').value||0),
-      prices:[]
-    };
-    document.querySelectorAll(`.product_${productId}_price`).forEach(pr=>{
-      const priceId=pr.dataset.priceId;
-      const price={
-        payment_type:pr.cells[6].querySelector('input').value,
-        price:parseFloat(pr.cells[7].querySelector('input').value||0),
-        discount:parseFloat(pr.cells[8].querySelector('input').value||0),
-        discount_price:parseFloat(pr.cells[9].querySelector('input').value||0),
-        tax:parseFloat(pr.cells[10].querySelector('input').value||0),
-        tax_price:parseFloat(pr.cells[11].querySelector('input').value||0),
-        box:parseFloat(pr.cells[12].querySelector('input').value||0),
-        box_discount:parseFloat(pr.cells[13].querySelector('input').value||0),
-        box_discount_price:parseFloat(pr.cells[14].querySelector('input').value||0),
-        box_tax:parseFloat(pr.cells[15].querySelector('input').value||0),
-        box_tax_price:parseFloat(pr.cells[16].querySelector('input').value||0),
-        dealers:[]
-      };
-      document.querySelectorAll(`.product_${productId}_price_${priceId}_dealer`).forEach(dr=>{
-        price.dealers.push({
-          dlr_name:dr.cells[17].querySelector('input').value,
-          slol:dr.cells[18].querySelector('input').value,
-          purchase_date:dr.cells[19].querySelector('input').value,
-          purchase_price:parseFloat(dr.cells[20].querySelector('input').value||0),
-          purchase_discount:parseFloat(dr.cells[21].querySelector('input').value||0),
-          purchase_discount_price:parseFloat(dr.cells[22].querySelector('input').value||0),
-          purchase_tax:parseFloat(dr.cells[23].querySelector('input').value||0),
-          purchase_tax_price:parseFloat(dr.cells[24].querySelector('input').value||0),
-          purchase_box:parseFloat(dr.cells[25].querySelector('input').value||0),
-          purchase_box_discount:parseFloat(dr.cells[26].querySelector('input').value||0),
-          purchase_box_discount_price:parseFloat(dr.cells[27].querySelector('input').value||0),
-          purchase_box_tax:parseFloat(dr.cells[28].querySelector('input').value||0),
-          purchase_box_tax_price:parseFloat(dr.cells[29].querySelector('input').value||0)
+        let insertAfter = document.getElementById(`product_${productId}`);
+        const allRows = document.querySelectorAll("#productList tr");
+        allRows.forEach((r) => {
+          const classes = Array.from(r.classList);
+          if (
+            classes.some(
+              (c) =>
+                c === `product_${productId}_price` ||
+                c.startsWith(`product_${productId}_price_`)
+            )
+          )
+            insertAfter = r;
         });
+        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
+      }
+
+      // --- Update Price Calculations ---
+      function updatePriceCalc(input) {
+        const tr = input.closest("tr");
+        const inputs = tr.querySelectorAll("input");
+
+        if (inputs.length < 17) return; // prevent error if missing columns
+
+        const price = parseFloat(inputs[1]?.value || 0);
+        const discount = parseFloat(inputs[2]?.value || 0);
+        inputs[3].value = calc(price, discount);
+        const discountPrice = price - parseFloat(inputs[3].value || 0);
+        const tax = parseFloat(inputs[4]?.value || 0);
+        inputs[5].value = calc(discountPrice, tax);
+        const taxPrice = discountPrice + parseFloat(inputs[5].value || 0);
+
+        // Box calculations
+        const box = parseFloat(inputs[6]?.value || 0);
+        const boxDiscount = parseFloat(inputs[7]?.value || 0);
+        inputs[8].value = calc(box, boxDiscount);
+        const boxDiscountPrice = box - parseFloat(inputs[8].value || 0);
+        const boxTax = parseFloat(inputs[9]?.value || 0);
+        inputs[10].value = calc(boxDiscountPrice, boxTax);
+      }
+
+      // --- Update Dealer Calculations ---
+      function updateDealerCalc(input) {
+        const tr = input.closest("tr");
+        const inputs = tr.querySelectorAll("input");
+
+        if (inputs.length < 13) return; // prevent null errors
+
+        const price = parseFloat(inputs[3]?.value || 0);
+        const discount = parseFloat(inputs[4]?.value || 0);
+        inputs[5].value = calc(price, discount);
+        const discountPrice = price - parseFloat(inputs[5].value || 0);
+        const tax = parseFloat(inputs[6]?.value || 0);
+        inputs[7].value = calc(discountPrice, tax);
+
+        const box = parseFloat(inputs[8]?.value || 0);
+        const boxDiscount = parseFloat(inputs[9]?.value || 0);
+        inputs[10].value = calc(box, boxDiscount);
+        const boxDiscountPrice = box - parseFloat(inputs[10].value || 0);
+        const boxTax = parseFloat(inputs[11]?.value || 0);
+        inputs[12].value = calc(boxDiscountPrice, boxTax);
+      }
+
+      // --- Add Product Row ---
+      function addProductRow() {
+        const tbody = document.getElementById("productList");
+        const productId = productCount++;
+        const productRow = document.createElement("tr");
+        productRow.id = `product_${productId}`;
+        productRow.innerHTML = `
+        <td>${createInput("file")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("number")}</td>
+        <td colspan="24">
+          <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
+          <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
+        </td>
+      `;
+        tbody.appendChild(productRow);
+      }
+
+      // --- Delete Product ---
+      function deleteProduct(productId) {
+        document
+          .querySelectorAll(`.product_${productId}_price`)
+          .forEach((r) => r.remove());
+        document
+          .querySelectorAll(
+            `tr[class*="product_${productId}_price_"][class$="_dealer"]`
+          )
+          .forEach((r) => r.remove());
+        document.getElementById(`product_${productId}`)?.remove();
+      }
+
+      // --- Remove Price Row ---
+      function removePriceRow(productId, priceId, btn) {
+        document
+          .querySelectorAll(`.product_${productId}_price_${priceId}_dealer`)
+          .forEach((r) => r.remove());
+        btn.closest("tr").remove();
+        updateRowspan(productId);
+      }
+
+      // --- Update Rowspan ---
+      function updateRowspan(productId) {
+        const productRow = document.getElementById(`product_${productId}`);
+        const priceRows = document.querySelectorAll(
+          `.product_${productId}_price`
+        );
+        let totalRows = 0;
+        priceRows.forEach((pr) => {
+          totalRows +=
+            1 +
+            document.querySelectorAll(
+              `.product_${productId}_price_${pr.dataset.priceId}_dealer`
+            ).length;
+        });
+        ["name", "size", "code", "mrp"].forEach((cls) => {
+          const td = productRow.querySelector(`.${cls}`);
+          if (td) td.setAttribute("rowspan", totalRows || 1);
+        });
+      }
+
+      // --- Event Listeners ---
+      document
+        .getElementById("addProductBtn")
+        .addEventListener("click", addProductRow);
+
+      document
+        .getElementById("saveProductsBtn")
+        .addEventListener("click", () => {
+          const data = [];
+          const productRows = document.querySelectorAll(
+            '#productList tr[id^="product_"]'
+          );
+
+          productRows.forEach((pRow) => {
+            const productId = pRow.id.split("_")[1];
+            const product = {
+              name: pRow.cells[1].querySelector("input")?.value || "",
+              size: pRow.cells[2].querySelector("input")?.value || "",
+              code: pRow.cells[3].querySelector("input")?.value || "",
+              hsn: pRow.cells[4].querySelector("input")?.value || "",
+              mrp: parseFloat(pRow.cells[5].querySelector("input")?.value || 0),
+              prices: [],
+            };
+
+            document
+              .querySelectorAll(`.product_${productId}_price`)
+              .forEach((pr) => {
+                const priceId = pr.dataset.priceId;
+                const inputs = pr.querySelectorAll("input");
+                const price = {
+                  payment_type: inputs[0]?.value || "",
+                  price: parseFloat(inputs[1]?.value || 0),
+                  discount: parseFloat(inputs[2]?.value || 0),
+                  discount_price: parseFloat(inputs[3]?.value || 0),
+                  tax: parseFloat(inputs[4]?.value || 0),
+                  tax_price: parseFloat(inputs[5]?.value || 0),
+                  box: parseFloat(inputs[6]?.value || 0),
+                  box_discount: parseFloat(inputs[7]?.value || 0),
+                  box_discount_price: parseFloat(inputs[8]?.value || 0),
+                  box_tax: parseFloat(inputs[9]?.value || 0),
+                  box_tax_price: parseFloat(inputs[10]?.value || 0),
+                  dealers: [],
+                };
+
+                document
+                  .querySelectorAll(
+                    `.product_${productId}_price_${priceId}_dealer`
+                  )
+                  .forEach((dr) => {
+                    const dInputs = dr.querySelectorAll("input");
+                    price.dealers.push({
+                      dlr_name: dInputs[0]?.value || "",
+                      slol: dInputs[1]?.value || "",
+                      purchase_date: dInputs[2]?.value || "",
+                      purchase_price: parseFloat(dInputs[3]?.value || 0),
+                      purchase_discount: parseFloat(dInputs[4]?.value || 0),
+                      purchase_discount_price: parseFloat(
+                        dInputs[5]?.value || 0
+                      ),
+                      purchase_tax: parseFloat(dInputs[6]?.value || 0),
+                      purchase_tax_price: parseFloat(dInputs[7]?.value || 0),
+                      purchase_box: parseFloat(dInputs[8]?.value || 0),
+                      purchase_box_discount: parseFloat(dInputs[9]?.value || 0),
+                      purchase_box_discount_price: parseFloat(
+                        dInputs[10]?.value || 0
+                      ),
+                      purchase_box_tax: parseFloat(dInputs[11]?.value || 0),
+                      purchase_box_tax_price: parseFloat(
+                        dInputs[12]?.value || 0
+                      ),
+                    });
+                  });
+
+                product.prices.push(price);
+              });
+
+            data.push(product);
+          });
+
+          console.log("✅ Final Data:", JSON.stringify(data, null, 2));
+
+          // --- Call API ---
+          fetch("/api/product-create/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            "X-CSRFToken": getCookie("csrftoken"),
+            body: JSON.stringify(data),
+          })
+            .then((res) => res.json())
+            .then((response) => {
+              console.log("✅ API Response:", response);
+              alert("Products saved successfully!");
+            })
+            .catch((err) => {
+              console.error("❌ Error saving:", err);
+              alert("Error while saving data!");
+            });
+        });
+
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1)
+              );
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+      window.addEventListener("DOMContentLoaded", () => {
+        fetch("/api/product-create/")
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("Fetched Products:", data);
+            const tbody = document.getElementById("productList");
+            tbody.innerHTML = ""; // clear old
+
+            data.forEach((product) => {
+              const productId = productCount++;
+              const productRow = document.createElement("tr");
+              productRow.id = `product_${productId}`;
+              productRow.innerHTML = `
+                <td>${createInput("file")}</td>
+                <td>${createInput("text", product.name)}</td>
+                <td>${createInput("text", product.size)}</td>
+                <td>${createInput("text", product.code)}</td>
+                <td>${createInput("text", product.hsn)}</td>
+                <td>${createInput("number", product.mrp)}</td>
+                <td colspan="24">
+                  <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
+                  <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
+                </td>
+              `;
+              tbody.appendChild(productRow);
+
+              // --- Add all Price Rows ---
+              if (product.prices && product.prices.length) {
+                product.prices.forEach((price) => {
+                  const priceId = priceCount++;
+                  const priceRow = document.createElement("tr");
+                  priceRow.classList.add(`product_${productId}_price`);
+                  priceRow.dataset.priceId = priceId;
+
+                  priceRow.innerHTML = `
+                    <td colspan="6"></td>
+                    <td>${createInput("text", price.payment_type)}</td>
+                    <td>${createInput("number", price.price)}</td>
+                    <td>${createInput("number", price.discount)}</td>
+                    <td>${createInput(
+                      "number",
+                      price.discount_price,
+                      "form-control readonly-field",
+                      "readonly"
+                    )}</td>
+                    <td>${createInput("number", price.tax)}</td>
+                    <td>${createInput(
+                      "number",
+                      price.tax_price,
+                      "form-control readonly-field",
+                      "readonly"
+                    )}</td>
+                    <td>${createInput("number", price.box)}</td>
+                    <td>${createInput("number", price.box_discount)}</td>
+                    <td>${createInput(
+                      "number",
+                      price.box_discount_price,
+                      "form-control readonly-field",
+                      "readonly"
+                    )}</td>
+                    <td>${createInput("number", price.box_tax)}</td>
+                    <td>${createInput(
+                      "number",
+                      price.box_tax_price,
+                      "form-control readonly-field",
+                      "readonly"
+                    )}</td>
+                    <td colspan="14">
+                      <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
+                      <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
+                    </td>
+                  `;
+
+                  tbody.appendChild(priceRow);
+
+                  // --- Add all Dealer Rows ---
+                  if (price.dealers && price.dealers.length) {
+                    price.dealers.forEach((dealer) => {
+                      const dealerRow = document.createElement("tr");
+                      dealerRow.classList.add(
+                        `product_${productId}_price_${priceId}_dealer`
+                      );
+                      dealerRow.innerHTML = `
+                        <td colspan="17"></td>
+                        <td>${createInput("text", dealer.dlr_name)}</td>
+                        <td>${createInput("text", dealer.slol)}</td>
+                        <td>${createInput("date", dealer.purchase_date)}</td>
+                        <td>${createInput("number", dealer.purchase_price)}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_discount
+                        )}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_discount_price,
+                          "form-control readonly-field",
+                          "readonly"
+                        )}</td>
+                        <td>${createInput("number", dealer.purchase_tax)}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_tax_price,
+                          "form-control readonly-field",
+                          "readonly"
+                        )}</td>
+                        <td>${createInput("number", dealer.purchase_box)}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_box_discount
+                        )}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_box_discount_price,
+                          "form-control readonly-field",
+                          "readonly"
+                        )}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_box_tax
+                        )}</td>
+                        <td>${createInput(
+                          "number",
+                          dealer.purchase_box_tax_price,
+                          "form-control readonly-field",
+                          "readonly"
+                        )}</td>
+                        <td>
+                          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
+                        </td>
+                      `;
+                      tbody.appendChild(dealerRow);
+                    });
+                  }
+                });
+              }
+            });
+          })
+          .catch((err) => console.error("Error fetching products:", err));
       });
-      product.prices.push(price);
-    });
-    data.push(product);
-  });
-  console.log(JSON.stringify(data, null, 2));
-  alert('Data logged in console. Ready to send to API.');
-});
-</script>
-</body>
+    </script>
+  </body>
 </html>
-
-
 
 {% comment %} <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mobile Product Entry Table</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-body { background-color: #f8f9fa; }
-input[type=number] { width: 100px; }
-.table-responsive { max-height: 80vh; overflow: auto; }
-table th, table td { white-space: nowrap; }
-.readonly-field { background-color: #e9ecef; }
-</style>
-</head>
-<body>
-<div class="container py-3">
-<h3 class="mb-3 text-center">📦 Product Entry</h3>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobile Product Entry Table</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      input[type="number"] {
+        width: 100px;
+      }
+      .table-responsive {
+        max-height: 80vh;
+        overflow: auto;
+      }
+      table th,
+      table td {
+        white-space: nowrap;
+      }
+      .readonly-field {
+        background-color: #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-3">
+      <h3 class="mb-3 text-center">📦 Product Entry</h3>
 
-<div class="table-responsive">
-<table class="table table-bordered table-hover align-middle" id="productTable">
-  <thead class="table-light">
-    <tr>
-      <th>Product Name</th>
-      <th>Size</th>
-      <th>Code</th>
-      <th>MRP</th>
-      <th>Payment Type</th>
-      <th>Price</th>
-      <th>Discount %</th>
-      <th>Tax %</th>
-      <th>Dealer Name</th>
-      <th>Slol</th>
-      <th>Date</th>
-      <th>Dealer Price</th>
-      <th>Dealer Disc %</th>
-      <th>Dealer Tax %</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody id="productList"></tbody>
-</table>
-</div>
+      <div class="table-responsive">
+        <table
+          class="table table-bordered table-hover align-middle"
+          id="productTable"
+        >
+          <thead class="table-light">
+            <tr>
+              <th>Product Name</th>
+              <th>Size</th>
+              <th>Code</th>
+              <th>MRP</th>
+              <th>Payment Type</th>
+              <th>Price</th>
+              <th>Discount %</th>
+              <th>Tax %</th>
+              <th>Dealer Name</th>
+              <th>Slol</th>
+              <th>Date</th>
+              <th>Dealer Price</th>
+              <th>Dealer Disc %</th>
+              <th>Dealer Tax %</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productList"></tbody>
+        </table>
+      </div>
 
-<button class="btn btn-primary mt-2 w-100" id="addProductBtn">+ Add Product</button>
-<button class="btn btn-success mt-2 w-100" id="saveProductsBtn">💾 Save Products</button>
-</div>
+      <button class="btn btn-primary mt-2 w-100" id="addProductBtn">
+        + Add Product
+      </button>
+      <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
+        💾 Save Products
+      </button>
+    </div>
 
-<script>
-let productCount = 0;
-let priceCount = 0;
+    <script>
+      let productCount = 0;
+      let priceCount = 0;
 
-// Utility to create input
-function createInput(type='text', placeholder='', value='', classes='form-control') {
-  return `<input type="${type}" class="${classes}" placeholder="${placeholder}" value="${value}">`;
-}
+      // Utility to create input
+      function createInput(
+        type = "text",
+        placeholder = "",
+        value = "",
+        classes = "form-control"
+      ) {
+        return `<input type="${type}" class="${classes}" placeholder="${placeholder}" value="${value}">`;
+      }
 
-// Add Dealer row under a price
-function addDealerRow(priceRow, productId, priceId) {
-  const dealerRow = document.createElement('tr');
-  dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
-  dealerRow.innerHTML = `
+      // Add Dealer row under a price
+      function addDealerRow(priceRow, productId, priceId) {
+        const dealerRow = document.createElement("tr");
+        dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
+        dealerRow.innerHTML = `
     <td colspan="8"></td> <!-- leave space for Product columns -->
-    <td>${createInput('text','Dealer Name')}</td>
-    <td>${createInput('text','Slol')}</td>
-    <td>${createInput('date','')}</td>
-    <td>${createInput('number','Dealer Price')}</td>
-    <td>${createInput('number','Dealer Disc %')}</td>
-    <td>${createInput('number','Dealer Tax %')}</td>
+    <td>${createInput("text", "Dealer Name")}</td>
+    <td>${createInput("text", "Slol")}</td>
+    <td>${createInput("date", "")}</td>
+    <td>${createInput("number", "Dealer Price")}</td>
+    <td>${createInput("number", "Dealer Disc %")}</td>
+    <td>${createInput("number", "Dealer Tax %")}</td>
     <td>
       <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
     </td>
   `;
-  const existingDealers = document.querySelectorAll(`.product_${productId}_price_${priceId}_dealer`);
-  const insertAfter = existingDealers.length ? existingDealers[existingDealers.length - 1] : priceRow;
-  insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
+        const existingDealers = document.querySelectorAll(
+          `.product_${productId}_price_${priceId}_dealer`
+        );
+        const insertAfter = existingDealers.length
+          ? existingDealers[existingDealers.length - 1]
+          : priceRow;
+        insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
+      }
 
-}
+      // Update rowspan for product columns
+      function updateRowspan(productId) {
+        const productRow = document.getElementById(`product_${productId}`);
+        const priceRows = document.querySelectorAll(
+          `.product_${productId}_price`
+        );
+        let totalRows = 0;
+        priceRows.forEach((pr) => {
+          const dealerRows = document.querySelectorAll(
+            `.product_${productId}_price_${pr.dataset.priceId}_dealer`
+          );
+          totalRows += 1 + dealerRows.length;
+        });
+        ["name", "size", "code", "mrp"].forEach((cls) => {
+          productRow
+            .querySelector(`.${cls}`)
+            .setAttribute("rowspan", totalRows || 1);
+        });
+      }
 
-// Update rowspan for product columns
-function updateRowspan(productId) {
-  const productRow = document.getElementById(`product_${productId}`);
-  const priceRows = document.querySelectorAll(`.product_${productId}_price`);
-  let totalRows = 0;
-  priceRows.forEach(pr => {
-    const dealerRows = document.querySelectorAll(`.product_${productId}_price_${pr.dataset.priceId}_dealer`);
-    totalRows += 1 + dealerRows.length;
-  });
-  ['name','size','code','mrp'].forEach(cls=>{
-    productRow.querySelector(`.${cls}`).setAttribute('rowspan', totalRows || 1);
-  });
-}
+      // Add Price row under a product
+      function addPriceRow(productId) {
+        const tbody = document.getElementById("productList");
+        const priceId = priceCount++;
 
-// Add Price row under a product
-function addPriceRow(productId) {
-  const tbody = document.getElementById("productList");
-  const priceId = priceCount++;
-
-  const priceRow = document.createElement('tr');
-  priceRow.classList.add(`product_${productId}_price`);
-  priceRow.dataset.priceId = priceId;
-  priceRow.innerHTML = `
+        const priceRow = document.createElement("tr");
+        priceRow.classList.add(`product_${productId}_price`);
+        priceRow.dataset.priceId = priceId;
+        priceRow.innerHTML = `
     <td colspan="4"></td> <!-- leave space for Product columns -->
-    <td>${createInput('text','Cash/Card')}</td>
-    <td>${createInput('number','Price')}</td>
-    <td>${createInput('number','Discount %')}</td>
-    <td>${createInput('number','Tax %')}</td>
+    <td>${createInput("text", "Cash/Card")}</td>
+    <td>${createInput("number", "Price")}</td>
+    <td>${createInput("number", "Discount %")}</td>
+    <td>${createInput("number", "Tax %")}</td>
     <td>
       <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
       <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
     </td>
   `;
 
-  // --- Insert after the last row of this product (price or dealer) ---
-  const allRows = document.querySelectorAll(`#productList tr`);
-  let insertAfter = document.getElementById(`product_${productId}`); // fallback to product row
-  for (let row of allRows) {
-    if (row.id === `product_${productId}`) continue;
+        // --- Insert after the last row of this product (price or dealer) ---
+        const allRows = document.querySelectorAll(`#productList tr`);
+        let insertAfter = document.getElementById(`product_${productId}`); // fallback to product row
+        for (let row of allRows) {
+          if (row.id === `product_${productId}`) continue;
 
-    const classes = Array.from(row.classList);
-    if (classes.some(c => c === `product_${productId}_price` || c.startsWith(`product_${productId}_price_`))) {
-      insertAfter = row;
-    }
-  }
+          const classes = Array.from(row.classList);
+          if (
+            classes.some(
+              (c) =>
+                c === `product_${productId}_price` ||
+                c.startsWith(`product_${productId}_price_`)
+            )
+          ) {
+            insertAfter = row;
+          }
+        }
 
-  insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
-}
+        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
+      }
 
-// Remove Price row
-function removePriceRow(productId, priceId, btn) {
-  const dealerRows = document.querySelectorAll(`.product_${productId}_price_${priceId}_dealer`);
-  dealerRows.forEach(r => r.remove());
-  btn.closest('tr').remove();
-  updateRowspan(productId);
-}
+      // Remove Price row
+      function removePriceRow(productId, priceId, btn) {
+        const dealerRows = document.querySelectorAll(
+          `.product_${productId}_price_${priceId}_dealer`
+        );
+        dealerRows.forEach((r) => r.remove());
+        btn.closest("tr").remove();
+        updateRowspan(productId);
+      }
 
-// Add Product
-function addProductRow() {
-  const tbody = document.getElementById("productList");
-  const productId = productCount++;
+      // Add Product
+      function addProductRow() {
+        const tbody = document.getElementById("productList");
+        const productId = productCount++;
 
-  const productRow = document.createElement("tr");
-  productRow.id = `product_${productId}`;
-  productRow.innerHTML = `
-    <td class="name">${createInput('text','Name')}</td>
-    <td class="size">${createInput('text','Size')}</td>
-    <td class="code">${createInput('text','Code')}</td>
-    <td class="mrp">${createInput('number','MRP')}</td>
+        const productRow = document.createElement("tr");
+        productRow.id = `product_${productId}`;
+        productRow.innerHTML = `
+    <td class="name">${createInput("text", "Name")}</td>
+    <td class="size">${createInput("text", "Size")}</td>
+    <td class="code">${createInput("text", "Code")}</td>
+    <td class="mrp">${createInput("number", "MRP")}</td>
     <td colspan="11">
       <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
       <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
     </td>
   `;
-  tbody.appendChild(productRow);
-}
-
-// Delete product and all prices/dealers
-function deleteProduct(productId){
-  document.querySelectorAll(`.product_${productId}_price`).forEach(r=>r.remove());
-  document.querySelectorAll(`[class*="product_${productId}_price_"][class$="_dealer"]`).forEach(r=>r.remove());
-  document.getElementById(`product_${productId}`).remove();
-}
-
-document.getElementById("addProductBtn").addEventListener("click", addProductRow);
-
-function collectProductsData() {
-  const products = [];
-  const productRows = document.querySelectorAll('#productList tr[id^="product_"]');
-
-  productRows.forEach(pRow => {
-    const productId = pRow.id.split('_')[1];
-    const product = {
-      name: pRow.querySelector('.name input').value,
-      size: pRow.querySelector('.size input').value,
-      code: pRow.querySelector('.code input').value,
-      mrp: parseFloat(pRow.querySelector('.mrp input').value || 0),
-      prices: []
-    };
-
-    const priceRows = document.querySelectorAll(`.product_${productId}_price`);
-    priceRows.forEach(pr => {
-      const thisPriceId = pr.dataset.priceId;
-      const inputs = pr.querySelectorAll('input');
-      const price = {
-        payment_type: inputs[0]?.value || '',
-        price: parseFloat(inputs[1]?.value || 0),
-        discount: parseFloat(inputs[2]?.value || 0),
-        tax: parseFloat(inputs[3]?.value || 0),
-        dealers: []
-      };
-
-      const dealerRows = document.querySelectorAll(`.product_${productId}_price_${thisPriceId}_dealer`);
-      dealerRows.forEach(dr => {
-        const dInputs = dr.querySelectorAll('input');
-        price.dealers.push({
-          dlr_name: dInputs[0]?.value || '',
-          slol: dInputs[1]?.value || '',
-          purchase_date: dInputs[2]?.value || null,
-          purchase_price: parseFloat(dInputs[3]?.value || 0),
-          purchase_discount: parseFloat(dInputs[4]?.value || 0),
-          purchase_tax: parseFloat(dInputs[5]?.value || 0),
-          purchase_discount_price: 0.0,
-          purchase_tax_price: 0.0,
-          purchase_box: 0.0,
-          purchase_box_discount: 0.0,
-          purchase_box_discount_price: 0.0,
-          purchase_box_tax: 0.0,
-          purchase_box_tax_price: 0.0
-        });
-      });
-
-      product.prices.push(price);
-    });
-
-    products.push(product);
-  });
-
-  return products;
-}
-
-
-document.getElementById('saveProductsBtn').addEventListener('click', () => {
-  const data = collectProductsData();
-
-  fetch('/api/product-create/', {   // Use your DRF ProductViewSet URL
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      "X-CSRFToken": getCookie("csrftoken"),
-      'Authorization': 'Token' + localStorage.getItem('token') // if using token auth
-    },
-    body: JSON.stringify(data)
-  })
-  .then(res => res.json())
-  .then(resp => {
-    console.log('Saved!', resp);
-    alert('Products saved successfully!');
-  })
-  .catch(err => {
-    console.error(err);
-    alert('Error saving products.');
-  });
-});
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
+        tbody.appendChild(productRow);
       }
-    }
-    return cookieValue;
-  }
-</script>
 
+      // Delete product and all prices/dealers
+      function deleteProduct(productId) {
+        document
+          .querySelectorAll(`.product_${productId}_price`)
+          .forEach((r) => r.remove());
+        document
+          .querySelectorAll(
+            `[class*="product_${productId}_price_"][class$="_dealer"]`
+          )
+          .forEach((r) => r.remove());
+        document.getElementById(`product_${productId}`).remove();
+      }
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html> {% endcomment %}
+      document
+        .getElementById("addProductBtn")
+        .addEventListener("click", addProductRow);
+
+      function collectProductsData() {
+        const products = [];
+        const productRows = document.querySelectorAll(
+          '#productList tr[id^="product_"]'
+        );
+
+        productRows.forEach((pRow) => {
+          const productId = pRow.id.split("_")[1];
+          const product = {
+            name: pRow.querySelector(".name input").value,
+            size: pRow.querySelector(".size input").value,
+            code: pRow.querySelector(".code input").value,
+            mrp: parseFloat(pRow.querySelector(".mrp input").value || 0),
+            prices: [],
+          };
+
+          const priceRows = document.querySelectorAll(
+            `.product_${productId}_price`
+          );
+          priceRows.forEach((pr) => {
+            const thisPriceId = pr.dataset.priceId;
+            const inputs = pr.querySelectorAll("input");
+            const price = {
+              payment_type: inputs[0]?.value || "",
+              price: parseFloat(inputs[1]?.value || 0),
+              discount: parseFloat(inputs[2]?.value || 0),
+              tax: parseFloat(inputs[3]?.value || 0),
+              dealers: [],
+            };
+
+            const dealerRows = document.querySelectorAll(
+              `.product_${productId}_price_${thisPriceId}_dealer`
+            );
+            dealerRows.forEach((dr) => {
+              const dInputs = dr.querySelectorAll("input");
+              price.dealers.push({
+                dlr_name: dInputs[0]?.value || "",
+                slol: dInputs[1]?.value || "",
+                purchase_date: dInputs[2]?.value || null,
+                purchase_price: parseFloat(dInputs[3]?.value || 0),
+                purchase_discount: parseFloat(dInputs[4]?.value || 0),
+                purchase_tax: parseFloat(dInputs[5]?.value || 0),
+                purchase_discount_price: 0.0,
+                purchase_tax_price: 0.0,
+                purchase_box: 0.0,
+                purchase_box_discount: 0.0,
+                purchase_box_discount_price: 0.0,
+                purchase_box_tax: 0.0,
+                purchase_box_tax_price: 0.0,
+              });
+            });
+
+            product.prices.push(price);
+          });
+
+          products.push(product);
+        });
+
+        return products;
+      }
+
+      document
+        .getElementById("saveProductsBtn")
+        .addEventListener("click", () => {
+          const data = collectProductsData();
+
+          fetch("/api/product-create/", {
+            // Use your DRF ProductViewSet URL
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+              Authorization: "Token" + localStorage.getItem("token"), // if using token auth
+            },
+            body: JSON.stringify(data),
+          })
+            .then((res) => res.json())
+            .then((resp) => {
+              console.log("Saved!", resp);
+              alert("Products saved successfully!");
+            })
+            .catch((err) => {
+              console.error(err);
+              alert("Error saving products.");
+            });
+        });
+
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1)
+              );
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
+{% endcomment %}

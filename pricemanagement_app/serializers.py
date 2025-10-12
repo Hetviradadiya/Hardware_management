@@ -21,7 +21,7 @@ class ProductPriceSerializer(serializers.ModelSerializer):
         return product_price
 
 class ProductSerializer(serializers.ModelSerializer):
-    prices = ProductPriceSerializer(many=True)
+    prices = ProductPriceSerializer(many=True, read_only=False)
 
     class Meta:
         model = Product
