@@ -1,28 +1,25 @@
-from rest_framework import viewsets, permissions, filters
-from pricemanagement_app.models import Product, ProductPrice, Dealer
-from pricemanagement_app.serializers import ProductSerializer, ProductPriceSerializer, DealerSerializer
-from rest_framework.response import Response
+from rest_framework import viewsets, permissions, filters, status
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from .models import Product, ProductPrice, Dealer
+from .serializers import ProductSerializer, ProductPriceSerializer, DealerSerializer
 
 # -------------------- PRODUCT VIEWSET --------------------
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().order_by('-id')
+    queryset = Product.objects.prefetch_related('prices__dealers', 'sizes').all().order_by('-id')
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'code', 'size', 'hsn']
-
+    search_fields = ['name', 'sizes__size', 'sizes__code', 'sizes__hsn']
 
 # -------------------- PRODUCT PRICE VIEWSET --------------------
 class ProductPriceViewSet(viewsets.ModelViewSet):
-    queryset = ProductPrice.objects.select_related('product').all().order_by('-id')
+    queryset = ProductPrice.objects.select_related('product').prefetch_related('dealers').all().order_by('-id')
     serializer_class = ProductPriceSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['product__name', 'payment_type']
-
 
 # -------------------- DEALER VIEWSET --------------------
 class DealerViewSet(viewsets.ModelViewSet):
@@ -32,25 +29,21 @@ class DealerViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['dlr_name', 'slol', 'product_price__product__name']
 
-
+# -------------------- BULK PRODUCT API --------------------
 class BulkProductCreateAPIView(APIView):
-    # permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        """Fetch all products with their nested prices and dealers"""
-        products = Product.objects.prefetch_related(
-            'prices__dealers'
-        ).all().order_by('-id')
+        products = Product.objects.prefetch_related('prices__dealers', 'sizes').all().order_by('-id')
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        # Expecting a list of products from frontend
         serializer = ProductSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
     def put(self, request, pk=None):
         product = get_object_or_404(Product, pk=pk)
         serializer = ProductSerializer(product, data=request.data, partial=True)

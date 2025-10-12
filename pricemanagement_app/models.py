@@ -4,13 +4,19 @@ from django.db import models
 class Product(models.Model):
     photo = models.ImageField(upload_to="products/", blank=True, null=True)
     name = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.name
+    
+class ProductSize(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="sizes")
     size = models.CharField(max_length=50, blank=True, null=True)
     code = models.CharField(max_length=50, blank=True, null=True)
     hsn = models.CharField(max_length=50, blank=True, null=True)
     mrp = models.FloatField(default=0,blank=True, null=True)
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        return f"{self.product.name} {(self.size)}"
 
 
 # -------------------- PAYMENT TYPE --------------------

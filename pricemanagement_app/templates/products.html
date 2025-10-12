@@ -90,6 +90,328 @@
     <script>
       let productCount = 0;
       let priceCount = 0;
+      let sizeCount = 0;
+
+      function createInput(
+        type = "text",
+        value = "",
+        classes = "form-control",
+        extra = ""
+      ) {
+        return `<input type="${type}" class="${classes}" value="${value}" ${extra}>`;
+      }
+
+      function calc(value, percent) {
+        const v = parseFloat(value || 0);
+        const p = parseFloat(percent || 0);
+        return ((v * p) / 100).toFixed(2);
+      }
+
+      // --- Add Dealer Row ---
+      function addDealerRow(priceRow, productId, sizeId, priceId) {
+        const dealerRow = document.createElement("tr");
+        dealerRow.classList.add(
+          `product_${productId}_size_${sizeId}_price_${priceId}_dealer`
+        );
+
+        dealerRow.innerHTML = `
+        <td colspan="17"></td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("text")}</td>
+        <td>${createInput("date")}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updateDealerCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
+        </td>
+        `;
+
+        const existingDealers = document.querySelectorAll(
+          `.product_${productId}_size_${sizeId}_price_${priceId}_dealer`
+        );
+        const insertAfter = existingDealers.length
+          ? existingDealers[existingDealers.length - 1]
+          : priceRow;
+        insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
+      }
+
+      // --- Add Price Row ---
+      function addPriceRow(productId, sizeId) {
+        const priceId = priceCount++;
+        const priceRow = document.createElement("tr");
+        priceRow.classList.add(`product_${productId}_size_${sizeId}_price`);
+        priceRow.dataset.priceId = priceId;
+
+        priceRow.innerHTML = `
+        <td colspan="6"></td>
+        <td>${createInput("text")}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control readonly-field",
+          "readonly"
+        )}</td>
+        <td colspan="14">
+          <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${sizeId},${priceId})">+ Dealer</button>
+          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
+        </td>
+        `;
+
+        const sizeRows = document.querySelectorAll(
+          `.product_${productId}_size_${sizeId}`
+        );
+        const insertAfter =
+          sizeRows[sizeRows.length - 1] ||
+          document.getElementById(`product_${productId}`);
+        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
+      }
+
+      // --- Add Size Row ---
+      function addSizeRow(productId) {
+        const sizeId = sizeCount++;
+        const sizeRow = document.createElement("tr");
+        sizeRow.classList.add(`product_${productId}_size`);
+        sizeRow.dataset.sizeId = sizeId;
+        sizeRow.innerHTML = `
+          <td colspan="2"></td>
+          <td>${createInput("text")}</td>
+          <td colspan="25">
+            <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId},${sizeId})">+ Add Price</button>
+            <button class="btn btn-sm btn-secondary" onclick="this.closest('tr').remove()">✖ Delete Size</button>
+          </td>
+        `;
+        const productRow = document.getElementById(`product_${productId}`);
+        productRow.parentNode.insertBefore(sizeRow, productRow.nextSibling);
+      }
+
+      // --- Add Product Row ---
+      function addProductRow() {
+        const tbody = document.getElementById("productList");
+        const productId = productCount++;
+        const productRow = document.createElement("tr");
+        productRow.id = `product_${productId}`;
+        productRow.innerHTML = `
+        <td>${createInput("file")}</td>
+        <td>${createInput("text")}</td>
+        <td colspan="25">
+          <button class="btn btn-sm btn-success" onclick="addSizeRow(${productId})">+ Add Size</button>
+          <button class="btn btn-sm btn-secondary" onclick="this.closest('tr').remove()">✖ Delete Product</button>
+        </td>
+      `;
+        tbody.appendChild(productRow);
+      }
+
+      document
+        .getElementById("addProductBtn")
+        .addEventListener("click", addProductRow);
+    </script>
+  </body>
+</html>
+
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobile Product Entry</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      input[type="number"],
+      input[type="text"],
+      input[type="date"] {
+        width: 100px;
+      }
+      .table-responsive {
+        max-height: 80vh;
+        overflow: auto;
+      }
+      table th,
+      table td {
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .readonly-field {
+        background-color: #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-3">
+      <h3 class="mb-3 text-center">📦 Product Entry</h3>
+
+      <div class="table-responsive">
+        <table
+          class="table table-bordered table-hover align-middle"
+          id="productTable"
+        >
+          <thead class="table-light">
+            <tr>
+              <th>Photo</th>
+              <th>Name</th>
+              <th>Size</th>
+              <th>Code</th>
+              <th>HSN</th>
+              <th>MRP</th>
+              <th>Payment Type</th>
+              <th>Price</th>
+              <th>Discount %</th>
+              <th>Discount Price</th>
+              <th>Tax %</th>
+              <th>Tax Price</th>
+              <th>Box</th>
+              <th>Box Discount %</th>
+              <th>Box Discount Price</th>
+              <th>Box Tax %</th>
+              <th>Box Tax Price</th>
+              <th>Dealer Name</th>
+              <th>Slol</th>
+              <th>Date</th>
+              <th>Dealer Price</th>
+              <th>Dealer Discount %</th>
+              <th>Dealer Discount Price</th>
+              <th>Dealer Tax %</th>
+              <th>Dealer Tax Price</th>
+              <th>Dealer Box</th>
+              <th>Dealer Box Discount %</th>
+              <th>Dealer Box Discount Price</th>
+              <th>Dealer Box Tax %</th>
+              <th>Dealer Box Tax Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productList"></tbody>
+        </table>
+      </div>
+
+      <button class="btn btn-primary mt-2 w-100" id="addProductBtn">
+        + Add Product
+      </button>
+      <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
+        💾 Save Products
+      </button>
+    </div>
+
+    <script>
+      let productCount = 0;
+      let priceCount = 0;
 
       // --- Utility Functions ---
       function createInput(
@@ -477,8 +799,10 @@
           // --- Call API ---
           fetch("/api/product-create/", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            "X-CSRFToken": getCookie("csrftoken"),
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
             body: JSON.stringify(data),
           })
             .then((res) => res.json())
@@ -512,468 +836,245 @@
         fetch("/api/product-create/")
           .then((res) => res.json())
           .then((data) => {
-            console.log("Fetched Products:", data);
             const tbody = document.getElementById("productList");
             tbody.innerHTML = ""; // clear old
 
             data.forEach((product) => {
-              const productId = productCount++;
-              const productRow = document.createElement("tr");
-              productRow.id = `product_${productId}`;
-              productRow.innerHTML = `
-                <td>${createInput("file")}</td>
-                <td>${createInput("text", product.name)}</td>
-                <td>${createInput("text", product.size)}</td>
-                <td>${createInput("text", product.code)}</td>
-                <td>${createInput("text", product.hsn)}</td>
-                <td>${createInput("number", product.mrp)}</td>
-                <td colspan="24">
-                  <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
-                  <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
+              const prices = product.prices || [];
+
+              // calculate total rows needed for product rowspan
+              let totalRows = 0;
+              prices.forEach((price) => {
+                totalRows += (price.dealers && price.dealers.length) || 1;
+              });
+              if (totalRows === 0) totalRows = 1; // product with no price
+
+              if (prices.length > 0) {
+                prices.forEach((price, pIndex) => {
+                  const dealers = price.dealers || [];
+                  const priceRowspan = dealers.length || 1;
+
+                  dealers.forEach((dealer, dIndex) => {
+                    const tr = document.createElement("tr");
+
+                    tr.innerHTML = `
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${
+                        product.photo
+                          ? `<img src="${product.photo}" alt="Photo" width="50">`
+                          : ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0 && dIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.name || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0 && dIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.size || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0 && dIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.code || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0 && dIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.hsn || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0 && dIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.mrp || ""}</td>`
+                    : ""
+                }
+
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.payment_type || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${price.price || ""}</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.discount || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.discount_price || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${price.tax || ""}</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.tax_price || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${price.box || ""}</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.box_discount || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.box_discount_price || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.box_tax || ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  dIndex === 0
+                    ? `<td rowspan="${priceRowspan}">${
+                        price.box_tax_price || ""
+                      }</td>`
+                    : ""
+                }
+
+                <td>${dealer?.dlr_name || ""}</td>
+                <td>${dealer?.slol || ""}</td>
+                <td>${dealer?.purchase_date || ""}</td>
+                <td>${dealer?.purchase_price || ""}</td>
+                <td>${dealer?.purchase_discount || ""}</td>
+                <td>${dealer?.purchase_discount_price || ""}</td>
+                <td>${dealer?.purchase_tax || ""}</td>
+                <td>${dealer?.purchase_tax_price || ""}</td>
+                <td>${dealer?.purchase_box || ""}</td>
+                <td>${dealer?.purchase_box_discount || ""}</td>
+                <td>${dealer?.purchase_box_discount_price || ""}</td>
+                <td>${dealer?.purchase_box_tax || ""}</td>
+                <td>${dealer?.purchase_box_tax_price || ""}</td>
+                <td colspan="13">
+                  <button class="btn btn-sm btn-success" >✎ Edit</button>
+                  <button class="btn btn-sm btn-danger" >🗑 Delete</button>
                 </td>
               `;
-              tbody.appendChild(productRow);
+                    tbody.appendChild(tr);
+                  });
 
-              // --- Add all Price Rows ---
-              if (product.prices && product.prices.length) {
-                product.prices.forEach((price) => {
-                  const priceId = priceCount++;
-                  const priceRow = document.createElement("tr");
-                  priceRow.classList.add(`product_${productId}_price`);
-                  priceRow.dataset.priceId = priceId;
+                  // Price has no dealers
+                  if (!dealers.length) {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${
+                        product.photo
+                          ? `<img src="${product.photo}" alt="Photo" width="50">`
+                          : ""
+                      }</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.name || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.size || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.code || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.hsn || ""}</td>`
+                    : ""
+                }
+                ${
+                  pIndex === 0
+                    ? `<td rowspan="${totalRows}">${product.mrp || ""}</td>`
+                    : ""
+                }
 
-                  priceRow.innerHTML = `
-                    <td colspan="6"></td>
-                    <td>${createInput("text", price.payment_type)}</td>
-                    <td>${createInput("number", price.price)}</td>
-                    <td>${createInput("number", price.discount)}</td>
-                    <td>${createInput(
-                      "number",
-                      price.discount_price,
-                      "form-control readonly-field",
-                      "readonly"
-                    )}</td>
-                    <td>${createInput("number", price.tax)}</td>
-                    <td>${createInput(
-                      "number",
-                      price.tax_price,
-                      "form-control readonly-field",
-                      "readonly"
-                    )}</td>
-                    <td>${createInput("number", price.box)}</td>
-                    <td>${createInput("number", price.box_discount)}</td>
-                    <td>${createInput(
-                      "number",
-                      price.box_discount_price,
-                      "form-control readonly-field",
-                      "readonly"
-                    )}</td>
-                    <td>${createInput("number", price.box_tax)}</td>
-                    <td>${createInput(
-                      "number",
-                      price.box_tax_price,
-                      "form-control readonly-field",
-                      "readonly"
-                    )}</td>
-                    <td colspan="14">
-                      <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
-                      <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
-                    </td>
-                  `;
+                <td>${price.payment_type || ""}</td>
+                <td>${price.price || ""}</td>
+                <td>${price.discount || ""}</td>
+                <td>${price.discount_price || ""}</td>
+                <td>${price.tax || ""}</td>
+                <td>${price.tax_price || ""}</td>
+                <td>${price.box || ""}</td>
+                <td>${price.box_discount || ""}</td>
+                <td>${price.box_discount_price || ""}</td>
+                <td>${price.box_tax || ""}</td>
+                <td>${price.box_tax_price || ""}</td>
 
-                  tbody.appendChild(priceRow);
-
-                  // --- Add all Dealer Rows ---
-                  if (price.dealers && price.dealers.length) {
-                    price.dealers.forEach((dealer) => {
-                      const dealerRow = document.createElement("tr");
-                      dealerRow.classList.add(
-                        `product_${productId}_price_${priceId}_dealer`
-                      );
-                      dealerRow.innerHTML = `
-                        <td colspan="17"></td>
-                        <td>${createInput("text", dealer.dlr_name)}</td>
-                        <td>${createInput("text", dealer.slol)}</td>
-                        <td>${createInput("date", dealer.purchase_date)}</td>
-                        <td>${createInput("number", dealer.purchase_price)}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_discount
-                        )}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_discount_price,
-                          "form-control readonly-field",
-                          "readonly"
-                        )}</td>
-                        <td>${createInput("number", dealer.purchase_tax)}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_tax_price,
-                          "form-control readonly-field",
-                          "readonly"
-                        )}</td>
-                        <td>${createInput("number", dealer.purchase_box)}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_box_discount
-                        )}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_box_discount_price,
-                          "form-control readonly-field",
-                          "readonly"
-                        )}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_box_tax
-                        )}</td>
-                        <td>${createInput(
-                          "number",
-                          dealer.purchase_box_tax_price,
-                          "form-control readonly-field",
-                          "readonly"
-                        )}</td>
-                        <td>
-                          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
-                        </td>
-                      `;
-                      tbody.appendChild(dealerRow);
-                    });
+                <td colspan="13"></td>
+                <td colspan="13">
+                  <button class="btn btn-sm btn-success" >✎ Edit</button>
+                  <button class="btn btn-sm btn-danger" >🗑 Delete</button>
+                </td>
+              `;
+                    tbody.appendChild(tr);
                   }
                 });
+              } else {
+                // Product has no prices
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                 <td>
+              ${
+                product.photo
+                  ? `<img src="${product.photo}" alt="Photo" width="50">`
+                  : ""
+              }
+            </td>
+            <td>${product.name || ""}</td>
+            <td>${product.size || ""}</td>
+            <td>${product.code || ""}</td>
+            <td>${product.hsn || ""}</td>
+            <td>${product.mrp || ""}</td>
+            <td colspan="24"></td>
+            <td colspan="13">
+              <button class="btn btn-sm btn-success" >✎ Edit</button>
+              <button class="btn btn-sm btn-danger" >🗑 Delete</button>
+            </td>
+          `;
+                tbody.appendChild(tr);
               }
             });
           })
-          .catch((err) => console.error("Error fetching products:", err));
+          .catch((err) => console.error(err));
       });
     </script>
-  </body>
-</html>
-
-{% comment %} <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mobile Product Entry Table</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        background-color: #f8f9fa;
-      }
-      input[type="number"] {
-        width: 100px;
-      }
-      .table-responsive {
-        max-height: 80vh;
-        overflow: auto;
-      }
-      table th,
-      table td {
-        white-space: nowrap;
-      }
-      .readonly-field {
-        background-color: #e9ecef;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container py-3">
-      <h3 class="mb-3 text-center">📦 Product Entry</h3>
-
-      <div class="table-responsive">
-        <table
-          class="table table-bordered table-hover align-middle"
-          id="productTable"
-        >
-          <thead class="table-light">
-            <tr>
-              <th>Product Name</th>
-              <th>Size</th>
-              <th>Code</th>
-              <th>MRP</th>
-              <th>Payment Type</th>
-              <th>Price</th>
-              <th>Discount %</th>
-              <th>Tax %</th>
-              <th>Dealer Name</th>
-              <th>Slol</th>
-              <th>Date</th>
-              <th>Dealer Price</th>
-              <th>Dealer Disc %</th>
-              <th>Dealer Tax %</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="productList"></tbody>
-        </table>
-      </div>
-
-      <button class="btn btn-primary mt-2 w-100" id="addProductBtn">
-        + Add Product
-      </button>
-      <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
-        💾 Save Products
-      </button>
-    </div>
-
-    <script>
-      let productCount = 0;
-      let priceCount = 0;
-
-      // Utility to create input
-      function createInput(
-        type = "text",
-        placeholder = "",
-        value = "",
-        classes = "form-control"
-      ) {
-        return `<input type="${type}" class="${classes}" placeholder="${placeholder}" value="${value}">`;
-      }
-
-      // Add Dealer row under a price
-      function addDealerRow(priceRow, productId, priceId) {
-        const dealerRow = document.createElement("tr");
-        dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
-        dealerRow.innerHTML = `
-    <td colspan="8"></td> <!-- leave space for Product columns -->
-    <td>${createInput("text", "Dealer Name")}</td>
-    <td>${createInput("text", "Slol")}</td>
-    <td>${createInput("date", "")}</td>
-    <td>${createInput("number", "Dealer Price")}</td>
-    <td>${createInput("number", "Dealer Disc %")}</td>
-    <td>${createInput("number", "Dealer Tax %")}</td>
-    <td>
-      <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
-    </td>
-  `;
-        const existingDealers = document.querySelectorAll(
-          `.product_${productId}_price_${priceId}_dealer`
-        );
-        const insertAfter = existingDealers.length
-          ? existingDealers[existingDealers.length - 1]
-          : priceRow;
-        insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
-      }
-
-      // Update rowspan for product columns
-      function updateRowspan(productId) {
-        const productRow = document.getElementById(`product_${productId}`);
-        const priceRows = document.querySelectorAll(
-          `.product_${productId}_price`
-        );
-        let totalRows = 0;
-        priceRows.forEach((pr) => {
-          const dealerRows = document.querySelectorAll(
-            `.product_${productId}_price_${pr.dataset.priceId}_dealer`
-          );
-          totalRows += 1 + dealerRows.length;
-        });
-        ["name", "size", "code", "mrp"].forEach((cls) => {
-          productRow
-            .querySelector(`.${cls}`)
-            .setAttribute("rowspan", totalRows || 1);
-        });
-      }
-
-      // Add Price row under a product
-      function addPriceRow(productId) {
-        const tbody = document.getElementById("productList");
-        const priceId = priceCount++;
-
-        const priceRow = document.createElement("tr");
-        priceRow.classList.add(`product_${productId}_price`);
-        priceRow.dataset.priceId = priceId;
-        priceRow.innerHTML = `
-    <td colspan="4"></td> <!-- leave space for Product columns -->
-    <td>${createInput("text", "Cash/Card")}</td>
-    <td>${createInput("number", "Price")}</td>
-    <td>${createInput("number", "Discount %")}</td>
-    <td>${createInput("number", "Tax %")}</td>
-    <td>
-      <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
-      <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
-    </td>
-  `;
-
-        // --- Insert after the last row of this product (price or dealer) ---
-        const allRows = document.querySelectorAll(`#productList tr`);
-        let insertAfter = document.getElementById(`product_${productId}`); // fallback to product row
-        for (let row of allRows) {
-          if (row.id === `product_${productId}`) continue;
-
-          const classes = Array.from(row.classList);
-          if (
-            classes.some(
-              (c) =>
-                c === `product_${productId}_price` ||
-                c.startsWith(`product_${productId}_price_`)
-            )
-          ) {
-            insertAfter = row;
-          }
-        }
-
-        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
-      }
-
-      // Remove Price row
-      function removePriceRow(productId, priceId, btn) {
-        const dealerRows = document.querySelectorAll(
-          `.product_${productId}_price_${priceId}_dealer`
-        );
-        dealerRows.forEach((r) => r.remove());
-        btn.closest("tr").remove();
-        updateRowspan(productId);
-      }
-
-      // Add Product
-      function addProductRow() {
-        const tbody = document.getElementById("productList");
-        const productId = productCount++;
-
-        const productRow = document.createElement("tr");
-        productRow.id = `product_${productId}`;
-        productRow.innerHTML = `
-    <td class="name">${createInput("text", "Name")}</td>
-    <td class="size">${createInput("text", "Size")}</td>
-    <td class="code">${createInput("text", "Code")}</td>
-    <td class="mrp">${createInput("number", "MRP")}</td>
-    <td colspan="11">
-      <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
-      <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
-    </td>
-  `;
-        tbody.appendChild(productRow);
-      }
-
-      // Delete product and all prices/dealers
-      function deleteProduct(productId) {
-        document
-          .querySelectorAll(`.product_${productId}_price`)
-          .forEach((r) => r.remove());
-        document
-          .querySelectorAll(
-            `[class*="product_${productId}_price_"][class$="_dealer"]`
-          )
-          .forEach((r) => r.remove());
-        document.getElementById(`product_${productId}`).remove();
-      }
-
-      document
-        .getElementById("addProductBtn")
-        .addEventListener("click", addProductRow);
-
-      function collectProductsData() {
-        const products = [];
-        const productRows = document.querySelectorAll(
-          '#productList tr[id^="product_"]'
-        );
-
-        productRows.forEach((pRow) => {
-          const productId = pRow.id.split("_")[1];
-          const product = {
-            name: pRow.querySelector(".name input").value,
-            size: pRow.querySelector(".size input").value,
-            code: pRow.querySelector(".code input").value,
-            mrp: parseFloat(pRow.querySelector(".mrp input").value || 0),
-            prices: [],
-          };
-
-          const priceRows = document.querySelectorAll(
-            `.product_${productId}_price`
-          );
-          priceRows.forEach((pr) => {
-            const thisPriceId = pr.dataset.priceId;
-            const inputs = pr.querySelectorAll("input");
-            const price = {
-              payment_type: inputs[0]?.value || "",
-              price: parseFloat(inputs[1]?.value || 0),
-              discount: parseFloat(inputs[2]?.value || 0),
-              tax: parseFloat(inputs[3]?.value || 0),
-              dealers: [],
-            };
-
-            const dealerRows = document.querySelectorAll(
-              `.product_${productId}_price_${thisPriceId}_dealer`
-            );
-            dealerRows.forEach((dr) => {
-              const dInputs = dr.querySelectorAll("input");
-              price.dealers.push({
-                dlr_name: dInputs[0]?.value || "",
-                slol: dInputs[1]?.value || "",
-                purchase_date: dInputs[2]?.value || null,
-                purchase_price: parseFloat(dInputs[3]?.value || 0),
-                purchase_discount: parseFloat(dInputs[4]?.value || 0),
-                purchase_tax: parseFloat(dInputs[5]?.value || 0),
-                purchase_discount_price: 0.0,
-                purchase_tax_price: 0.0,
-                purchase_box: 0.0,
-                purchase_box_discount: 0.0,
-                purchase_box_discount_price: 0.0,
-                purchase_box_tax: 0.0,
-                purchase_box_tax_price: 0.0,
-              });
-            });
-
-            product.prices.push(price);
-          });
-
-          products.push(product);
-        });
-
-        return products;
-      }
-
-      document
-        .getElementById("saveProductsBtn")
-        .addEventListener("click", () => {
-          const data = collectProductsData();
-
-          fetch("/api/product-create/", {
-            // Use your DRF ProductViewSet URL
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": getCookie("csrftoken"),
-              Authorization: "Token" + localStorage.getItem("token"), // if using token auth
-            },
-            body: JSON.stringify(data),
-          })
-            .then((res) => res.json())
-            .then((resp) => {
-              console.log("Saved!", resp);
-              alert("Products saved successfully!");
-            })
-            .catch((err) => {
-              console.error(err);
-              alert("Error saving products.");
-            });
-        });
-
-      function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== "") {
-          const cookies = document.cookie.split(";");
-          for (let cookie of cookies) {
-            cookie = cookie.trim();
-            if (cookie.startsWith(name + "=")) {
-              cookieValue = decodeURIComponent(
-                cookie.substring(name.length + 1)
-              );
-              break;
-            }
-          }
-        }
-        return cookieValue;
-      }
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>
 {% endcomment %}

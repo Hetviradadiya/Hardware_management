@@ -1,6 +1,6 @@
 import nested_admin
 from django.contrib import admin
-from .models import Product, ProductPrice, Dealer
+from .models import Product, ProductPrice, Dealer, ProductSize
 
 
 # ----------------- Dealer Inline (Nested) -----------------
@@ -31,12 +31,17 @@ class ProductPriceInline(nested_admin.NestedTabularInline):
 class ProductPriceAdmin(admin.ModelAdmin):
     list_display = ("product", "payment_type", "price", "discount", "tax")
     search_fields = ("product__name", "payment_type")
+
+class ProductSizeInline(nested_admin.NestedTabularInline):
+    model = ProductSize
+    extra = 1
+    fields = ['size', 'code', 'hsn', 'mrp']
     
 # ----------------- Product Admin (Nested) -----------------
 @admin.register(Product)
 class ProductAdmin(nested_admin.NestedModelAdmin):
-    list_display = ("id", "photo", "name", "size", "hsn", "mrp")
-    search_fields = ("name", "hsn", "size")
+    list_display = ("id", "photo", "name")
+    search_fields = ("name",)
     inlines = [ProductPriceInline]
 
     class Media:
