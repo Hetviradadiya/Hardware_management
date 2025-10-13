@@ -32,7 +32,7 @@ PAYMENT_TYPE_CHOICES = [
 
 # -------------------- PRODUCT PRICE --------------------
 class ProductPrice(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="prices")
+    product_size = models.ForeignKey(ProductSize, on_delete=models.CASCADE, related_name="prices",null=True,blank=True)
     payment_type = models.CharField(max_length=20, choices=PAYMENT_TYPE_CHOICES)
 
     # --- Selling Price Fields ---
@@ -49,7 +49,7 @@ class ProductPrice(models.Model):
     box_tax_price = models.FloatField(default=0)
 
     def __str__(self):
-        return f"{self.product.name}"
+        return f"{self.product_size.product.name} - {self.product_size.size} ({self.payment_type})"
 
     @property
     def final_price(self):
@@ -80,7 +80,7 @@ class Dealer(models.Model):
     purchase_box_tax_price = models.FloatField(default=0)
 
     def __str__(self):
-        return f"{self.dlr_name} ({self.slol}) - {self.product_price.product.name}"
+        return f"{self.dlr_name} ({self.slol}) - {self.product_price.product_size.product.name}"
 
     @property
     def final_purchase_price(self):

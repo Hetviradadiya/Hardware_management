@@ -34,12 +34,16 @@ class BulkProductCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        products = Product.objects.prefetch_related('prices__dealers', 'sizes').all().order_by('-id')
+        products = Product.objects.prefetch_related('sizes__prices__dealers').all().order_by('-id')
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = ProductSerializer(data=request.data, many=True)
+        # Check if we're receiving a list or single product
+        if isinstance(request.data, list):
+            serializer = ProductSerializer(data=request.data, many=True)
+        else:
+            serializer = ProductSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)

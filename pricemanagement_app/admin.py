@@ -29,12 +29,13 @@ class ProductPriceInline(nested_admin.NestedTabularInline):
 
 @admin.register(ProductPrice)
 class ProductPriceAdmin(admin.ModelAdmin):
-    list_display = ("product", "payment_type", "price", "discount", "tax")
-    search_fields = ("product__name", "payment_type")
+    list_display = ("product_size", "payment_type", "price", "discount", "tax")
+    search_fields = ("product_size__product__name", "payment_type")
 
 class ProductSizeInline(nested_admin.NestedTabularInline):
     model = ProductSize
     extra = 1
+    inlines = [ProductPriceInline]  # ProductPrice now belongs to ProductSize
     fields = ['size', 'code', 'hsn', 'mrp']
     
 # ----------------- Product Admin (Nested) -----------------
@@ -42,7 +43,7 @@ class ProductSizeInline(nested_admin.NestedTabularInline):
 class ProductAdmin(nested_admin.NestedModelAdmin):
     list_display = ("id", "photo", "name")
     search_fields = ("name",)
-    inlines = [ProductPriceInline]
+    inlines = [ProductSizeInline]  # ProductSize belongs to Product
 
     class Media:
         css = {"all": ("admin/css/custom_admin.css",)}
