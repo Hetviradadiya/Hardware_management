@@ -50,28 +50,20 @@
               <th>MRP</th>
               <th>Payment Type</th>
               <th>Price</th>
-              <th>Discount %</th>
-              <th>Discount Price</th>
-              <th>Tax %</th>
-              <th>Tax Price</th>
+              <th>Discount<br><small>(%/Price)</small></th>
+              <th>Tax<br><small>(%/Price)</small></th>
               <th>Box</th>
-              <th>Box Discount %</th>
-              <th>Box Discount Price</th>
-              <th>Box Tax %</th>
-              <th>Box Tax Price</th>
+              <th>Box Discount<br><small>(%/Price)</small></th>
+              <th>Box Tax<br><small>(%/Price)</small></th>
               <th>Dealer Name</th>
               <th>Slol</th>
               <th>Date</th>
               <th>Dealer Price</th>
-              <th>Dealer Discount %</th>
-              <th>Dealer Discount Price</th>
-              <th>Dealer Tax %</th>
-              <th>Dealer Tax Price</th>
+              <th>Dealer Discount<br><small>(%/Price)</small></th>
+              <th>Dealer Tax<br><small>(%/Price)</small></th>
               <th>Dealer Box</th>
-              <th>Dealer Box Discount %</th>
-              <th>Dealer Box Discount Price</th>
-              <th>Dealer Box Tax %</th>
-              <th>Dealer Box Tax Price</th>
+              <th>Dealer Box Discount<br><small>(%/Price)</small></th>
+              <th>Dealer Box Tax<br><small>(%/Price)</small></th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -119,65 +111,33 @@
         <td>${createInput("text")}</td>
         <td>${createInput("text")}</td>
         <td>${createInput("date")}</td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
         <td>${createInput(
           "number",
           "",
           "form-control",
           'oninput="updateDealerCalc(this)"'
         )}</td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
         <td>${createInput(
           "number",
           "",
           "form-control",
           'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
         )}</td>
         <td>
           <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
@@ -202,7 +162,40 @@
 
         priceRow.innerHTML = `
         <td colspan="6"></td>
-        <td>${createInput("text")}</td>
+        <td>
+          <select class="form-control">
+            <option value="">Select Payment Type</option>
+            <option value="cash">Cash</option>
+            <option value="bill">Bill</option>
+            <option value="sale_cash">Sale Cash</option>
+            <option value="sale_bill">Sale Bill</option>
+            <option value="frd_cash">Frd Cash</option>
+            <option value="frd_bill">Frd Bill</option>
+          </select>
+        </td>
+        <td>${createInput("number", "", "form-control", 'placeholder="Price" oninput="updatePriceCalc(this)"')}</td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updatePriceCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updatePriceCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>${createInput(
+          "number",
+          "",
+          "form-control",
+          'oninput="updatePriceCalc(this)"'
+        )}</td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updatePriceCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updatePriceCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
         <td>${createInput(
           "number",
           "",
@@ -218,24 +211,6 @@
         <td>${createInput(
           "number",
           "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
           "form-control",
           'oninput="updatePriceCalc(this)"'
         )}</td>
@@ -243,39 +218,26 @@
           "number",
           "",
           "form-control",
-          'oninput="updatePriceCalc(this)"'
         )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td colspan="14">
+        <td colspan="10">
           <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${sizeId},${priceId})">+ Dealer</button>
           <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
         </td>
         `;
 
-        const sizeRows = document.querySelectorAll(
-          `.product_${productId}_size_${sizeId}`
+        // Simple insertion logic: find the target size row and insert right after it
+        const targetSizeRow = Array.from(document.querySelectorAll(`tr`)).find(row => 
+          row.classList.contains(`product_${productId}_size`) && 
+          row.dataset.sizeId == sizeId
         );
-        const insertAfter =
-          sizeRows[sizeRows.length - 1] ||
-          document.getElementById(`product_${productId}`);
-        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
+        
+        if (targetSizeRow) {
+          targetSizeRow.insertAdjacentElement('afterend', priceRow);
+        } else {
+          // Fallback: insert after product row
+          const productRow = document.getElementById(`product_${productId}`);
+          productRow.insertAdjacentElement('afterend', priceRow);
+        }
       }
 
       // --- Add Size Row ---
@@ -286,8 +248,11 @@
         sizeRow.dataset.sizeId = sizeId;
         sizeRow.innerHTML = `
           <td colspan="2"></td>
-          <td>${createInput("text")}</td>
-          <td colspan="25">
+          <td>${createInput("text", "", "form-control", 'placeholder="Size"')}</td>
+          <td>${createInput("text", "", "form-control", 'placeholder="Product Code"')}</td>
+          <td>${createInput("text", "", "form-control", 'placeholder="HSN Code"')}</td>
+          <td>${createInput("number", "", "form-control", 'placeholder="MRP" step="0.01"')}</td>
+          <td colspan="17">
             <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId},${sizeId})">+ Add Price</button>
             <button class="btn btn-sm btn-secondary" onclick="this.closest('tr').remove()">✖ Delete Size</button>
           </td>
@@ -305,7 +270,7 @@
         productRow.innerHTML = `
         <td>${createInput("file")}</td>
         <td>${createInput("text")}</td>
-        <td colspan="25">
+        <td colspan="21">
           <button class="btn btn-sm btn-success" onclick="addSizeRow(${productId})">+ Add Size</button>
           <button class="btn btn-sm btn-secondary" onclick="this.closest('tr').remove()">✖ Delete Product</button>
         </td>
@@ -313,414 +278,82 @@
         tbody.appendChild(productRow);
       }
 
-      document
-        .getElementById("addProductBtn")
-        .addEventListener("click", addProductRow);
-    </script>
-  </body>
-</html>
-
-{% comment %} <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Mobile Product Entry</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        background-color: #f8f9fa;
-      }
-      input[type="number"],
-      input[type="text"],
-      input[type="date"] {
-        width: 100px;
-      }
-      .table-responsive {
-        max-height: 80vh;
-        overflow: auto;
-      }
-      table th,
-      table td {
-        white-space: nowrap;
-        vertical-align: middle;
-      }
-      .readonly-field {
-        background-color: #e9ecef;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container py-3">
-      <h3 class="mb-3 text-center">📦 Product Entry</h3>
-
-      <div class="table-responsive">
-        <table
-          class="table table-bordered table-hover align-middle"
-          id="productTable"
-        >
-          <thead class="table-light">
-            <tr>
-              <th>Photo</th>
-              <th>Name</th>
-              <th>Size</th>
-              <th>Code</th>
-              <th>HSN</th>
-              <th>MRP</th>
-              <th>Payment Type</th>
-              <th>Price</th>
-              <th>Discount %</th>
-              <th>Discount Price</th>
-              <th>Tax %</th>
-              <th>Tax Price</th>
-              <th>Box</th>
-              <th>Box Discount %</th>
-              <th>Box Discount Price</th>
-              <th>Box Tax %</th>
-              <th>Box Tax Price</th>
-              <th>Dealer Name</th>
-              <th>Slol</th>
-              <th>Date</th>
-              <th>Dealer Price</th>
-              <th>Dealer Discount %</th>
-              <th>Dealer Discount Price</th>
-              <th>Dealer Tax %</th>
-              <th>Dealer Tax Price</th>
-              <th>Dealer Box</th>
-              <th>Dealer Box Discount %</th>
-              <th>Dealer Box Discount Price</th>
-              <th>Dealer Box Tax %</th>
-              <th>Dealer Box Tax Price</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="productList"></tbody>
-        </table>
-      </div>
-
-      <button class="btn btn-primary mt-2 w-100" id="addProductBtn">
-        + Add Product
-      </button>
-      <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
-        💾 Save Products
-      </button>
-    </div>
-
-    <script>
-      let productCount = 0;
-      let priceCount = 0;
-
-      // --- Utility Functions ---
-      function createInput(
-        type = "text",
-        value = "",
-        classes = "form-control",
-        extra = ""
-      ) {
-        return `<input type="${type}" class="${classes}" value="${value}" ${extra}>`;
-      }
-
-      function calc(value, percent) {
-        const v = parseFloat(value || 0);
-        const p = parseFloat(percent || 0);
-        return ((v * p) / 100).toFixed(2);
-      }
-
-      // --- Add Dealer Row ---
-      function addDealerRow(priceRow, productId, priceId) {
-        const dealerRow = document.createElement("tr");
-        dealerRow.classList.add(`product_${productId}_price_${priceId}_dealer`);
-
-        dealerRow.innerHTML = `
-        <td colspan="17"></td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("date")}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updateDealerCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>
-          <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove(); updateRowspan(${productId});">🗑</button>
-        </td>
-      `;
-
-        const existingDealers = document.querySelectorAll(
-          `.product_${productId}_price_${priceId}_dealer`
-        );
-        const insertAfter = existingDealers.length
-          ? existingDealers[existingDealers.length - 1]
-          : priceRow;
-
-        insertAfter.parentNode.insertBefore(dealerRow, insertAfter.nextSibling);
-      }
-
-      // --- Add Price Row ---
-      function addPriceRow(productId) {
-        const priceId = priceCount++;
-        const priceRow = document.createElement("tr");
-        priceRow.classList.add(`product_${productId}_price`);
-        priceRow.dataset.priceId = priceId;
-
-        priceRow.innerHTML = `
-        <td colspan="6"></td>
-        <td>${createInput("text")}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control readonly-field",
-          "readonly"
-        )}</td>
-        <td colspan="14">
-          <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${priceId})">+ Dealer</button>
-          <button class="btn btn-sm btn-danger" onclick="removePriceRow(${productId},${priceId},this)">🗑</button>
-        </td>
-      `;
-
-        let insertAfter = document.getElementById(`product_${productId}`);
-        const allRows = document.querySelectorAll("#productList tr");
-        allRows.forEach((r) => {
-          const classes = Array.from(r.classList);
-          if (
-            classes.some(
-              (c) =>
-                c === `product_${productId}_price` ||
-                c.startsWith(`product_${productId}_price_`)
-            )
-          )
-            insertAfter = r;
-        });
-        insertAfter.parentNode.insertBefore(priceRow, insertAfter.nextSibling);
-      }
-
-      // --- Update Price Calculations ---
-      function updatePriceCalc(input) {
-        const tr = input.closest("tr");
-        const inputs = tr.querySelectorAll("input");
-
-        if (inputs.length < 17) return; // prevent error if missing columns
-
+      // --- Price Calculations ---
+      function updatePriceCalc(element) {
+        const row = element.closest("tr");
+        const inputs = row.querySelectorAll("input");
+        
+        // Price calculations
         const price = parseFloat(inputs[1]?.value || 0);
-        const discount = parseFloat(inputs[2]?.value || 0);
-        inputs[3].value = calc(price, discount);
-        const discountPrice = price - parseFloat(inputs[3].value || 0);
-        const tax = parseFloat(inputs[4]?.value || 0);
-        inputs[5].value = calc(discountPrice, tax);
-        const taxPrice = discountPrice + parseFloat(inputs[5].value || 0);
+        const discountPercent = parseFloat(inputs[2]?.value || 0);
+        const taxPercent = parseFloat(inputs[4]?.value || 0);
+        
+        const discountAmount = parseFloat(calc(price, discountPercent));
+        const priceAfterDiscount = price - discountAmount;
+        const taxAmount = parseFloat(calc(priceAfterDiscount, taxPercent));
+        const finalTotal = priceAfterDiscount + taxAmount;
+        
+        // Show discount amount in the small field under discount %
+        if (inputs[3]) inputs[3].value = discountAmount.toFixed(2);
+        // Show tax amount in the small field under tax %
+        if (inputs[5]) inputs[5].value = taxAmount.toFixed(2);
+        
+        console.log(`Price: ${price}, Discount: ${discountPercent}% = ₹${discountAmount}, Final after discount: ₹${priceAfterDiscount.toFixed(2)}, Tax: ₹${taxAmount}, Total: ₹${finalTotal.toFixed(2)}`);
 
         // Box calculations
-        const box = parseFloat(inputs[6]?.value || 0);
-        const boxDiscount = parseFloat(inputs[7]?.value || 0);
-        inputs[8].value = calc(box, boxDiscount);
-        const boxDiscountPrice = box - parseFloat(inputs[8].value || 0);
-        const boxTax = parseFloat(inputs[9]?.value || 0);
-        inputs[10].value = calc(boxDiscountPrice, boxTax);
+        const boxQty = parseFloat(inputs[6]?.value || 0);
+        const boxDiscountPercent = parseFloat(inputs[7]?.value || 0);
+        const boxTaxPercent = parseFloat(inputs[9]?.value || 0);
+        
+        if (boxQty > 0) {
+          const boxPrice = price * boxQty;
+          const boxDiscountAmount = parseFloat(calc(boxPrice, boxDiscountPercent));
+          const boxPriceAfterDiscount = boxPrice - boxDiscountAmount;
+          const boxTaxAmount = parseFloat(calc(boxPriceAfterDiscount, boxTaxPercent));
+          
+          if (inputs[8]) inputs[8].value = boxDiscountAmount.toFixed(2);
+          if (inputs[10]) inputs[10].value = boxTaxAmount.toFixed(2);
+        }
       }
 
-      // --- Update Dealer Calculations ---
-      function updateDealerCalc(input) {
-        const tr = input.closest("tr");
-        const inputs = tr.querySelectorAll("input");
+      // --- Dealer Calculations ---
+      function updateDealerCalc(element) {
+        const row = element.closest("tr");
+        const inputs = row.querySelectorAll("input");
+        
+        // Purchase price calculations
+        const purchasePrice = parseFloat(inputs[3]?.value || 0);
+        const purchaseDiscountPercent = parseFloat(inputs[4]?.value || 0);
+        const purchaseTaxPercent = parseFloat(inputs[6]?.value || 0);
+        
+        const purchaseDiscountAmount = parseFloat(calc(purchasePrice, purchaseDiscountPercent));
+        const purchasePriceAfterDiscount = purchasePrice - purchaseDiscountAmount;
+        const purchaseTaxAmount = parseFloat(calc(purchasePriceAfterDiscount, purchaseTaxPercent));
+        
+        if (inputs[5]) inputs[5].value = purchaseDiscountAmount.toFixed(2);
+        if (inputs[7]) inputs[7].value = purchaseTaxAmount.toFixed(2);
 
-        if (inputs.length < 13) return; // prevent null errors
-
-        const price = parseFloat(inputs[3]?.value || 0);
-        const discount = parseFloat(inputs[4]?.value || 0);
-        inputs[5].value = calc(price, discount);
-        const discountPrice = price - parseFloat(inputs[5].value || 0);
-        const tax = parseFloat(inputs[6]?.value || 0);
-        inputs[7].value = calc(discountPrice, tax);
-
-        const box = parseFloat(inputs[8]?.value || 0);
-        const boxDiscount = parseFloat(inputs[9]?.value || 0);
-        inputs[10].value = calc(box, boxDiscount);
-        const boxDiscountPrice = box - parseFloat(inputs[10].value || 0);
-        const boxTax = parseFloat(inputs[11]?.value || 0);
-        inputs[12].value = calc(boxDiscountPrice, boxTax);
+        // Purchase box calculations
+        const purchaseBoxQty = parseFloat(inputs[8]?.value || 0);
+        const purchaseBoxDiscountPercent = parseFloat(inputs[9]?.value || 0);
+        const purchaseBoxTaxPercent = parseFloat(inputs[11]?.value || 0);
+        
+        if (purchaseBoxQty > 0) {
+          const purchaseBoxPrice = purchasePrice * purchaseBoxQty;
+          const purchaseBoxDiscountAmount = parseFloat(calc(purchaseBoxPrice, purchaseBoxDiscountPercent));
+          const purchaseBoxPriceAfterDiscount = purchaseBoxPrice - purchaseBoxDiscountAmount;
+          const purchaseBoxTaxAmount = parseFloat(calc(purchaseBoxPriceAfterDiscount, purchaseBoxTaxPercent));
+          
+          if (inputs[10]) inputs[10].value = purchaseBoxDiscountAmount.toFixed(2);
+          if (inputs[12]) inputs[12].value = purchaseBoxTaxAmount.toFixed(2);
+        }
       }
 
-      // --- Add Product Row ---
-      function addProductRow() {
-        const tbody = document.getElementById("productList");
-        const productId = productCount++;
-        const productRow = document.createElement("tr");
-        productRow.id = `product_${productId}`;
-        productRow.innerHTML = `
-        <td>${createInput("file")}</td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("text")}</td>
-        <td>${createInput("number")}</td>
-        <td colspan="24">
-          <button class="btn btn-sm btn-success" onclick="addPriceRow(${productId})">+ Add Price</button>
-          <button class="btn btn-sm btn-secondary" onclick="deleteProduct(${productId})">✖ Delete</button>
-        </td>
-      `;
-        tbody.appendChild(productRow);
-      }
-
-      // --- Delete Product ---
-      function deleteProduct(productId) {
-        document
-          .querySelectorAll(`.product_${productId}_price`)
-          .forEach((r) => r.remove());
-        document
-          .querySelectorAll(
-            `tr[class*="product_${productId}_price_"][class$="_dealer"]`
-          )
-          .forEach((r) => r.remove());
-        document.getElementById(`product_${productId}`)?.remove();
-      }
-
-      // --- Remove Price Row ---
-      function removePriceRow(productId, priceId, btn) {
-        document
-          .querySelectorAll(`.product_${productId}_price_${priceId}_dealer`)
-          .forEach((r) => r.remove());
-        btn.closest("tr").remove();
-        updateRowspan(productId);
-      }
-
-      // --- Update Rowspan ---
-      function updateRowspan(productId) {
-        const productRow = document.getElementById(`product_${productId}`);
-        const priceRows = document.querySelectorAll(
-          `.product_${productId}_price`
-        );
-        let totalRows = 0;
-        priceRows.forEach((pr) => {
-          totalRows +=
-            1 +
-            document.querySelectorAll(
-              `.product_${productId}_price_${pr.dataset.priceId}_dealer`
-            ).length;
-        });
-        ["name", "size", "code", "mrp"].forEach((cls) => {
-          const td = productRow.querySelector(`.${cls}`);
-          if (td) td.setAttribute("rowspan", totalRows || 1);
-        });
-      }
-
-      // --- Event Listeners ---
       document
         .getElementById("addProductBtn")
         .addEventListener("click", addProductRow);
 
-      document
+            document
         .getElementById("saveProductsBtn")
         .addEventListener("click", () => {
           const data = [];
@@ -730,90 +363,107 @@
 
           productRows.forEach((pRow) => {
             const productId = pRow.id.split("_")[1];
-            const product = {
-              name: pRow.cells[1].querySelector("input")?.value || "",
-              size: pRow.cells[2].querySelector("input")?.value || "",
-              code: pRow.cells[3].querySelector("input")?.value || "",
-              hsn: pRow.cells[4].querySelector("input")?.value || "",
-              mrp: parseFloat(pRow.cells[5].querySelector("input")?.value || 0),
-              prices: [],
+            const productInputs = pRow.querySelectorAll("input");
+            
+            // Create Product data
+            const productData = {
+              name: productInputs[1]?.value || "",
+              sizes: []
             };
 
-            document
-              .querySelectorAll(`.product_${productId}_price`)
-              .forEach((pr) => {
-                const priceId = pr.dataset.priceId;
-                const inputs = pr.querySelectorAll("input");
-                const price = {
-                  payment_type: inputs[0]?.value || "",
-                  price: parseFloat(inputs[1]?.value || 0),
-                  discount: parseFloat(inputs[2]?.value || 0),
-                  discount_price: parseFloat(inputs[3]?.value || 0),
-                  tax: parseFloat(inputs[4]?.value || 0),
-                  tax_price: parseFloat(inputs[5]?.value || 0),
-                  box: parseFloat(inputs[6]?.value || 0),
-                  box_discount: parseFloat(inputs[7]?.value || 0),
-                  box_discount_price: parseFloat(inputs[8]?.value || 0),
-                  box_tax: parseFloat(inputs[9]?.value || 0),
-                  box_tax_price: parseFloat(inputs[10]?.value || 0),
-                  dealers: [],
+            // Get all size rows for this product
+            const sizeRows = document.querySelectorAll(`.product_${productId}_size`);
+            sizeRows.forEach(sizeRow => {
+              const sizeId = sizeRow.dataset.sizeId;
+              const sizeInputs = sizeRow.querySelectorAll("input");
+              const sizeData = {
+                size: sizeInputs[0]?.value || "",
+                code: sizeInputs[1]?.value || "",
+                hsn: sizeInputs[2]?.value || "",
+                mrp: parseFloat(sizeInputs[3]?.value || 0),
+                prices: [] // Prices now belong to ProductSize
+              };
+
+              // Get all price rows for this specific size
+              const priceRows = document.querySelectorAll(`.product_${productId}_size_${sizeId}_price`);
+              priceRows.forEach(priceRow => {
+                const priceId = priceRow.dataset.priceId;
+                const priceInputs = priceRow.querySelectorAll("input, select");
+                const priceData = {
+                  payment_type: priceInputs[0]?.value || "",
+                  price: parseFloat(priceInputs[1]?.value || 0),
+                  discount: parseFloat(priceInputs[2]?.value || 0),
+                  discount_price: parseFloat(priceInputs[3]?.value || 0),
+                  tax: parseFloat(priceInputs[4]?.value || 0),
+                  tax_price: parseFloat(priceInputs[5]?.value || 0),
+                  box: parseFloat(priceInputs[6]?.value || 0),
+                  box_discount: parseFloat(priceInputs[7]?.value || 0),
+                  box_discount_price: parseFloat(priceInputs[8]?.value || 0),
+                  box_tax: parseFloat(priceInputs[9]?.value || 0),
+                  box_tax_price: parseFloat(priceInputs[10]?.value || 0),
+                  dealers: []
                 };
 
-                document
-                  .querySelectorAll(
-                    `.product_${productId}_price_${priceId}_dealer`
-                  )
-                  .forEach((dr) => {
-                    const dInputs = dr.querySelectorAll("input");
-                    price.dealers.push({
-                      dlr_name: dInputs[0]?.value || "",
-                      slol: dInputs[1]?.value || "",
-                      purchase_date: dInputs[2]?.value || "",
-                      purchase_price: parseFloat(dInputs[3]?.value || 0),
-                      purchase_discount: parseFloat(dInputs[4]?.value || 0),
-                      purchase_discount_price: parseFloat(
-                        dInputs[5]?.value || 0
-                      ),
-                      purchase_tax: parseFloat(dInputs[6]?.value || 0),
-                      purchase_tax_price: parseFloat(dInputs[7]?.value || 0),
-                      purchase_box: parseFloat(dInputs[8]?.value || 0),
-                      purchase_box_discount: parseFloat(dInputs[9]?.value || 0),
-                      purchase_box_discount_price: parseFloat(
-                        dInputs[10]?.value || 0
-                      ),
-                      purchase_box_tax: parseFloat(dInputs[11]?.value || 0),
-                      purchase_box_tax_price: parseFloat(
-                        dInputs[12]?.value || 0
-                      ),
-                    });
-                  });
+                // Get dealer rows for this price
+                const dealerRows = document.querySelectorAll(`.product_${productId}_size_${sizeId}_price_${priceId}_dealer`);
+                dealerRows.forEach(dealerRow => {
+                  const dealerInputs = dealerRow.querySelectorAll("input");
+                  const dealerData = {
+                    dlr_name: dealerInputs[0]?.value || "",
+                    slol: dealerInputs[1]?.value || "",
+                    purchase_date: dealerInputs[2]?.value || "",
+                    purchase_price: parseFloat(dealerInputs[3]?.value || 0),
+                    purchase_discount: parseFloat(dealerInputs[4]?.value || 0),
+                    purchase_discount_price: parseFloat(dealerInputs[5]?.value || 0),
+                    purchase_tax: parseFloat(dealerInputs[6]?.value || 0),
+                    purchase_tax_price: parseFloat(dealerInputs[7]?.value || 0),
+                    purchase_box: parseFloat(dealerInputs[8]?.value || 0),
+                    purchase_box_discount: parseFloat(dealerInputs[9]?.value || 0),
+                    purchase_box_discount_price: parseFloat(dealerInputs[10]?.value || 0),
+                    purchase_box_tax: parseFloat(dealerInputs[11]?.value || 0),
+                    purchase_box_tax_price: parseFloat(dealerInputs[12]?.value || 0)
+                  };
+                  priceData.dealers.push(dealerData);
+                });
 
-                product.prices.push(price);
+                sizeData.prices.push(priceData);
               });
 
-            data.push(product);
+              productData.sizes.push(sizeData);
+            });
+
+            data.push(productData);
           });
 
           console.log("✅ Final Data:", JSON.stringify(data, null, 2));
 
-          // --- Call API ---
-          fetch("/api/product-create/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": getCookie("csrftoken"),
-            },
-            body: JSON.stringify(data),
-          })
-            .then((res) => res.json())
-            .then((response) => {
-              console.log("✅ API Response:", response);
-              alert("Products saved successfully!");
-            })
-            .catch((err) => {
-              console.error("❌ Error saving:", err);
-              alert("Error while saving data!");
-            });
+          // --- Send each product separately ---
+          data.forEach(async (productData, index) => {
+            try {
+              const response = await fetch("/api/product-create/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCookie("csrftoken"),
+                },
+                body: JSON.stringify(productData),
+              });
+              
+              const result = await response.json();
+              
+              if (response.ok) {
+                console.log(`✅ Product ${index + 1} saved:`, result);
+              } else {
+                console.error(`❌ Error saving product ${index + 1}:`, result);
+                alert(`Error saving product ${index + 1}: ${JSON.stringify(result)}`);
+              }
+            } catch (err) {
+              console.error(`❌ Network error for product ${index + 1}:`, err);
+              alert(`Network error saving product ${index + 1}`);
+            }
+          });
+          
+          alert(`Attempting to save ${data.length} products. Check console for details.`);
         });
 
       function getCookie(name) {
@@ -832,7 +482,10 @@
         }
         return cookieValue;
       }
-      window.addEventListener("DOMContentLoaded", () => {
+      // Removed old incorrect display function
+
+      // Override the display function to handle nested structure correctly
+      function displayProductsWithNestedStructure() {
         fetch("/api/product-create/")
           .then((res) => res.json())
           .then((data) => {
@@ -840,241 +493,154 @@
             tbody.innerHTML = ""; // clear old
 
             data.forEach((product) => {
-              const prices = product.prices || [];
+              const sizes = product.sizes || [];
 
-              // calculate total rows needed for product rowspan
+              // calculate total rows for product rowspan
               let totalRows = 0;
-              prices.forEach((price) => {
-                totalRows += (price.dealers && price.dealers.length) || 1;
-              });
-              if (totalRows === 0) totalRows = 1; // product with no price
-
-              if (prices.length > 0) {
-                prices.forEach((price, pIndex) => {
-                  const dealers = price.dealers || [];
-                  const priceRowspan = dealers.length || 1;
-
-                  dealers.forEach((dealer, dIndex) => {
-                    const tr = document.createElement("tr");
-
-                    tr.innerHTML = `
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${
-                        product.photo
-                          ? `<img src="${product.photo}" alt="Photo" width="50">`
-                          : ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0 && dIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.name || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0 && dIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.size || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0 && dIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.code || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0 && dIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.hsn || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0 && dIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.mrp || ""}</td>`
-                    : ""
-                }
-
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.payment_type || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${price.price || ""}</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.discount || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.discount_price || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${price.tax || ""}</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.tax_price || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${price.box || ""}</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.box_discount || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.box_discount_price || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.box_tax || ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  dIndex === 0
-                    ? `<td rowspan="${priceRowspan}">${
-                        price.box_tax_price || ""
-                      }</td>`
-                    : ""
-                }
-
-                <td>${dealer?.dlr_name || ""}</td>
-                <td>${dealer?.slol || ""}</td>
-                <td>${dealer?.purchase_date || ""}</td>
-                <td>${dealer?.purchase_price || ""}</td>
-                <td>${dealer?.purchase_discount || ""}</td>
-                <td>${dealer?.purchase_discount_price || ""}</td>
-                <td>${dealer?.purchase_tax || ""}</td>
-                <td>${dealer?.purchase_tax_price || ""}</td>
-                <td>${dealer?.purchase_box || ""}</td>
-                <td>${dealer?.purchase_box_discount || ""}</td>
-                <td>${dealer?.purchase_box_discount_price || ""}</td>
-                <td>${dealer?.purchase_box_tax || ""}</td>
-                <td>${dealer?.purchase_box_tax_price || ""}</td>
-                <td colspan="13">
-                  <button class="btn btn-sm btn-success" >✎ Edit</button>
-                  <button class="btn btn-sm btn-danger" >🗑 Delete</button>
-                </td>
-              `;
-                    tbody.appendChild(tr);
+              sizes.forEach((size) => {
+                const prices = size.prices || [];
+                if (prices.length === 0) {
+                  totalRows += 1; // size with no prices
+                } else {
+                  prices.forEach((price) => {
+                    totalRows += Math.max((price.dealers && price.dealers.length) || 1, 1);
                   });
+                }
+              });
+              if (totalRows === 0) totalRows = 1; // product with no sizes
 
-                  // Price has no dealers
-                  if (!dealers.length) {
+              let currentRowIndex = 0;
+              let firstProductRow = true;
+
+              if (sizes.length > 0) {
+                sizes.forEach((size, sIndex) => {
+                  const prices = size.prices || [];
+                  let sizeRowsCount = 0;
+                  
+                  // Calculate rows for this size
+                  if (prices.length === 0) {
+                    sizeRowsCount = 1;
+                  } else {
+                    prices.forEach((price) => {
+                      sizeRowsCount += Math.max((price.dealers && price.dealers.length) || 1, 1);
+                    });
+                  }
+
+                  let firstSizeRow = true;
+
+                  if (prices.length > 0) {
+                    prices.forEach((price, pIndex) => {
+                      const dealers = price.dealers || [];
+                      const priceRowspan = Math.max(dealers.length, 1);
+
+                      if (dealers.length > 0) {
+                        dealers.forEach((dealer, dIndex) => {
+                          const tr = document.createElement("tr");
+                          tr.innerHTML = `
+                            ${firstProductRow ? `<td rowspan="${totalRows}">${product.photo ? `<img src="${product.photo}" alt="Photo" width="50">` : ""}</td>` : ""}
+                            ${firstProductRow ? `<td rowspan="${totalRows}">${product.name || ""}</td>` : ""}
+                            ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.size || ""}</td>` : ""}
+                            ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.code || ""}</td>` : ""}
+                            ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.hsn || ""}</td>` : ""}
+                            ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.mrp || ""}</td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}">${price.payment_type || ""}</td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}">${price.price || ""}</td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}"><div>${price.discount || ""}%</div><small class="text-muted">₹${price.discount_price || ""}</small></td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}"><div>${price.tax || ""}%</div><small class="text-muted">₹${price.tax_price || ""}</small></td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}">${price.box || ""}</td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}"><div>${price.box_discount || ""}%</div><small class="text-muted">₹${price.box_discount_price || ""}</small></td>` : ""}
+                            ${dIndex === 0 ? `<td rowspan="${priceRowspan}"><div>${price.box_tax || ""}%</div><small class="text-muted">₹${price.box_tax_price || ""}</small></td>` : ""}
+                            <td>${dealer?.dlr_name || ""}</td>
+                            <td>${dealer?.slol || ""}</td>
+                            <td>${dealer?.purchase_date || ""}</td>
+                            <td>${dealer?.purchase_price || ""}</td>
+                            <td><div>${dealer?.purchase_discount || ""}%</div><small class="text-muted">₹${dealer?.purchase_discount_price || ""}</small></td>
+                            <td><div>${dealer?.purchase_tax || ""}%</div><small class="text-muted">₹${dealer?.purchase_tax_price || ""}</small></td>
+                            <td>${dealer?.purchase_box || ""}</td>
+                            <td><div>${dealer?.purchase_box_discount || ""}%</div><small class="text-muted">₹${dealer?.purchase_box_discount_price || ""}</small></td>
+                            <td><div>${dealer?.purchase_box_tax || ""}%</div><small class="text-muted">₹${dealer?.purchase_box_tax_price || ""}</small></td>
+                            <td>
+                              <button class="btn btn-sm btn-success">✎ Edit</button>
+                              <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                            </td>
+                          `;
+                          tbody.appendChild(tr);
+                          firstProductRow = false;
+                          firstSizeRow = false;
+                        });
+                      } else {
+                        // Price with no dealers
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                          ${firstProductRow ? `<td rowspan="${totalRows}">${product.photo ? `<img src="${product.photo}" alt="Photo" width="50">` : ""}</td>` : ""}
+                          ${firstProductRow ? `<td rowspan="${totalRows}">${product.name || ""}</td>` : ""}
+                          ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.size || ""}</td>` : ""}
+                          ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.code || ""}</td>` : ""}
+                          ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.hsn || ""}</td>` : ""}
+                          ${firstSizeRow ? `<td rowspan="${sizeRowsCount}">${size.mrp || ""}</td>` : ""}
+                          <td>${price.payment_type || ""}</td>
+                          <td>${price.price || ""}</td>
+                          <td><div>${price.discount || ""}%</div><small class="text-muted">₹${price.discount_price || ""}</small></td>
+                          <td><div>${price.tax || ""}%</div><small class="text-muted">₹${price.tax_price || ""}</small></td>
+                          <td>${price.box || ""}</td>
+                          <td><div>${price.box_discount || ""}%</div><small class="text-muted">₹${price.box_discount_price || ""}</small></td>
+                          <td><div>${price.box_tax || ""}%</div><small class="text-muted">₹${price.box_tax_price || ""}</small></td>
+                          <td colspan="9">No dealers</td>
+                          <td>
+                            <button class="btn btn-sm btn-success">✎ Edit</button>
+                            <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                          </td>
+                        `;
+                        tbody.appendChild(tr);
+                        firstProductRow = false;
+                        firstSizeRow = false;
+                      }
+                    });
+                  } else {
+                    // Size with no prices
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${
-                        product.photo
-                          ? `<img src="${product.photo}" alt="Photo" width="50">`
-                          : ""
-                      }</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.name || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.size || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.code || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.hsn || ""}</td>`
-                    : ""
-                }
-                ${
-                  pIndex === 0
-                    ? `<td rowspan="${totalRows}">${product.mrp || ""}</td>`
-                    : ""
-                }
-
-                <td>${price.payment_type || ""}</td>
-                <td>${price.price || ""}</td>
-                <td>${price.discount || ""}</td>
-                <td>${price.discount_price || ""}</td>
-                <td>${price.tax || ""}</td>
-                <td>${price.tax_price || ""}</td>
-                <td>${price.box || ""}</td>
-                <td>${price.box_discount || ""}</td>
-                <td>${price.box_discount_price || ""}</td>
-                <td>${price.box_tax || ""}</td>
-                <td>${price.box_tax_price || ""}</td>
-
-                <td colspan="13"></td>
-                <td colspan="13">
-                  <button class="btn btn-sm btn-success" >✎ Edit</button>
-                  <button class="btn btn-sm btn-danger" >🗑 Delete</button>
-                </td>
-              `;
+                      ${firstProductRow ? `<td rowspan="${totalRows}">${product.photo ? `<img src="${product.photo}" alt="Photo" width="50">` : ""}</td>` : ""}
+                      ${firstProductRow ? `<td rowspan="${totalRows}">${product.name || ""}</td>` : ""}
+                      <td>${size.size || ""}</td>
+                      <td>${size.code || ""}</td>
+                      <td>${size.hsn || ""}</td>
+                      <td>${size.mrp || ""}</td>
+                      <td colspan="18">No prices defined</td>
+                      <td>
+                        <button class="btn btn-sm btn-success">✎ Edit</button>
+                        <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                      </td>
+                    `;
                     tbody.appendChild(tr);
+                    firstProductRow = false;
                   }
                 });
               } else {
-                // Product has no prices
+                // Product with no sizes
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-                 <td>
-              ${
-                product.photo
-                  ? `<img src="${product.photo}" alt="Photo" width="50">`
-                  : ""
-              }
-            </td>
-            <td>${product.name || ""}</td>
-            <td>${product.size || ""}</td>
-            <td>${product.code || ""}</td>
-            <td>${product.hsn || ""}</td>
-            <td>${product.mrp || ""}</td>
-            <td colspan="24"></td>
-            <td colspan="13">
-              <button class="btn btn-sm btn-success" >✎ Edit</button>
-              <button class="btn btn-sm btn-danger" >🗑 Delete</button>
-            </td>
-          `;
+                  <td>${product.photo ? `<img src="${product.photo}" alt="Photo" width="50">` : ""}</td>
+                  <td>${product.name || ""}</td>
+                  <td colspan="4">No sizes defined</td>
+                  <td colspan="18"></td>
+                  <td>
+                    <button class="btn btn-sm btn-success">✎ Edit</button>
+                    <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                  </td>
+                `;
                 tbody.appendChild(tr);
               }
             });
           })
-          .catch((err) => console.error(err));
+          .catch((err) => console.error("Error loading products:", err));
+      }
+
+      // Call the correct function when page loads
+      window.addEventListener("DOMContentLoaded", () => {
+        displayProductsWithNestedStructure();
       });
+      
     </script>
   </body>
 </html>
-{% endcomment %}
