@@ -85,7 +85,7 @@ class PurchaseAdmin(admin.ModelAdmin):
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ('variant', 'quantity', 'date_added')
+    list_display = ('variant', 'quantity','price', 'date_added')
     search_fields = ('variant__product__name',)
 
 
