@@ -15,16 +15,18 @@ class CartViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         variant_id = request.data.get("variantId")
         qty = int(request.data.get("qty", 1))
+        price = request.data.get("price")
         replace = request.data.get("replace", False)
 
         if not variant_id:
             return Response({"error": "variantId is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         variant = get_object_or_404(ProductVariant, id=variant_id)
+        final_price = Decimal(price) if price else variant.price
 
         cart_item, created = Cart.objects.get_or_create(
             variant=variant,
-            defaults={"quantity": qty, "item_discount": 0, "is_percentage": True, "gst": 0}
+            defaults={"quantity": qty,"price": final_price, "item_discount": 0, "is_percentage": True, "gst": 0}
         )
 
         if not created:
@@ -32,6 +34,7 @@ class CartViewSet(viewsets.ModelViewSet):
                 cart_item.quantity = qty
             else:
                 cart_item.quantity += qty
+            cart_item.price = final_price
             cart_item.save()
 
         serializer = self.get_serializer(cart_item)
@@ -46,6 +49,14 @@ class CartViewSet(viewsets.ModelViewSet):
             qty = data.get("quantity")
             if qty not in [None, ""]:
                 cart_item.quantity = int(qty)
+                
+        if "price" in data:
+            price_value = data.get("price")
+            if price_value in [None, ""]:
+                # If empty or null, fallback to variant price
+                cart_item.price = cart_item.variant.price
+            else:
+                cart_item.price = Decimal(price_value)
 
         if "item_discount" in data:
             item_discount = data.get("item_discount")

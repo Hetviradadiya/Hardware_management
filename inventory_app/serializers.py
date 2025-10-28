@@ -168,7 +168,7 @@ class CartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cart
         fields = [
-            "id", "variant", "variant_name", "variant_photo", "variant_size", "variant_price",
+            "id", "variant", "variant_name", "variant_photo", "variant_size", "variant_price","price",
             "quantity", "date_added", "item_discount", "is_percentage", "gst",
             "discount_price", "gst_amount", "total_price"
         ]
@@ -181,17 +181,20 @@ class CartSerializer(serializers.ModelSerializer):
         return None
 
     def get_discount_price(self, obj):
-        price = obj.variant.price * obj.quantity
+        base_price = obj.price or obj.variant.price
+        price = base_price * obj.quantity
         if obj.is_percentage:
             return round(price * obj.item_discount / 100, 2)
         return round(obj.item_discount, 2)
 
     def get_gst_amount(self, obj):
-        price_after_discount = obj.variant.price * obj.quantity - self.get_discount_price(obj)
+        base_price = obj.price or obj.variant.price
+        price_after_discount = base_price * obj.quantity - self.get_discount_price(obj)
         return round(price_after_discount * obj.gst / 100, 2)
 
     def get_total_price(self, obj):
-        price = obj.variant.price * obj.quantity
+        base_price = obj.price or obj.variant.price
+        price = base_price * obj.quantity
         discount = self.get_discount_price(obj)
         gst_amount = self.get_gst_amount(obj)
         return round(price - discount + gst_amount, 2)
@@ -276,3 +279,4 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_final_amount(self, obj):
         return obj.total_amount
+    

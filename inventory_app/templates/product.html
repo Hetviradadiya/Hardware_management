@@ -3,6 +3,24 @@
 {% load i18n %}
 
 {% block title %}Manage Product{% endblock %}
+{% block page_css%}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+<style>
+  .select2-container .select2-selection--single {
+    height: 40px !important;
+    display: flex;
+    align-items: center;
+  }
+  .select2-selection__rendered {
+    padding-left: 10px !important;
+  }
+  .select2-search__field--hidden {
+    display: none !important;
+  }
+</style>
+
+{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -44,8 +62,11 @@
           <div class="row mb-4">
             <label class="col-sm-2 col-form-label" for="category">Category</label>
             <div class="col-sm-10">
-              <select id="category" class="form-control" required>
+              <select id="categorySelect" class="form-select">
                 <option value="">-- Select Category --</option>
+                {% for category in categories %}
+                  <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
               </select>
             </div>
           </div>
@@ -92,6 +113,12 @@
 {% endblock %}
 
 {% block page_js %}
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
   const form = document.getElementById("product-form");
   const loader = document.getElementById("form-loader");
@@ -114,12 +141,37 @@
     }
 
     loadCategories().then(() => {
+
+      $('#categorySelect').select2({
+        placeholder: "-- Select Category --",
+        allowClear: true,
+        width: '100%',
+        ajax: {
+          url: '/admin_api/categories/',
+          dataType: 'json',
+          delay: 250,
+          data: params => ({
+            search: params.term, 
+          }),
+          processResults: data => ({
+            results: data.map(cat => ({
+              id: cat.id,
+              text: cat.name,
+            })),
+          }),
+          cache: true
+        }
+      });
+
+      $(document).on('select2:open', () => {
+        document.querySelector('.select2-search__field').focus();
+      });
       if (isEdit || isView) {
         loadProduct(productId);
       } else {
         form.style.display = "block";
       }
-    });
+    })
 
     document.getElementById("add-variant").addEventListener("click", () => addVariantRow());
   });
@@ -128,7 +180,7 @@
     try {
       const res = await fetch("/admin_api/categories/");
       const data = await res.json();
-      const select = document.getElementById("category");
+      const select = document.getElementById("categorySelect");
       data.forEach(cat => {
         const opt = document.createElement("option");
         opt.value = cat.id;
@@ -167,7 +219,13 @@
       const res = await fetch(`/admin_api/products/${id}/`);
       const data = await res.json();
       document.getElementById("name").value = data.name;
-      document.getElementById("category").value = data.category;
+      {% comment %} document.getElementById("categorySelect").value = data.category; {% endcomment %}
+
+      const categorySelect = $('#categorySelect');
+      if (data.category && data.category_name) {
+        const option = new Option(data.category_name, data.category, true, true);
+        categorySelect.append(option).trigger('change');
+      }
       if (data.variants) {
         data.variants.forEach(v => addVariantRow(v));
       }
@@ -198,7 +256,7 @@
 
     const formData = new FormData();
     formData.append("name", document.getElementById("name").value);
-    formData.append("category", document.getElementById("category").value);
+    formData.append("category", document.getElementById("categorySelect").value);
     if (document.getElementById("photo").files[0]) {
       formData.append("photo", document.getElementById("photo").files[0]);
     }

@@ -22540,7 +22540,7 @@ html:not(.layout-menu-fixed) .menu-inner-shadow {
   }
   .layout-menu-fixed:not(.layout-menu-collapsed) .layout-page,
   .layout-menu-fixed-offcanvas:not(.layout-menu-collapsed) .layout-page {
-    padding-left: 16.25rem;
+    padding-left: 15.25rem;
   }
 }
 html:not(.layout-navbar-fixed):not(.layout-menu-fixed):not(.layout-menu-fixed-offcanvas) .layout-page,
