@@ -11,3 +11,5 @@ openpyxl
 python-slugify==8.0.4
 reportlab==4.4.3
 django-nested-admin==4.1.4
+weasyprint==66.0
+xhtml2pdf==0.2.17

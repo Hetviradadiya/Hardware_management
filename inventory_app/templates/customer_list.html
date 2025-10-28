@@ -70,6 +70,35 @@
   <div class="toast-body" id="toast-body"></div>
 </div>
 
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" style="color: white;">Add Payment</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="paymentForm">
+          <input type="hidden" id="customerId">
+          <div class="mb-3">
+            <label class="form-label">Customer</label>
+            <input type="text" id="customerName" class="form-control" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Payment Amount (₹)</label>
+            <input type="number" id="paymentAmount" class="form-control" step="0.01" min="0" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="submitPayment()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 let deleteCustomerId = null;
 
@@ -130,7 +159,10 @@ function loadCustomers(search = "") {
                 </button>
                 <div class="dropdown-menu">
                   <a class="dropdown-item text-primary" href="/customer-orders/${c.id}/">
-                    <i class="bx bx-receipt me-1"></i> Orders
+                    <i class="bx bx-receipt me-1"></i> Bills
+                  </a>
+                  <a class="dropdown-item text-success" href="javascript:void(0);" onclick="openPaymentModal(${c.id}, '${c.name}')">
+                    <i class="bx bx-rupee me-1"></i> Payment
                   </a>
                   <a class="dropdown-item text-info" href="/customer/edit/${c.id}/">
                     <i class="bx bx-edit-alt me-1"></i> Edit
@@ -204,5 +236,40 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
     })
     .catch(err => console.error("Delete error:", err));
 });
+
+function openPaymentModal(id, name) {
+  document.getElementById('customerId').value = id;
+  document.getElementById('customerName').value = name;
+  document.getElementById('paymentAmount').value = '';
+  new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+function submitPayment() {
+  const id = document.getElementById('customerId').value;
+  const amount = parseFloat(document.getElementById('paymentAmount').value);
+
+  if (isNaN(amount) || amount <= 0) {
+    alert("Please enter a valid payment amount.");
+    return;
+  }
+
+  fetch(`/admin_api/customers/${id}/payment/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie('csrftoken')
+    },
+    body: JSON.stringify({ payment_amount: amount })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status) {
+      alert("Payment updated successfully!");
+      location.reload();
+    } else {
+      alert("Error: " + data.message);
+    }
+  });
+}
 </script>
 {% endblock %}

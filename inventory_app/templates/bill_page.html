@@ -18,7 +18,7 @@
   <div class="container py-5">
     <div class="card shadow p-4">
 
-      <!-- Restaurant Header -->
+      <!-- Header -->
       <div class="text-center mb-3">
         <h4 class="fw-bold">RADHE <br>Tools and Hardware</h4>
         <p>
@@ -29,31 +29,26 @@
       </div>
       <hr>
 
-      <!-- Invoice Info -->
+      <!-- Bill Header -->
       <div class="d-flex justify-content-between align-items-center">
         <h3>🧾 Bill</h3>
-        <h5>Bill_No.#{{ order.id }}</h5>
+        <h5>Bill No. #{{ order.id }}</h5>
       </div>
       <hr>
 
-      <!-- Customer and Payment Info -->
+      <!-- Customer Info -->
       <div class="row mb-3">
         <div class="col-md-6">
           <p><strong>Customer:</strong> {{ order.customer.name }}</p>
           <p><strong>Date:</strong> {{ order.order_date|date:"d M Y H:i" }}</p>
         </div>
-        <div class="col-md-6 text-end">
-          <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
-          <p><strong>Paid Amount:</strong> ₹{{ order.paid_amount }}</p>
-          <p><strong>Pending Amount:</strong> ₹{{ order.total_amount|floatformat:2|add:"-"|add:order.paid_amount }}</p>
-        </div>
       </div>
 
-      <!-- Products Table -->
+      <!-- Product Details Table -->
       <table class="table table-bordered mt-3">
         <thead class="table-light">
           <tr>
-            <th>Product Name</th>
+            <th>Product</th>
             <th>Size</th>
             <th>Qty</th>
             <th>Price</th>
@@ -67,17 +62,37 @@
             <td>{{ item.product_size }}</td>
             <td>{{ item.quantity }}</td>
             <td>₹{{ item.price_at_sale }}</td>
-            <td>₹{{ item.total_price }}</td>
+            <td>₹{{ item.total_price|floatformat:2 }}</td>
           </tr>
           {% endfor %}
         </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="4" class="text-end"><strong>Total</strong></td>
-            <td><strong>₹{{ order.total_amount }}</strong></td>
-          </tr>
-        </tfoot>
       </table>
+
+      <!-- Totals Section -->
+      <div class="mt-4">
+        <table class="table">
+          <tbody>
+            <tr>
+              <td class="text-end"><strong>Subtotal:</strong></td>
+              <td class="text-end">₹{{ order.subtotal|default:"0.00" }}</td>
+            </tr>
+            <tr>
+              <td class="text-end"><strong>Total Amount:</strong></td>
+              <td class="text-end">₹{{ order.total_amount }}</td>
+            </tr>
+            <tr>
+              <td class="text-end"><strong>Paid Amount:</strong></td>
+              <td class="text-end">₹{{ order.paid_amount }}</td>
+            </tr>
+            <tr>
+              <td class="text-end"><strong>Pending Amount:</strong></td>
+              <td class="text-end">
+                ₹{{ order.customer.pending_amount|default:"0.00"|floatformat:2 }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Buttons -->
       <div class="text-center mt-4 no-print">
