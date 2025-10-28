@@ -7,9 +7,9 @@
     Purchases for Supplier
   </h4>
   <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-    <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
+    {% comment %} <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
       <i class="bx bx-file"></i> Export
-    </button>
+    </button> {% endcomment %}
     <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
       <i class="bx bxs-file-pdf"></i> Export PDF
     </button>
@@ -116,10 +116,19 @@ document.addEventListener("DOMContentLoaded", function () {
   // Filter
   document.getElementById("filterForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    fetchPurchases(
-      document.getElementById("startDate").value,
-      document.getElementById("endDate").value
-    );
+    const startDateInput = document.getElementById("startDate");
+    const endDateInput = document.getElementById("endDate");
+
+    let startDate = startDateInput.value;
+    let endDate = endDateInput.value;
+
+    // 🔹 If only start date selected, set end date = today
+    if (startDate && !endDate) {
+      const today = new Date().toISOString().split("T")[0]; // format YYYY-MM-DD
+      endDateInput.value = today;
+      endDate = today;
+    }
+    fetchPurchases(startDate, endDate);
   });
 
   // Reset filter

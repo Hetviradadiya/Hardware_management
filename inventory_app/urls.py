@@ -51,9 +51,9 @@ urlpatterns = [
     path('customer/detail/<int:id>/', DashboardsView.as_view(template_name="customer.html"), name='customer-detail'),
 
     path('purchase-list/', DashboardsView.as_view(template_name="purchase_list.html"), name='purchase-list'),
-    path('purchase/add/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-add'),
-    path('purchase/edit/<int:id>/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-edit'),
-    path('purchase/detail/<int:id>/', DashboardsView.as_view(template_name="purchase.html"), name='purchase-detail'),
+    path('purchase/add/', DashboardsView.as_view(template_name="purchase_add.html"), name='purchase-add'),
+    path('purchase/edit/<int:id>/', DashboardsView.as_view(template_name="purchase_edit_view.html"), name='purchase-edit'),
+    path('purchase/detail/<int:id>/', DashboardsView.as_view(template_name="purchase_edit_view.html"), name='purchase-detail'),
 
     path('inventpory-list/', DashboardsView.as_view(template_name="inventory_list.html"), name='inventory-list'),
 

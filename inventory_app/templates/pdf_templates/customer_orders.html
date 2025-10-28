@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 1cm; }
+    body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #000; }
+    h1 { text-align: center; margin-bottom: 5px; }
+    p { text-align: center; margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+    th { background-color: #222; color: white; font-weight: bold; }
+    td { vertical-align: top; }
+    .summary { text-align: right; font-weight: bold; padding-top: 10px; border-top: 2px solid #000; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Customer Orders Report</h1>
+  <p><strong>{{ customer.name }}</strong></p>
+  <p>Phone: {{ customer.phone|default:"-" }}</p>
+  {% if start_date and end_date %}
+    <p>Period: {{ start_date }} to {{ end_date }}</p>
+  {% endif %}
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Order Date</th>
+      <th>Total</th>
+      <th>Discount</th>
+      <th>Final</th>
+      <th>Products</th>
+    </tr>
+    {% for order in orders %}
+      <tr>
+        <td>{{ order.id }}</td>
+        <td>{{ order.order_date|date:"Y-m-d" }}</td>
+        <td>₹ {{ order.total_amount }}</td>
+        <td>
+          {% if order.is_percentage %}
+            {{ order.order_discount }}%
+          {% else %}
+            ₹ {{ order.order_discount }}
+          {% endif %}
+        </td>
+        <td>₹ {{ order.final_amount }}</td>
+        <td style="text-align:left;">
+          {% for item in order.order_items %}
+            {{ item.product_name }} ({{ item.quantity }}) – ₹{{ item.price_at_sale }}<br>
+          {% empty %}
+            No items
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <p class="summary">Grand Total: ₹ {{ total_sum }}</p>
+</body>
+</html>

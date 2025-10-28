@@ -668,5 +668,25 @@
         })
         .catch(err => console.error("Error adding to cart:", err));
     }
+
+    // Close product search box when clicking outside
+    document.addEventListener("click", function (e) {
+      const addProductBox = document.getElementById("add-product-box");
+      const addProductBtn = document.getElementById("add-product-btn");
+      const productInput = document.getElementById("product_input");
+      const productSuggestions = document.getElementById("product_suggestions");
+
+      // If box is visible and click is outside of input, button, or suggestions list — close it
+      if (
+        addProductBox.style.display === "block" &&
+        !addProductBox.contains(e.target) &&
+        e.target !== addProductBtn &&
+        !productSuggestions.contains(e.target)
+      ) {
+        addProductBox.style.display = "none";
+        productSuggestions.innerHTML = "";
+        productInput.value = "";
+      }
+    });
   </script>
 {% endblock %}

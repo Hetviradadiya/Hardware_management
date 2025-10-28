@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 class PurchaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    queryset = Purchase.objects.all().order_by('-date')
+    queryset = Purchase.objects.all().order_by('-date', '-id')
     serializer_class = PurchaseSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = [

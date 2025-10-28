@@ -4,6 +4,8 @@
 
 {% block title %}Manage Product{% endblock %}
 {% block page_css%}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <style>
   .select2-container .select2-selection--single {
     height: 40px !important;
@@ -111,11 +113,8 @@
 {% endblock %}
 
 {% block page_js %}
-<!-- jQuery -->
+<!-- jQuery (required for Select2) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -142,41 +141,37 @@
     }
 
     loadCategories().then(() => {
+
+      $('#categorySelect').select2({
+        placeholder: "-- Select Category --",
+        allowClear: true,
+        width: '100%',
+        ajax: {
+          url: '/admin_api/categories/',
+          dataType: 'json',
+          delay: 250,
+          data: params => ({
+            search: params.term, 
+          }),
+          processResults: data => ({
+            results: data.map(cat => ({
+              id: cat.id,
+              text: cat.name,
+            })),
+          }),
+          cache: true
+        }
+      });
+
+      $(document).on('select2:open', () => {
+        document.querySelector('.select2-search__field').focus();
+      });
       if (isEdit || isView) {
         loadProduct(productId);
       } else {
         form.style.display = "block";
       }
     })
-
-    $('#categorySelect').select2({
-      placeholder: "-- Select Category --",
-      allowClear: true,
-      width: '100%',
-      minimumResultsForSearch: 0,
-      dropdownAutoWidth: true,
-      language: {
-        noResults: function() {
-          return "No matching categories found";
-        }
-      },
-      templateSelection: function (data) {
-        return data.id ? data.text : "-- Select Category --";
-      }
-    });
-
-    // 🔹 Focus search box automatically and hide the placeholder when typing
-    $('#categorySelect').on('select2:open', function() {
-      let searchField = $('.select2-container--open .select2-search__field');
-      searchField.attr('placeholder', ''); // remove extra placeholder
-      setTimeout(() => { searchField.focus(); }, 100);
-    });
-
-    // 🔹 When user types, change the main box text live
-    $('#categorySelect').on('select2:opening select2:closing', function(event) {
-      var $searchfield = $(this).parent().find('.select2-search__field');
-      $searchfield.toggleClass('select2-search__field--hidden', event.type === 'closing');
-    });
 
     document.getElementById("add-variant").addEventListener("click", () => addVariantRow());
   });
@@ -224,7 +219,13 @@
       const res = await fetch(`/admin_api/products/${id}/`);
       const data = await res.json();
       document.getElementById("name").value = data.name;
-      document.getElementById("category").value = data.category;
+      {% comment %} document.getElementById("categorySelect").value = data.category; {% endcomment %}
+
+      const categorySelect = $('#categorySelect');
+      if (data.category && data.category_name) {
+        const option = new Option(data.category_name, data.category, true, true);
+        categorySelect.append(option).trigger('change');
+      }
       if (data.variants) {
         data.variants.forEach(v => addVariantRow(v));
       }
@@ -255,7 +256,7 @@
 
     const formData = new FormData();
     formData.append("name", document.getElementById("name").value);
-    formData.append("category", document.getElementById("category").value);
+    formData.append("category", document.getElementById("categorySelect").value);
     if (document.getElementById("photo").files[0]) {
       formData.append("photo", document.getElementById("photo").files[0]);
     }
