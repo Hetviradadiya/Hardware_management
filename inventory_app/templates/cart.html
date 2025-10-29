@@ -493,7 +493,7 @@
               const customerTotalEl = document.getElementById('customer-total');
               pendingEl.value = pending;
 
-              let grandtotalPrice = parseFloat(document.getElementById("grand-total-price").textContent || 0);
+              let grandtotalPrice = parseFloat(document.getElementById("cart-total").textContent || 0);
               customerTotalEl.textContent = (pending + grandtotalPrice).toFixed(2);
             });
 
