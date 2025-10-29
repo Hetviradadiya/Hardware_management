@@ -65,3 +65,11 @@
   </a>
 </li>
 
+<li
+  class="menu-item {% if '/sales-list/' in request.path %}active open{% endif %}"
+>
+  <a href="{% url 'sales-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-home"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Sales Report</div>
+  </a>
+</li>

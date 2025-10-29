@@ -147,7 +147,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Export buttons
   document.getElementById("exportPdfBtn").addEventListener("click", function () {
-    window.location.href = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    let url = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
+    if (startDate && endDate) url += `?start_date=${startDate}&end_date=${endDate}`;
+    window.location.href = url;
   });
 
   document.getElementById("exportExcelBtn").addEventListener("click", function () {

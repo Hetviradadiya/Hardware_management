@@ -1,0 +1,207 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Sales Report{% endblock %}
+
+{% block content %}
+<div class="card">
+
+  <!-- 🔹 Date Filter Card -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form id="filterForm" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="startDate" class="form-label">Start Date</label>
+          <input type="date" id="startDate" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label for="endDate" class="form-label">End Date</label>
+          <input type="date" id="endDate" class="form-control">
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1" id="applyFilterBtn">
+            <i class="bx bx-filter-alt"></i> Apply Filter
+          </button>
+          <button type="button" class="btn btn-secondary flex-grow-1" id="resetFilterBtn">
+            <i class="bx bx-reset"></i> Reset Filter
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 🔹 Sales Table -->
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="sales-scroll">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Payment Type</th>
+          <th>Total Amount</th>
+          <th>Paid Amount</th>
+          <th>Profit</th>
+        </tr>
+      </thead>
+      <tbody id="sales-table-body">
+        <tr id="sales-loader-row">
+          <td colspan="7" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="table-light fw-bold" id="total-row">
+          <td colspan="4" class="text-end text-primary">Totals:</td>
+          <td id="total-sales">0.00</td>
+          <td id="total-paid">0.00</td>
+          <td id="total-profit">0.00</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const tbody = document.getElementById("sales-table-body");
+  const loader = document.getElementById("sales-loader-row");
+  const scrollBox = document.getElementById("sales-scroll");
+  const startInput = document.getElementById("startDate");
+  const endInput = document.getElementById("endDate");
+  const resetBtn = document.getElementById("resetFilterBtn");
+  const form = document.getElementById("filterForm");
+
+  // Totals
+  const totalSalesEl = document.getElementById("total-sales");
+  const totalPaidEl = document.getElementById("total-paid");
+  const totalProfitEl = document.getElementById("total-profit");
+
+  let page = 1;
+  let nextPage = null;
+  let isLoading = false;
+  let filters = { start: "", end: "" };
+
+  let totalSales = 0;
+  let totalPaid = 0;
+  let totalProfit = 0;
+
+  function updateTotals() {
+    totalSalesEl.textContent = totalSales.toFixed(2);
+    totalPaidEl.textContent = totalPaid.toFixed(2);
+    totalProfitEl.textContent = totalProfit.toFixed(2);
+  }
+
+  function buildURL(page = 1) {
+    let url = `/admin_api/sales/?page=${page}`;
+    if (filters.start && filters.end) {
+      url += `&start_date=${filters.start}&end_date=${filters.end}`;
+    }
+    return url;
+  }
+
+  function fetchSales(initialLoad = false) {
+    if (isLoading) return;
+    isLoading = true;
+    loader.style.display = "";
+
+    fetch(buildURL(page))
+      .then(res => res.json())
+      .then(data => {
+        loader.style.display = "none";
+        isLoading = false;
+        nextPage = data.next;
+
+        const results = data.results || data;  // support both paginated & non-paginated
+        if (initialLoad) tbody.innerHTML = "";
+
+        if (results.length === 0 && initialLoad) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No sales records found.</td></tr>`;
+          return;
+        }
+
+        results.forEach(sale => {
+          totalSales += parseFloat(sale.total_amount || 0);
+          totalPaid += parseFloat(sale.paid_amount || 0);
+          totalProfit += parseFloat(sale.profit || 0);
+
+          const row = `
+            <tr>
+              <td>${sale.sale_date || ""}</td>
+              <td>${sale.order_id || ""}</td>
+              <td>${sale.customer_name || "Walk-in"}</td>
+              <td>${sale.pay_type || ""}</td>
+              <td>${sale.total_amount || "0.00"}</td>
+              <td>${sale.paid_amount || "0.00"}</td>
+              <td>${sale.profit || "0.00"}</td>
+            </tr>
+          `;
+          tbody.insertAdjacentHTML("beforeend", row);
+        });
+
+        updateTotals();
+      })
+      .catch(err => {
+        loader.style.display = "none";
+        isLoading = false;
+        console.error("Error loading sales:", err);
+      });
+  }
+
+  // 🔹 Initial Load
+  fetchSales(true);
+
+  // 🔹 Infinite Scroll
+  scrollBox.addEventListener("scroll", () => {
+    if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 && nextPage && !isLoading) {
+      page++;
+      fetchSales();
+    }
+  });
+
+  // 🔹 Apply Filter
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const start = startInput.value;
+    let end = endInput.value;
+    if (start && !end) {
+      const today = new Date().toISOString().split("T")[0];
+      endInput.value = today;
+      end = today;
+    }
+
+    filters = { start, end };
+    page = 1;
+    nextPage = null;
+
+    // reset totals
+    totalSales = 0;
+    totalPaid = 0;
+    totalProfit = 0;
+    updateTotals();
+
+    fetchSales(true);
+  });
+
+  // 🔹 Reset Filter
+  resetBtn.addEventListener("click", () => {
+    startInput.value = "";
+    endInput.value = "";
+    filters = { start: "", end: "" };
+    page = 1;
+    nextPage = null;
+    totalSales = 0;
+    totalPaid = 0;
+    totalProfit = 0;
+    updateTotals();
+    fetchSales(true);
+  });
+});
+</script>
+{% endblock %}
+

@@ -239,15 +239,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
     def get_gst_amount(self, obj):
         return obj.gst_amount()
 
-
 class OrderSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     order_items = OrderItemSerializer(source="items", many=True, read_only=True)
-    subtotal = serializers.SerializerMethodField()
-    discount_value = serializers.SerializerMethodField()
-    final_amount = serializers.SerializerMethodField()
-    order_date = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
-
+    order_date = serializers.DateTimeField(format="%Y-%m-%d", read_only=True)
     class Meta:
         model = Order
         fields = [
@@ -255,28 +250,59 @@ class OrderSerializer(serializers.ModelSerializer):
             "customer",
             "customer_name",
             "order_date",
-            "total_amount",
+            "subtotal",
+            "total_item_discount",
             "order_discount",
             "is_percentage",
+            "total_discount",
+            "total_gst",
+            "total_amount",
             "pay_type",
             "is_paid",
             "pod_number",
             "paid_amount",
             "note",
             "order_items",
-            "subtotal",
-            "discount_value",
-            "final_amount",
         ]
 
-    def get_subtotal(self, obj):
-        return obj.subtotal
+# class OrderSerializer(serializers.ModelSerializer):
+#     customer_name = serializers.CharField(source="customer.name", read_only=True)
+#     order_items = OrderItemSerializer(source="items", many=True, read_only=True)
+#     subtotal = serializers.SerializerMethodField()
+#     discount_value = serializers.SerializerMethodField()
+#     final_amount = serializers.SerializerMethodField()
+#     order_date = serializers.DateTimeField(format="%Y-%m-%d", read_only=True)
 
-    def get_discount_value(self, obj):
-        subtotal = sum([(item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0)
-                    for item in obj.items.all()])
-        return subtotal - obj.total_amount
+#     class Meta:
+#         model = Order
+#         fields = [
+#             "id",
+#             "customer",
+#             "customer_name",
+#             "order_date",
+#             "total_amount",
+#             "order_discount",
+#             "is_percentage",
+#             "pay_type",
+#             "is_paid",
+#             "pod_number",
+#             "paid_amount",
+#             "note",
+#             "order_items",
+#             "subtotal",
+#             "discount_value",
+#             "final_amount",
+#             "total_gst",
+#         ]
 
-    def get_final_amount(self, obj):
-        return obj.total_amount
+#     def get_subtotal(self, obj):
+#         return obj.subtotal
+
+#     def get_discount_value(self, obj):
+#         subtotal = sum([(item.price_at_sale * item.quantity) - getattr(item, "item_discount", 0)
+#                     for item in obj.items.all()])
+#         return subtotal - obj.total_amount
+
+#     def get_final_amount(self, obj):
+#         return obj.total_amount
     
