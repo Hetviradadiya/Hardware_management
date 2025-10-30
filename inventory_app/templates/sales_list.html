@@ -3,6 +3,11 @@
 {% block title %}Sales Report{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search categories...">
+  </div>
+</div>
 <div class="card">
 
   <!-- 🔹 Date Filter Card -->
@@ -68,44 +73,40 @@
 
 {% block page_js %}
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const tbody = document.getElementById("sales-table-body");
-  const loader = document.getElementById("sales-loader-row");
-  const scrollBox = document.getElementById("sales-scroll");
-  const startInput = document.getElementById("startDate");
-  const endInput = document.getElementById("endDate");
-  const resetBtn = document.getElementById("resetFilterBtn");
-  const form = document.getElementById("filterForm");
-
-  // Totals
-  const totalSalesEl = document.getElementById("total-sales");
-  const totalPaidEl = document.getElementById("total-paid");
-  const totalProfitEl = document.getElementById("total-profit");
-
   let page = 1;
   let nextPage = null;
   let isLoading = false;
   let filters = { start: "", end: "" };
+  let searchQuery = "";
 
   let totalSales = 0;
   let totalPaid = 0;
   let totalProfit = 0;
 
+  let tbody, loader, scrollBox, searchBox, startInput, endInput, resetBtn;
+  let totalSalesEl, totalPaidEl, totalProfitEl;
+
+  // 🔹 Update Totals
   function updateTotals() {
     totalSalesEl.textContent = totalSales.toFixed(2);
     totalPaidEl.textContent = totalPaid.toFixed(2);
     totalProfitEl.textContent = totalProfit.toFixed(2);
   }
 
+  // 🔹 Build API URL
   function buildURL(page = 1) {
     let url = `/admin_api/sales/?page=${page}`;
     if (filters.start && filters.end) {
       url += `&start_date=${filters.start}&end_date=${filters.end}`;
     }
+    if (searchQuery) {
+      url += `&search=${encodeURIComponent(searchQuery)}`;
+    }
     return url;
   }
 
-  function fetchSales(initialLoad = false) {
+  // 🔹 Fetch Sales Data
+  function fetchSales(initial = false) {
     if (isLoading) return;
     isLoading = true;
     loader.style.display = "";
@@ -117,11 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
         isLoading = false;
         nextPage = data.next;
 
-        const results = data.results || data;  // support both paginated & non-paginated
-        if (initialLoad) tbody.innerHTML = "";
+        const results = data.results || data;
+        if (initial) {
+          tbody.innerHTML = "";
+          totalSales = totalPaid = totalProfit = 0;
+        }
 
-        if (results.length === 0 && initialLoad) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No sales records found.</td></tr>`;
+        if (!results.length && initial) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No sales found.</td></tr>`;
+          updateTotals();
           return;
         }
 
@@ -139,8 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <td>${sale.total_amount || "0.00"}</td>
               <td>${sale.paid_amount || "0.00"}</td>
               <td>${sale.profit || "0.00"}</td>
-            </tr>
-          `;
+            </tr>`;
           tbody.insertAdjacentHTML("beforeend", row);
         });
 
@@ -153,57 +157,73 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // 🔹 Initial Load
-  fetchSales(true);
+  // 🔹 Initialize DOM
+  document.addEventListener("DOMContentLoaded", () => {
+    tbody = document.getElementById("sales-table-body");
+    loader = document.getElementById("sales-loader-row");
+    scrollBox = document.getElementById("sales-scroll");
+    searchBox = document.getElementById("searchBox");
+    startInput = document.getElementById("startDate");
+    endInput = document.getElementById("endDate");
+    resetBtn = document.getElementById("resetFilterBtn");
 
-  // 🔹 Infinite Scroll
-  scrollBox.addEventListener("scroll", () => {
-    if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 && nextPage && !isLoading) {
-      page++;
-      fetchSales();
-    }
-  });
+    totalSalesEl = document.getElementById("total-sales");
+    totalPaidEl = document.getElementById("total-paid");
+    totalProfitEl = document.getElementById("total-profit");
 
-  // 🔹 Apply Filter
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    const start = startInput.value;
-    let end = endInput.value;
-    if (start && !end) {
-      const today = new Date().toISOString().split("T")[0];
-      endInput.value = today;
-      end = today;
-    }
-
-    filters = { start, end };
-    page = 1;
-    nextPage = null;
-
-    // reset totals
-    totalSales = 0;
-    totalPaid = 0;
-    totalProfit = 0;
-    updateTotals();
-
+    // 🔹 Initial Load
     fetchSales(true);
+
+    // 🔹 Infinite Scroll
+    scrollBox.addEventListener("scroll", () => {
+      if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 && nextPage && !isLoading) {
+        page++;
+        fetchSales();
+      }
+    });
+
+    // 🔹 Search
+    let searchTimeout = null;
+    searchBox.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = searchBox.value.trim();
+        page = 1;
+        nextPage = null;
+        fetchSales(true);
+      }, 400);
+    });
+
+    // 🔹 Date Filter
+    document.getElementById("filterForm").addEventListener("submit", e => {
+      e.preventDefault();
+      start = startInput.value;
+      end = endInput.value;
+      if (start && !end) {
+        const today = new Date().toISOString().split("T")[0];
+        endInput.value = today;
+        end = today;
+      }
+      filters = { start, end };
+      page = 1;
+      nextPage = null;
+      fetchSales(true);
+    });
+
+    // 🔹 Reset Filter
+    resetBtn.addEventListener("click", () => {
+      startInput.value = "";
+      endInput.value = "";
+      filters = { start: "", end: "" };
+      searchBox.value = "";
+      searchQuery = "";
+      page = 1;
+      nextPage = null;
+      fetchSales(true);
+    });
   });
 
-  // 🔹 Reset Filter
-  resetBtn.addEventListener("click", () => {
-    startInput.value = "";
-    endInput.value = "";
-    filters = { start: "", end: "" };
-    page = 1;
-    nextPage = null;
-    totalSales = 0;
-    totalPaid = 0;
-    totalProfit = 0;
-    updateTotals();
-    fetchSales(true);
-  });
-});
-
-// Auto-open date picker
+  // Auto-open date picker
   [document.getElementById("startDate"), document.getElementById("endDate")].forEach(input => {
     input.addEventListener("focus", () => {
       if (input.showPicker) input.showPicker();

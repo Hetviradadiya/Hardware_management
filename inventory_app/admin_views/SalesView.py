@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from inventory_app.models import Sale
 from django.utils.dateparse import parse_date
 from inventory_app.pagination import ListPagination
-
+from django.db.models import Q
 
 class SalesListAPI(APIView):
     pagination_class = ListPagination
@@ -11,6 +11,7 @@ class SalesListAPI(APIView):
     def get(self, request):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
+        search = request.GET.get('search', '').strip()
 
         sales = Sale.objects.select_related('order', 'order__customer').order_by('-sale_date')
 
@@ -20,6 +21,13 @@ class SalesListAPI(APIView):
             end = parse_date(end_date)
             if start and end:
                 sales = sales.filter(sale_date__date__range=(start, end))
+                
+        if search:
+            sales = sales.filter(
+                Q(order__id__icontains=search) |
+                Q(order__customer__name__icontains=search) |
+                Q(order__pay_type__icontains=search)
+            )
 
         paginator = self.pagination_class()
         paginated_sales = paginator.paginate_queryset(sales, request, view=self)

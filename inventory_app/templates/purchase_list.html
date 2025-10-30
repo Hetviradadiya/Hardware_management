@@ -4,10 +4,6 @@
 
 {% block content %}
 <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-  {% comment %} <button type="button" class="btn btn-outline-success" id="exportPurchaseExcelBtn" disabled>
-    <i class="bx bx-file"></i> Export
-  </button> {% endcomment %}
-  <!-- Search box -->
   <div class="flex-grow-1">
     <input type="text" id="searchBox" class="form-control" placeholder="Search purchases...">
   </div>
@@ -17,7 +13,7 @@
 </div>
 
 <div class="card">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="purchases-scroll">
     <table class="table table-hover">
       <thead>
         <tr>
@@ -35,7 +31,7 @@
       </thead>
       <tbody id="purchases-table-body">
         <tr id="purchases-loader-row">
-          <td colspan="9" class="text-center py-5">
+          <td colspan="10" class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
               <span class="visually-hidden">Loading...</span>
             </div>
@@ -96,96 +92,120 @@ function getCookie(name) {
   return cookieValue;
 }
 
-function loadPurchases(search = "") {
+document.addEventListener("DOMContentLoaded", () => {
   const tbody = document.getElementById("purchases-table-body");
+  const loader = document.getElementById("purchases-loader-row");
+  const scrollBox = document.getElementById("purchases-scroll");
+  const searchBox = document.getElementById("searchBox");
 
-  tbody.innerHTML = "";
+  let page = 1;
+  let nextPage = null;
+  let isLoading = false;
+  let totalRecords = 0;
+  let currentSearch = "";
 
-  let url = "/admin_api/purchases/";
-  if (search) {
-    url += `?search=${encodeURIComponent(search)}`;
-  }
+  function fetchPurchases(initialLoad = false) {
+    if (isLoading) return;
+    isLoading = true;
+    loader.style.display = "";
 
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      tbody.innerHTML = "";
+    let url = `/admin_api/purchases/?page=${page}`;
+    if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
 
-      // handle pagination (if enabled in DRF)
-      const results = data.results || data;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const results = data.results || data;
+        loader.style.display = "none";
+        isLoading = false;
+        nextPage = data.next;
 
-      results.forEach(p => {
-        const row = `
-          <tr>
-            <td><a href="/purchase/detail/${p.id}/">${p.product_name || ""}</a></td>
-            <td>${p.quantity}</td>
-            <td>${p.purchase_price}</td>
-            <td>${p.discount || 0}</td>
-            <td>${p.discount_price || 0}</td>
-            <td>${p.gst || 0}</td>
-            <td>${p.total_price}</td>
-            <td><a href="/supplier/detail/${p.supplier}/">${p.supplier_name || ""}</a></td>
-            <td>${p.date}</td>
-            <td>
-              <div class="dropdown">
-                <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
-                  <i class="bx bx-dots-vertical-rounded"></i>
-                </button>
-                <div class="dropdown-menu">
-                  <a class="dropdown-item text-info" href="/purchase/edit/${p.id}/">
-                    <i class="bx bx-edit-alt me-1"></i> Edit
-                  </a>
-                  <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="delete_purchase(${p.id})">
-                    <i class="bx bx-trash me-1"></i> Delete
-                  </a>
+        if (initialLoad) {
+          tbody.innerHTML = "";
+          totalRecords = 0;
+        }
+
+        results.forEach(p => {
+          totalRecords++;
+          const row = `
+            <tr>
+              <td><a href="/purchase/detail/${p.id}/">${p.product_name || ""}</a></td>
+              <td>${p.quantity}</td>
+              <td>${p.purchase_price}</td>
+              <td>${p.discount || 0}</td>
+              <td>${p.discount_price || 0}</td>
+              <td>${p.gst || 0}</td>
+              <td>${p.total_price}</td>
+              <td><a href="/supplier/detail/${p.supplier}/">${p.supplier_name || ""}</a></td>
+              <td>${p.date}</td>
+              <td>
+                <div class="dropdown">
+                  <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                    <i class="bx bx-dots-vertical-rounded"></i>
+                  </button>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item text-info" href="/purchase/edit/${p.id}/">
+                      <i class="bx bx-edit-alt me-1"></i> Edit
+                    </a>
+                    <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="delete_purchase(${p.id})">
+                      <i class="bx bx-trash me-1"></i> Delete
+                    </a>
+                  </div>
                 </div>
-              </div>
+              </td>
+            </tr>
+          `;
+          tbody.insertAdjacentHTML("beforeend", row);
+        });
+
+        // ✅ Total Row
+        const totalRow = document.getElementById("purchases-total-row");
+        if (totalRow) totalRow.remove();
+        const row = `
+          <tr id="purchases-total-row">
+            <td colspan="10" class="text-end fw-bold text-primary">
+              Total Records: ${totalRecords}
             </td>
           </tr>
         `;
         tbody.insertAdjacentHTML("beforeend", row);
+      })
+      .catch(err => {
+        loader.style.display = "none";
+        isLoading = false;
+        console.error("Error loading purchases:", err);
       });
-
-      const totalRow = `
-        <tr>
-          <td colspan="10" class="text-end fw-bold text-primary">
-            Total Records: ${results.length}
-          </td>
-        </tr>
-      `;
-      tbody.insertAdjacentHTML("beforeend", totalRow);
-    })
-    .catch(err => {
-      console.error("Error loading purchases:", err);
-    });
-}
-
-
-// 🔎 Search handler
-document.addEventListener("DOMContentLoaded", () => {
-  const searchBox = document.getElementById("searchBox");
-
-  function triggerSearch() {
-    loadPurchases(searchBox.value.trim());
   }
 
-  // Debounce for typing
+  // 🔹 Search with debounce
   let searchTimeout = null;
   searchBox.addEventListener("input", () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(triggerSearch, 400);
+    searchTimeout = setTimeout(() => {
+      currentSearch = searchBox.value.trim();
+      page = 1;
+      nextPage = null;
+      fetchPurchases(true);
+    }, 400);
   });
 
-  // Press Enter to search immediately
-  searchBox.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") triggerSearch();
+  // 🔹 Infinite scroll
+  scrollBox.addEventListener("scroll", () => {
+    if (
+      scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 &&
+      nextPage &&
+      !isLoading
+    ) {
+      page++;
+      fetchPurchases();
+    }
   });
 
-  // Initial load
-  loadPurchases();
+  // 🔹 Initial load
+  fetchPurchases(true);
 });
 
-
+// 🔹 Delete Confirm Button
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deletePurchaseId) return;
 

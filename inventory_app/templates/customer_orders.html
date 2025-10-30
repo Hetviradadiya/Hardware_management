@@ -4,13 +4,8 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-  <h4 class="fw-bold mb-2 mb-md-0">
-    Bill
-  </h4>
+  <h4 class="fw-bold mb-2 mb-md-0">Bill</h4>
   <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-    {% comment %} <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
-      <i class="bx bx-file"></i> Export
-    </button>  {% endcomment %}
     <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
       <i class="bx bxs-file-pdf"></i> Export PDF
     </button>
@@ -46,7 +41,7 @@
 
 <!-- Orders Table -->
 <div class="card shadow-sm">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="orders-scroll">
     <table class="table table-hover align-middle mb-0" id="ordersTable">
       <thead class="table-light">
         <tr>
@@ -60,8 +55,12 @@
         </tr>
       </thead>
       <tbody id="ordersBody">
-        <tr>
-          <td colspan="6" class="text-center text-muted py-4">Loading...</td>
+        <tr id="orders-loader-row">
+          <td colspan="7" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -69,82 +68,111 @@
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  const customerId = "{{pk}}";
-  const ordersUrl = `/admin_api/orders/${customerId}/`;
+const customerId = "{{ pk }}";
+const ordersUrl = `/admin_api/orders/${customerId}/`;
+const tbody = document.getElementById("ordersBody");
 
-  const tbody = document.getElementById("ordersBody");
-  const filterForm = document.getElementById("filterForm");
+let page = 1;
+let nextPage = null;
+let isLoading = false;
+let startDate = "";
+let endDate = "";
 
-  function fetchOrders(startDate = "", endDate = "") {
-    let url = ordersUrl;
-    if (startDate && endDate) {
-      url += `?start_date=${startDate}&end_date=${endDate}`;
-    }
+function fetchOrders(initialLoad = false) {
+  if (isLoading) return;
+  isLoading = true;
 
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        tbody.innerHTML = "";
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(order => {
-            let finalAmount = order.is_percentage
-              ? (order.total_amount - (order.total_amount * order.order_discount / 100)).toFixed(2)
-              : (order.total_amount - order.order_discount).toFixed(2);
+  const loader = document.getElementById("orders-loader-row");
+  if (loader) loader.style.display = "";
 
-            let row = `
-              <tr>
-                <td>${order.id}</td>
-                <td>${new Date(order.order_date).toLocaleString()}</td>
-                <td>₹ ${order.total_amount}</td>
-                <td>${order.is_percentage ? order.order_discount + "%" : "₹ " + order.order_discount}</td>
-                <td>₹ ${finalAmount}</td>
-                <td>₹ ${order.paid_amount}</td>
-                <td>
-                  <a href="customer-order-detail/${order.id}/" class="btn btn-sm btn-primary">
-                    <i class="bx bx-show"></i> View
-                  </a>
-                </td>
-              </tr>
-            `;
-            tbody.insertAdjacentHTML("beforeend", row);
-          });
-        } else {
-          tbody.innerHTML = `
+  let url = `${ordersUrl}?page=${page}`;
+  if (startDate && endDate) url += `&start_date=${startDate}&end_date=${endDate}`;
+
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      const results = data.results || data;
+      nextPage = data.next;
+
+      if (initialLoad) tbody.innerHTML = "";
+      if (loader) loader.style.display = "none";
+
+      if (Array.isArray(results) && results.length > 0) {
+        results.forEach(order => {
+          let finalAmount = order.is_percentage
+            ? (order.total_amount - (order.total_amount * order.order_discount / 100)).toFixed(2)
+            : (order.total_amount - order.order_discount).toFixed(2);
+
+          let row = `
             <tr>
-              <td colspan="6" class="text-center text-muted py-4">No orders found.</td>
+              <td>${order.id}</td>
+              <td>${new Date(order.order_date).toLocaleString()}</td>
+              <td>₹ ${order.total_amount}</td>
+              <td>${order.is_percentage ? order.order_discount + "%" : "₹ " + order.order_discount}</td>
+              <td>₹ ${finalAmount}</td>
+              <td>₹ ${order.paid_amount}</td>
+              <td>
+                <a href="customer-order-detail/${order.id}/" class="btn btn-sm btn-primary">
+                  <i class="bx bx-show"></i> View
+                </a>
+              </td>
             </tr>`;
-        }
-      })
-      .catch(error => console.error("Error fetching orders:", error));
-  }
+          tbody.insertAdjacentHTML("beforeend", row);
+        });
+      } else if (initialLoad) {
+        tbody.innerHTML = `
+          <tr><td colspan="7" class="text-center text-muted py-4">No orders found.</td></tr>`;
+      }
 
-  // Initial fetch
-  fetchOrders();
+      isLoading = false;
+    })
+    .catch(error => {
+      console.error("Error fetching orders:", error);
+      isLoading = false;
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const filterForm = document.getElementById("filterForm");
+  const scrollBox = document.getElementById("orders-scroll");
+
+  // 🔹 Initial Load
+  fetchOrders(true);
+
+  // 🔹 Infinite Scroll
+  scrollBox.addEventListener("scroll", () => {
+    if (
+      scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 &&
+      nextPage && !isLoading
+    ) {
+      page++;
+      fetchOrders();
+    }
+  });
 
   // Apply filter
   filterForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    const startDateInput = document.getElementById("startDate");
-    const endDateInput = document.getElementById("endDate");
-
-    let startDate = startDateInput.value;
-    let endDate = endDateInput.value;
-
-    // 🔹 If only start date selected, set end date = today
+    startDate = document.getElementById("startDate").value;
+    endDate = document.getElementById("endDate").value;
     if (startDate && !endDate) {
-      const today = new Date().toISOString().split("T")[0]; // format YYYY-MM-DD
-      endDateInput.value = today;
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("endDate").value = today;
       endDate = today;
     }
-    fetchOrders(startDate, endDate);
+    page = 1;
+    nextPage = null;
+    fetchOrders(true);
   });
 
   // Reset filter
   document.getElementById("resetFilterBtn").addEventListener("click", function () {
     document.getElementById("startDate").value = "";
     document.getElementById("endDate").value = "";
-    fetchOrders(); // fetch all orders
+    startDate = endDate = "";
+    page = 1;
+    nextPage = null;
+    fetchOrders(true);
   });
 
   // Auto-open date picker
@@ -156,19 +184,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Export PDF
   document.getElementById("exportPdfBtn").addEventListener("click", function () {
-    const startDate = document.getElementById("startDate").value;
-    const endDate = document.getElementById("endDate").value;
+    const s = document.getElementById("startDate").value;
+    const e = document.getElementById("endDate").value;
     let url = `/admin_api/customer-orders/${customerId}/export_pdf/`;
-    if (startDate && endDate) url += `?start_date=${startDate}&end_date=${endDate}`;
-    window.location.href = url;
-  });
-
-  // Export Excel (example, you can adjust URL)
-  document.getElementById("exportExcelBtn").addEventListener("click", function () {
-    const startDate = document.getElementById("startDate").value;
-    const endDate = document.getElementById("endDate").value;
-    let url = `/admin_api/customer-orders/${customerId}/export_excel/`;
-    if (startDate && endDate) url += `?start_date=${startDate}&end_date=${endDate}`;
+    if (s && e) url += `?start_date=${s}&end_date=${e}`;
     window.location.href = url;
   });
 });

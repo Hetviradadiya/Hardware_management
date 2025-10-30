@@ -6,11 +6,13 @@ from rest_framework import generics,viewsets,permissions,filters
 from ..models import *
 from rest_framework.decorators import action
 from rest_framework import status
+from inventory_app.pagination import ListPagination 
 
 class CustomerView(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = ListPagination
     queryset=Customer.objects.all().order_by('-id')
     serializer_class=CustomerSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'name','email','phone','address'      

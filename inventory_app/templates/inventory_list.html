@@ -4,8 +4,14 @@
 
 {% block content %}
 
+<div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+  <div class="flex-grow-1">
+    <input type="text" id="searchBox" class="form-control" placeholder="Search categories...">
+  </div>
+</div>
+
 <div class="card">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="inventory-scroll">
     <table class="table table-hover">
       <thead>
         <tr>
@@ -29,6 +35,11 @@
 
 <script>
 let deleteInventoryId = null;
+  let page = 1;
+  let nextPage = null;
+  let isLoading = false;
+  let totalRecords = 0;
+  let currentSearch = "";
 
 function delete_inventory(id) {
   deleteInventoryId = id;
@@ -51,41 +62,91 @@ function getCookie(name) {
   return cookieValue;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const tbody = document.getElementById("inventory-table-body");
-  const loader = document.getElementById("inventory-loader-row");
+function fetchInventory(initialLoad = false) {
+    const tbody = document.getElementById("inventory-table-body");
+    const loader = document.getElementById("inventory-loader-row");
 
-  fetch("/admin_api/inventories/")
-    .then(res => res.json())
-    .then(data => {
-      loader.style.display = "none";
-      tbody.innerHTML = "";
+    if (!tbody) return;
+    if (isLoading) return;
+    isLoading = true;
+    if (loader) loader.style.display = "";
 
-      data.forEach(inv => {
+    let url = `/admin_api/inventories/?page=${page}`;
+    if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const results = data.results || data;
+        if (loader) loader.style.display = "none";
+        isLoading = false;
+        nextPage = data.next;
+
+        if (initialLoad) {
+          tbody.innerHTML = "";
+          totalRecords = 0;
+        }
+
+        results.forEach(inv => {
+          totalRecords++;
+          const row = `
+            <tr>
+              <td>${inv.variant_name || ""}</td>
+              <td>${inv.size || ""}</td>
+              <td>${inv.quantity}</td>
+            </tr>
+          `;
+          tbody.insertAdjacentHTML("beforeend", row);
+        });
+
+        // Update total row
+        const totalRow = document.getElementById("inventory-total-row");
+        if (totalRow) totalRow.remove();
         const row = `
-          <tr>
-            <td>${inv.variant_name || ""}</td>
-            <td>${inv.size || ""}</td>
-            <td>${inv.quantity}</td>
+          <tr id="inventory-total-row">
+            <td colspan="3" class="text-end fw-bold text-primary">
+              Total Records: ${totalRecords}
+            </td>
           </tr>
         `;
         tbody.insertAdjacentHTML("beforeend", row);
+      })
+      .catch(err => {
+        loader.style.display = "none";
+        isLoading = false;
+        console.error("Error loading inventory:", err);
       });
+  }
 
-      const totalRow = `
-        <tr>
-          <td colspan="3" class="text-end fw-bold text-primary">
-            Total Records: ${data.length}
-          </td>
-        </tr>
-      `;
-      tbody.insertAdjacentHTML("beforeend", totalRow);
-    })
-    .catch(err => {
-      loader.style.display = "none";
-      console.error("Error loading inventory:", err);
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  const scrollBox = document.getElementById("inventory-scroll");
+  const searchBox = document.getElementById("searchBox");
+
+  let searchTimeout = null;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentSearch = searchBox.value.trim();
+      page = 1;
+      nextPage = null;
+      fetchInventory(true);
+    }, 400);
+  });
+
+  // 🔹 Infinite Scroll (auto load more when reaching bottom)
+  scrollBox.addEventListener("scroll", () => {
+    if (
+      scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 &&
+      nextPage &&
+      !isLoading
+    ) {
+      page++;
+      fetchInventory();
+    }
+  });
+
+  // 🔹 Initial Load
+  fetchInventory(true);
 });
-
 </script>
 {% endblock %}

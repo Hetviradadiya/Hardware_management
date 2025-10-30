@@ -7,6 +7,7 @@ from datetime import datetime
 from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from inventory_app.pagination import ListPagination
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -26,8 +27,10 @@ def customer_orders(request, pk):
         except Exception as e:
             print("Invalid date filter:", e)
 
-    serializer = OrderSerializer(orders, many=True)
-    return Response(serializer.data)
+    paginator = ListPagination()
+    result_page = paginator.paginate_queryset(orders, request)
+    serializer = OrderSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)
     
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
