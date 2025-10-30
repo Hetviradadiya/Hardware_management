@@ -164,7 +164,7 @@ class ForgotPasswordView(TemplateView):
                 'user': user,
                 'reset_link': reset_link,
                 'now': timezone.now(),
-                'site_name': 'Dharmi Realty',
+                'site_name': 'RADHE TOOLS AND HARDWARE',
             })
 
             msg = EmailMultiAlternatives(subject, "", from_email, to_email)
