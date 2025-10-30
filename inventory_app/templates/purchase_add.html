@@ -152,9 +152,10 @@ function loadDropdowns() {
     fetch("/admin_api/suppliers/")
       .then(r => r.json())
       .then(data => {
+        const results = data.results || data;
         let supplierSelect = document.getElementById("supplier");
         supplierSelect.innerHTML = `<option value="">-- Select Supplier --</option>`;
-        data.forEach(s => {
+        results.forEach(s => {
           supplierSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
         });
       }),
@@ -162,7 +163,8 @@ function loadDropdowns() {
     fetch("/admin_api/product-variants/")
       .then(r => r.json())
       .then(data => {
-        variantsData = data;
+        const results = data.results || data;
+        variantsData = results;
       }),
   ]);
 }

@@ -153,12 +153,15 @@
           data: params => ({
             search: params.term, 
           }),
-          processResults: data => ({
-            results: data.map(cat => ({
-              id: cat.id,
-              text: cat.name,
-            })),
-          }),
+          processResults: function (data) {
+            const results = data.results || data;
+            return {
+              results: results.map(cat => ({
+                id: cat.id,
+                text: cat.name,
+              })),
+            };
+          },
           cache: true
         }
       });
@@ -181,7 +184,8 @@
       const res = await fetch("/admin_api/categories/");
       const data = await res.json();
       const select = document.getElementById("categorySelect");
-      data.forEach(cat => {
+      const categories = data.results || data;
+      categories.forEach(cat => {
         const opt = document.createElement("option");
         opt.value = cat.id;
         opt.textContent = cat.name;

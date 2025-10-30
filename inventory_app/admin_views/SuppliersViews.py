@@ -7,15 +7,18 @@ from django.http import JsonResponse
 from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from inventory_app.pagination import ListPagination 
 class SupplierView(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    pagination_class = ListPagination
     queryset=Supplier.objects.all().order_by('-id')
     serializer_class=SupplierSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'name','email','phone','address'      
     ]
 
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])    
 def supplier_purchases(request, pk):
     purchases = Purchase.objects.filter(supplier=pk).order_by("-date")
@@ -25,10 +28,13 @@ def supplier_purchases(request, pk):
     end_date = request.GET.get("end_date")
     if start_date and end_date:
         purchases = purchases.filter(date__range=[parse_date(start_date), parse_date(end_date)])
+        
+    paginator = ListPagination()
+    query_params = getattr(request, "query_params", request.GET)
+    result_page = paginator.paginate_queryset(purchases, request)
 
-    data = []
-    for p in purchases:
-        data.append({
+    data = [
+        {
             "id": p.id,
             "date": p.date.strftime("%Y-%m-%d"),
             "variant": str(p.variant),
@@ -37,6 +43,8 @@ def supplier_purchases(request, pk):
             "discount": str(p.discount),
             "gst": str(p.gst),
             "total_price": str(p.total_price),
-        })
+        }
+        for p in result_page
+    ]
 
-    return JsonResponse(data, safe=False)
+    return paginator.get_paginated_response(data)

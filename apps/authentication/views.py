@@ -28,8 +28,8 @@ class AuthView(View):
     template_name = "auth_login_basic.html"
 
     def get(self, request):
-        # if request.user.is_authenticated:
-        #     return redirect("index")
+        if request.user.is_authenticated:
+            return redirect("index")
         
         context = TemplateLayout.init(self, {})
         context.update({

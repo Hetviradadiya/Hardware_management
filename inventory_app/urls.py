@@ -86,4 +86,5 @@ urlpatterns = [
     path("admin_api/hardware-dashboard-data/", DashboardDataAPIView.as_view(), name="hardware-dashboard-data"),
 
     path('admin_api/sales/', SalesListAPI.as_view(), name='sales_list_api'),
+    path("change-password/", ChangePasswordAPIView.as_view(), name="change-password"),
 ]
