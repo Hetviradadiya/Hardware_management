@@ -4,9 +4,11 @@ from ..models import Purchase
 from ..serializers import PurchaseSerializer
 from rest_framework import status
 from rest_framework.response import Response
+from inventory_app.pagination import ListPagination 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = ListPagination
     queryset = Purchase.objects.all().order_by('-date', '-id')
     serializer_class = PurchaseSerializer
     filter_backends = [filters.SearchFilter]

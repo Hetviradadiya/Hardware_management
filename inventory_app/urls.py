@@ -10,7 +10,8 @@ from inventory_app.admin_views.CustomerViews import CustomerView
 from inventory_app.admin_views.inventoryView import InventoryViewSet
 from inventory_app.admin_views.POSViews import CartViewSet, place_order,bill_page
 from inventory_app.admin_views.CustomerOrderView import customer_orders,order_detail_api
-from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf
+from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf, export_supplier_purchases_pdf
+from inventory_app.admin_views.SalesView import SalesListAPI
 
 from rest_framework.routers import DefaultRouter
 
@@ -56,6 +57,8 @@ urlpatterns = [
     path('purchase/detail/<int:id>/', DashboardsView.as_view(template_name="purchase_edit_view.html"), name='purchase-detail'),
 
     path('inventpory-list/', DashboardsView.as_view(template_name="inventory_list.html"), name='inventory-list'),
+    
+    path('sales-list/', DashboardsView.as_view(template_name="sales_list.html"), name='sales-list'),
 
     path('pos/', DashboardsView.as_view(template_name="pos.html"), name='pos'),
     path('cart_view/', DashboardsView.as_view(template_name="cart.html"), name='cart-view'),
@@ -66,6 +69,7 @@ urlpatterns = [
     path("admin_api/customer-orders/<int:pk>/export_pdf/", export_customer_orders_pdf, name="customer_orders_pdf"),
     
     path('supplier-purchases/<int:pk>/', DashboardsView.as_view(template_name="supplier_purchses.html"), name='supplier_purchses'),
+    path("admin_api/supplier-purchases/<int:pk>/export_pdf/", export_supplier_purchases_pdf, name="supplier_purchases_pdf"),
     
     path('place_order/', place_order, name='place_order'),
     path('bill/<int:order_id>/', bill_page, name='bill_page'),
@@ -81,4 +85,6 @@ urlpatterns = [
     path("admin_api/hardware-dashboard-stats/", DashboardStatsAPIView.as_view(), name="hardware-dashboard-stats"),
     path("admin_api/hardware-dashboard-data/", DashboardDataAPIView.as_view(), name="hardware-dashboard-data"),
 
+    path('admin_api/sales/', SalesListAPI.as_view(), name='sales_list_api'),
+    path("change-password/", ChangePasswordAPIView.as_view(), name="change-password"),
 ]

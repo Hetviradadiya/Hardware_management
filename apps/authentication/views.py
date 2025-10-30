@@ -28,8 +28,8 @@ class AuthView(View):
     template_name = "auth_login_basic.html"
 
     def get(self, request):
-        # if request.user.is_authenticated:
-        #     return redirect("index")
+        if request.user.is_authenticated:
+            return redirect("index")
         
         context = TemplateLayout.init(self, {})
         context.update({
@@ -164,7 +164,7 @@ class ForgotPasswordView(TemplateView):
                 'user': user,
                 'reset_link': reset_link,
                 'now': timezone.now(),
-                'site_name': 'Dharmi Realty',
+                'site_name': 'RADHE TOOLS AND HARDWARE',
             })
 
             msg = EmailMultiAlternatives(subject, "", from_email, to_email)

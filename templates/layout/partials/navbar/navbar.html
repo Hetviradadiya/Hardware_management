@@ -225,13 +225,13 @@
           </a>
         </li>
       {% endif %} {% endcomment %}
-      <li class="nav-item dropdown me-3">
+      {% comment %} <li class="nav-item dropdown me-3">
         <a id="favourite-link" class="nav-link dropdown-toggle hide-arrow {% if request.resolver_match.url_name == 'favourite-leads' %}active-notification{% endif %}"
           href="/favourite_leads/" title="Favourites">
           <i class="{% if request.resolver_match.url_name == 'favourite-leads' %}bx bxs-star{% else %}bx bx-star{% endif %}"></i>
           <span class="badge bg-warning rounded-pill" id="favourite-count" style="position: relative; top: -10px; left: -5px;"></span>
         </a>
-      </li>
+      </li> {% endcomment %}
 
       <!-- Notification -->
       {% comment %} <li class="nav-item dropdown me-3">
@@ -240,7 +240,7 @@
           <i class="{% if request.resolver_match.url_name == 'followup_notifications' %}bx bxs-bell{% else %}bx bx-bell {% endif %} "></i>
           <span class="badge bg-danger rounded-pill" id="notification-count" style="position: relative; top: -10px; left: -5px;"></span>
         </a>
-      </li> {% endcomment %}
+      </li>
       
       <!-- Appointments -->
       {% comment %} <li class="nav-item dropdown me-3">

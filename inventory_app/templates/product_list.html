@@ -9,15 +9,13 @@
   <div class="flex-grow-1">
     <input type="text" id="searchBox" class="form-control" placeholder="Search products...">
   </div>
-
   <a href="/product/add/" class="btn btn-primary">
     <i class="bx bx-plus"></i> Add Product
   </a>
 </div>
 
-
 <div class="card">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="product-scroll">
     <table class="table table-hover table-bordered">
       <thead>
         <tr>
@@ -60,6 +58,11 @@
 <script>
 let deleteItemId = null;
 let deleteType = null;
+let isLoading = false;
+let totalRecords = 0;
+let page = 1;
+let nextPage = null;
+let currentSearch = "";
 
 function delete_product(id) {
   deleteItemId = id;
@@ -79,18 +82,34 @@ function getCookie(name) {
   return cookieValue;
 }
 
-function loadProducts(search = "") {
+// 🔹 Load Products (supports pagination)
+function loadProducts(initialLoad = false) {
   const tbody = document.getElementById("products-variants-body");
   const loader = document.getElementById("loader-row");
+  
+  if (!tbody) return; // safety check
+  if (isLoading) return;
+  isLoading = true;
+  if (loader) loader.style.display = "";
 
-  tbody.innerHTML = "";
+  let url = `/admin_api/products/?include_variants=true&?page=${page}`;
+  if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
 
-  fetch(`/admin_api/products/?include_variants=true&search=${encodeURIComponent(search)}`)
+  fetch(url)
     .then(res => res.json())
-    .then(products => {
-      tbody.innerHTML = "";
+    .then(data => {
+      const results = data.results || data;
+      if (loader) loader.style.display = "none";
+      isLoading = false;
+      nextPage = data.next;
 
-      products.forEach(prod => {
+      if (initialLoad) {
+        tbody.innerHTML = "";
+        totalRecords = 0;
+      }
+
+      results.forEach(prod => {
+        totalRecords++;
         const variants = prod.variants || [];
         if (variants.length === 0) {
           tbody.insertAdjacentHTML("beforeend", `
@@ -154,34 +173,53 @@ function loadProducts(search = "") {
           });
         }
       });
-    });
+
+      // Show total
+      const totalRow = document.getElementById("products-total-row");
+      if (totalRow) totalRow.remove();
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr id="products-total-row">
+          <td colspan="6" class="text-end fw-bold text-primary">
+            Total Records: ${totalRecords}
+          </td>
+        </tr>
+      `);
+    })
+    .catch(err => console.error("Error loading products:", err))
+    .finally(() => isLoading = false);
 }
 
-// Load all products initially
+// 🔹 Infinite Scroll + Search
 document.addEventListener("DOMContentLoaded", () => {
+  const scrollBox = document.getElementById("product-scroll");
   const searchBox = document.getElementById("searchBox");
 
-  function triggerSearch() {
-    loadProducts(searchBox.value.trim());
-  }
-
-  // Debounce for typing
   let searchTimeout = null;
   searchBox.addEventListener("input", () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(triggerSearch, 400);
+    searchTimeout = setTimeout(() => {
+      currentSearch = searchBox.value.trim();
+      page = 1;
+      nextPage = null;
+      loadProducts(true);
+    }, 400);
   });
-
-  // Press Enter to search immediately
-  searchBox.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") triggerSearch();
+  
+  // Infinite scroll
+  scrollBox.addEventListener("scroll", () => {
+    if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50) {
+      if (nextPage && !isLoading) {
+        page++;
+        loadProducts();
+      }
+    }
   });
 
   // Initial load
-  loadProducts();
+  loadProducts(true);
 });
 
-// Confirm delete
+// 🔹 Confirm delete
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deleteItemId || !deleteType) return;
   const url = `/admin_api/products/${deleteItemId}/`;

@@ -89,9 +89,10 @@ function loadCategories() {
   fetch("/admin_api/categories/")
     .then(res => res.json())
     .then(categories => {
+      const results = categories.results || categories;
       const catList = document.getElementById("categories-list");
       catList.innerHTML = `<div class="category-tab active" data-category="all">All</div>`;
-      categories.forEach(cat => {
+      results.forEach(cat => {
         catList.insertAdjacentHTML("beforeend", `<div class="category-tab" data-category="${cat.id}">${cat.name}</div>`);
       });
     });
@@ -109,12 +110,13 @@ function loadProducts() {
     .then(res => res.json())
     .then(products => {
       grid.innerHTML = "";
-      if (!products.length) {
+      const results = products.results || products;
+      if (!results.length) {
         grid.innerHTML = `<div class="col-12 text-center text-muted py-5">No products found.</div>`;
         return;
       }
 
-      products.forEach(prod => {
+      results.forEach(prod => {
         let variantsHTML = "";
         (prod.variants || []).forEach(v => {
           variantsHTML += `<button class="btn btn-sm btn-primary variant-btn"

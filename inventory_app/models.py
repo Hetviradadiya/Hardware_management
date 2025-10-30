@@ -302,9 +302,11 @@ class OrderItem(models.Model):
         return ((self.price_at_sale * self.quantity - self.discount_price()) * self.gst) / Decimal(100)
 
     def total_price(self):
-        return (self.price_at_sale * self.quantity) - self.discount_price() + self.gst_amount()
+        return (self.price_at_sale * self.quantity)
 
-
+    def final_price(self):
+            return (self.price_at_sale * self.quantity) - self.discount_price() + self.gst_amount()
+        
     def __str__(self):
         return f"{self.variant} x {self.quantity}"
     

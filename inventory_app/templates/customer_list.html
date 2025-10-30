@@ -16,7 +16,7 @@
 </div>
 
 <div class="card">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" id="customer-scroll" style="max-height: 500px; overflow-y: auto;">
     <table class="table table-hover">
       <thead>
         <tr>
@@ -101,21 +101,11 @@
 
 <script>
 let deleteCustomerId = null;
-
-function delete_customer(id) {
-  deleteCustomerId = id;
-  const modal = new bootstrap.Modal(document.getElementById("deleteConfirmModal"));
-  modal.show();
-}
-
-function showToast(title, message, status) {
-  const toast = document.getElementById("alert-box");
-  document.getElementById("toast-title").textContent = title;
-  document.getElementById("toast-body").textContent = message;
-  document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
-  toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
-  new bootstrap.Toast(toast).show();
-}
+let page = 1;
+let nextPage = null;
+let isLoading = false;
+let totalRecords = 0;
+let currentSearch = "";
 
 function getCookie(name) {
   let cookieValue = null;
@@ -132,18 +122,50 @@ function getCookie(name) {
   return cookieValue;
 }
 
-function loadCustomers(search = "") {
+function delete_customer(id) {
+  deleteCustomerId = id;
+  new bootstrap.Modal(document.getElementById("deleteConfirmModal")).show();
+}
+
+document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
+  if (!deleteCustomerId) return;
+  fetch(`/admin_api/customers/${deleteCustomerId}/`, {
+    method: "DELETE",
+    headers: { "X-CSRFToken": getCookie("csrftoken") }
+  }).then(res => {
+    if (res.ok) location.reload();
+    else alert("Failed to delete customer");
+  });
+});
+
+// ✅ Function to load customer data
+function loadCustomers(initialLoad = false) {
   const tbody = document.getElementById("customers-table-body");
   const loader = document.getElementById("customers-loader-row");
 
-  tbody.innerHTML = "";
+  if (!tbody) return; // safety check
+  if (isLoading) return;
+  isLoading = true;
+  if (loader) loader.style.display = "";
 
-  fetch(`/admin_api/customers/?search=${encodeURIComponent(search)}`)
+  let url = `/admin_api/customers/?page=${page}`;
+  if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+
+  fetch(url)
     .then(res => res.json())
     .then(data => {
-      tbody.innerHTML = "";
+      const results = data.results || data;
+      if (loader) loader.style.display = "none";
+      isLoading = false;
+      nextPage = data.next;
 
-      data.forEach(c => {
+      if (initialLoad) {
+        tbody.innerHTML = "";
+        totalRecords = 0;
+      }
+
+      results.forEach(c => {
+        totalRecords++;
         const row = `
           <tr>
             <td><a href="/customer/detail/${c.id}/">${c.name || ""}</a></td>
@@ -173,68 +195,55 @@ function loadCustomers(search = "") {
                 </div>
               </div>
             </td>
-          </tr>
-        `;
+          </tr>`;
         tbody.insertAdjacentHTML("beforeend", row);
       });
 
-      const totalRow = `
-        <tr>
+      // Update total row
+      const totalRow = document.getElementById("customers-total-row");
+      if (totalRow) totalRow.remove();
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr id="customers-total-row">
           <td colspan="7" class="text-end fw-bold text-primary">
-            Total Records: ${data.length}
+            Total Records: ${totalRecords}
           </td>
         </tr>
-      `;
-      tbody.insertAdjacentHTML("beforeend", totalRow);
+      `);
     })
     .catch(err => {
+      loader.style.display = "none";
+      isLoading = false;
       console.error("Error loading customers:", err);
     });
 }
 
-// Initial load
+// ✅ Initialize all when page loads
 document.addEventListener("DOMContentLoaded", () => {
+  const scrollBox = document.getElementById("customer-scroll");
   const searchBox = document.getElementById("searchBox");
 
-  function triggerSearch() {
-    loadCustomers(searchBox.value.trim());
-  }
-
-  // Debounce for typing
   let searchTimeout = null;
   searchBox.addEventListener("input", () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(triggerSearch, 400);
-  });
-
-  // Press Enter to search immediately
-  searchBox.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") triggerSearch();
-  });
-
-  // Initial load
-  loadCustomers();
-});
-
-
-document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
-  if (!deleteCustomerId) return;
-
-  fetch(`/admin_api/customers/${deleteCustomerId}/`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": getCookie("csrftoken")
-    }
-  })
-    .then(res => {
-      if (res.ok) {
-        location.reload();
-      } else {
-        showToast("Error", "Failed to delete customer", "danger");
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        currentSearch = searchBox.value.trim();
+        page = 1;
+        nextPage = null;
+        loadCustomers(true);
+      }, 400);
+    });
+  
+  scrollBox.addEventListener("scroll", () => {
+    if (
+      scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 &&
+      nextPage && !isLoading
+      ) {
+        page++;
+        loadCustomers();
       }
-    })
-    .catch(err => console.error("Delete error:", err));
+    });   
+    
+    loadCustomers(true);
 });
 
 function openPaymentModal(id, name) {
@@ -272,4 +281,6 @@ function submitPayment() {
   });
 }
 </script>
+
+
 {% endblock %}

@@ -51,6 +51,8 @@ class DashboardsView(TemplateView):
             
             "inventory_list.html": ("Inventory", None),
             
+            "sales_list.html": ("Sales", None),
+            
             "pos.html": ("POS", None),
             
             "cart.html": ("POS", reverse("pos"), "Cart-detail"),

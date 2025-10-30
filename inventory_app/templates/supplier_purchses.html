@@ -3,13 +3,8 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-  <h4 class="fw-bold mb-2 mb-md-0">
-    Purchases for Supplier
-  </h4>
+  <h4 class="fw-bold mb-2 mb-md-0">Purchases for Supplier</h4>
   <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
-    {% comment %} <button type="button" class="btn btn-outline-success" id="exportExcelBtn">
-      <i class="bx bx-file"></i> Export
-    </button> {% endcomment %}
     <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
       <i class="bx bxs-file-pdf"></i> Export PDF
     </button>
@@ -45,7 +40,7 @@
 
 <!-- Purchases Table -->
 <div class="card shadow-sm">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="purchases-scroll">
     <table class="table table-hover align-middle mb-0" id="purchasesTable">
       <thead class="table-light">
         <tr>
@@ -60,8 +55,12 @@
         </tr>
       </thead>
       <tbody id="purchasesBody">
-        <tr>
-          <td colspan="8" class="text-center text-muted py-4">Loading...</td>
+        <tr id="purchases-loader-row">
+          <td colspan="8" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -70,23 +69,38 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const supplierId = "{{ pk }}";  // supplier id passed from view
+  const supplierId = "{{ pk }}";
   const purchasesUrl = `/admin_api/supplier-purchases/${supplierId}/`;
-
   const tbody = document.getElementById("purchasesBody");
+  const scrollBox = document.getElementById("purchases-scroll");
 
-  function fetchPurchases(startDate = "", endDate = "") {
-    let url = purchasesUrl;
-    if (startDate && endDate) {
-      url += `?start_date=${startDate}&end_date=${endDate}`;
-    }
+  let page = 1;
+  let nextPage = null;
+  let isLoading = false;
+  let startDate = "";
+  let endDate = "";
+
+  function fetchPurchases(initialLoad = false) {
+    if (isLoading) return;
+    isLoading = true;
+
+    const loader = document.getElementById("purchases-loader-row");
+    if (loader) loader.style.display = "";
+
+    let url = `${purchasesUrl}?page=${page}`;
+    if (startDate && endDate) url += `&start_date=${startDate}&end_date=${endDate}`;
 
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        tbody.innerHTML = "";
-        if (Array.isArray(data) && data.length > 0) {
-          data.forEach(p => {
+        const results = data.results || data;
+        nextPage = data.next;
+
+        if (initialLoad) tbody.innerHTML = "";
+        if (loader) loader.style.display = "none";
+
+        if (Array.isArray(results) && results.length > 0) {
+          results.forEach(p => {
             let row = `
               <tr>
                 <td>${p.id}</td>
@@ -97,61 +111,77 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td>₹ ${p.discount}</td>
                 <td>${p.gst}%</td>
                 <td>₹ ${p.total_price}</td>
-              </tr>
-            `;
+              </tr>`;
             tbody.insertAdjacentHTML("beforeend", row);
           });
-        } else {
+        } else if (initialLoad) {
           tbody.innerHTML = `
-            <tr>
-              <td colspan="8" class="text-center text-muted py-4">No purchases found.</td>
-            </tr>`;
+            <tr><td colspan="8" class="text-center text-muted py-4">No purchases found.</td></tr>`;
         }
+
+        isLoading = false;
+      })
+      .catch(error => {
+        console.error("Error fetching purchases:", error);
+        isLoading = false;
       });
   }
 
-  // Initial fetch
-  fetchPurchases();
+  // 🔹 Initial Fetch
+  fetchPurchases(true);
 
-  // Filter
-  document.getElementById("filterForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const startDateInput = document.getElementById("startDate");
-    const endDateInput = document.getElementById("endDate");
-
-    let startDate = startDateInput.value;
-    let endDate = endDateInput.value;
-
-    // 🔹 If only start date selected, set end date = today
-    if (startDate && !endDate) {
-      const today = new Date().toISOString().split("T")[0]; // format YYYY-MM-DD
-      endDateInput.value = today;
-      endDate = today;
+  // 🔹 Infinite Scroll
+  scrollBox.addEventListener("scroll", () => {
+    if (
+      scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50 &&
+      nextPage && !isLoading
+    ) {
+      page++;
+      fetchPurchases();
     }
-    fetchPurchases(startDate, endDate);
   });
 
-  // Reset filter
+  // 🔹 Apply Filter
+  document.getElementById("filterForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    startDate = document.getElementById("startDate").value;
+    endDate = document.getElementById("endDate").value;
+
+    if (startDate && !endDate) {
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("endDate").value = today;
+      endDate = today;
+    }
+
+    page = 1;
+    nextPage = null;
+    fetchPurchases(true);
+  });
+
+  // 🔹 Reset Filter
   document.getElementById("resetFilterBtn").addEventListener("click", function () {
     document.getElementById("startDate").value = "";
     document.getElementById("endDate").value = "";
-    fetchPurchases();
+    startDate = endDate = "";
+    page = 1;
+    nextPage = null;
+    fetchPurchases(true);
   });
 
-  // Auto-open date picker
+  // 🔹 Auto-open date picker
   [document.getElementById("startDate"), document.getElementById("endDate")].forEach(input => {
     input.addEventListener("focus", () => {
       if (input.showPicker) input.showPicker();
     });
   });
 
-  // Export buttons
+  // 🔹 Export PDF
   document.getElementById("exportPdfBtn").addEventListener("click", function () {
-    window.location.href = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
-  });
-
-  document.getElementById("exportExcelBtn").addEventListener("click", function () {
-    window.location.href = `/admin_api/supplier-purchases/${supplierId}/export_excel/`;
+    const s = document.getElementById("startDate").value;
+    const e = document.getElementById("endDate").value;
+    let url = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
+    if (s && e) url += `?start_date=${s}&end_date=${e}`;
+    window.location.href = url;
   });
 });
 </script>

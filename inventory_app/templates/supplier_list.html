@@ -4,9 +4,6 @@
 
 {% block content %}
 <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-  {% comment %} <button type="button" class="btn btn-outline-success" id="exportSupplierExcelBtn" disabled>
-    <i class="bx bx-file"></i> Export
-  </button> {% endcomment %}
   <div class="flex-grow-1">
     <input type="text" id="searchBox" class="form-control" placeholder="Search suppliers...">
   </div>
@@ -16,7 +13,7 @@
 </div>
 
 <div class="card">
-  <div class="table-responsive text-nowrap">
+  <div class="table-responsive text-nowrap" style="max-height: 70vh; overflow-y: auto;" id="supplier-scroll">
     <table class="table table-hover">
       <thead>
         <tr>
@@ -59,20 +56,16 @@
 
 <script>
 let deleteSupplierId = null;
+let page = 1;
+let nextPage = null;
+let isLoading = false;
+let totalRecords = 0;
+let currentSearch = "";
 
 function delete_supplier(id) {
   deleteSupplierId = id;
   const modal = new bootstrap.Modal(document.getElementById("deleteConfirmModal"));
   modal.show();
-}
-
-function showToast(title, message, status) {
-  const toast = document.getElementById("alert-box");
-  document.getElementById("toast-title").textContent = title;
-  document.getElementById("toast-body").textContent = message;
-  document.getElementById("toast-icon").className = `bx me-2 ${status === "success" ? "bx-check-circle" : "bx-error"}`;
-  toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
-  new bootstrap.Toast(toast).show();
 }
 
 function getCookie(name) {
@@ -90,18 +83,33 @@ function getCookie(name) {
   return cookieValue;
 }
 
-function loadSuppliers(search = "") {
+// 🔹 Load Suppliers (supports pagination)
+function loadSuppliers(initialLoad = false) {
   const tbody = document.getElementById("suppliers-table-body");
   const loader = document.getElementById("suppliers-loader-row");
+  if (!tbody) return; // safety check
+  if (isLoading) return;
+  isLoading = true;
+  if (loader) loader.style.display = "";
 
-  tbody.innerHTML = "";
+  let url = `/admin_api/suppliers/?page=${page}`;
+  if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
 
-  fetch(`/admin_api/suppliers/?search=${encodeURIComponent(search)}`)
+  fetch(url)
     .then(res => res.json())
     .then(data => {
-      tbody.innerHTML = "";
+      const results = data.results || data;
+      if (loader) loader.style.display = "none";
+      isLoading = false;
+      nextPage = data.next;
 
-      data.forEach(s => {
+      if (initialLoad) {
+        tbody.innerHTML = "";
+        totalRecords = 0;
+      }
+
+      results.forEach(s => {
+        totalRecords++;
         const row = `
           <tr>
             <td><a href="/supplier/detail/${s.id}/">${s.name || ""}</a></td>
@@ -131,48 +139,61 @@ function loadSuppliers(search = "") {
         tbody.insertAdjacentHTML("beforeend", row);
       });
 
-      const totalRow = `
-        <tr>
+      // Update total row
+      const totalRow = document.getElementById("suppliers-total-row");
+      if (totalRow) totalRow.remove();
+      tbody.insertAdjacentHTML("beforeend", `
+        <tr id="suppliers-total-row">
           <td colspan="5" class="text-end fw-bold text-primary">
-            Total Records: ${data.length}
+            Total Records: ${totalRecords}
           </td>
         </tr>
-      `;
-      tbody.insertAdjacentHTML("beforeend", totalRow);
+      `);
     })
     .catch(err => {
+      if (loader) loader.style.display = "none";
+      isLoading = false;
       console.error("Error loading suppliers:", err);
+    })
+    .finally(() => {
+      isLoading = false;
     });
 }
 
-// Initial load & search handling
+// 🔹 Infinite Scroll
 document.addEventListener("DOMContentLoaded", () => {
-  const searchBox = document.getElementById("searchBox"); // add this input in HTML
+  const scrollBox = document.getElementById("supplier-scroll");
+  const searchBox = document.getElementById("searchBox");
 
-  function triggerSearch() {
-    loadSuppliers(searchBox.value.trim());
-  }
-
-  // Debounce for typing
+  // Search feature
   let searchTimeout = null;
   searchBox.addEventListener("input", () => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(triggerSearch, 400);
+    searchTimeout = setTimeout(() => {
+      currentSearch = searchBox.value.trim();
+      page = 1;
+      nextPage = null;
+      loadSuppliers(true);
+    }, 400);
   });
 
-  // Press Enter to search immediately
-  searchBox.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") triggerSearch();
+  // Auto scroll pagination
+  scrollBox.addEventListener("scroll", () => {
+    if (scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 50) {
+      if (nextPage && !isLoading) {
+        page++;
+        loadSuppliers();
+      }
+    }
   });
 
   // Initial load
-  loadSuppliers();
+  loadSuppliers(true);
 });
 
-
+// 🔹 Delete Supplier
 document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
   if (!deleteSupplierId) return;
-
   fetch(`/admin_api/suppliers/${deleteSupplierId}/`, {
     method: "DELETE",
     headers: {
@@ -184,7 +205,7 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", () => {
       if (res.ok) {
         location.reload();
       } else {
-        showToast("Error", "Failed to delete supplier", "danger");
+        alert("Failed to delete supplier");
       }
     })
     .catch(err => console.error("Delete error:", err));
