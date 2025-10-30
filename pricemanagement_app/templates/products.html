@@ -77,12 +77,16 @@
       <button class="btn btn-success mt-2 w-100" id="saveProductsBtn">
         💾 Save Products
       </button>
+      <button class="btn btn-secondary mt-2 w-100" id="cancelEditBtn" style="display: none;" onclick="cancelEdit()">
+        ❌ Cancel Edit
+      </button>
     </div>
 
     <script>
       let productCount = 0;
       let priceCount = 0;
       let sizeCount = 0;
+      let editingProductId = null;
 
       function createInput(
         type = "text",
@@ -107,18 +111,10 @@
         );
 
         dealerRow.innerHTML = `
-        <td colspan="17"></td>
+        <td colspan="13"></td>
         <td>${createInput("text")}</td>
         <td>${createInput("text")}</td>
         <td>${createInput("date")}</td>
-        <td>
-          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
-          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
-        </td>
-        <td>
-          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
-          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
-        </td>
         <td>${createInput(
           "number",
           "",
@@ -139,6 +135,14 @@
           "form-control",
           'oninput="updateDealerCalc(this)"'
         )}</td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>
+        <td>
+          <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updateDealerCalc(this)"')}</div>
+          <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
+        </td>    
         <td>
           <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
         </td>
@@ -196,29 +200,6 @@
           <div>${createInput("number", "", "form-control", 'placeholder="%" oninput="updatePriceCalc(this)"')}</div>
           <small class="text-muted">₹${createInput("number", "", "form-control readonly-field", 'readonly tabindex="-1" style="font-size:10px;height:20px;"')}</small>
         </td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-          'oninput="updatePriceCalc(this)"'
-        )}</td>
-        <td>${createInput(
-          "number",
-          "",
-          "form-control",
-        )}</td>
         <td colspan="10">
           <button class="btn btn-sm btn-info" onclick="addDealerRow(this.closest('tr'),${productId},${sizeId},${priceId})">+ Dealer</button>
           <button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">🗑</button>
@@ -281,71 +262,117 @@
       // --- Price Calculations ---
       function updatePriceCalc(element) {
         const row = element.closest("tr");
-        const inputs = row.querySelectorAll("input");
+        const cells = row.querySelectorAll("td");
         
-        // Price calculations
-        const price = parseFloat(inputs[1]?.value || 0);
-        const discountPercent = parseFloat(inputs[2]?.value || 0);
-        const taxPercent = parseFloat(inputs[4]?.value || 0);
+        // Get values from specific cells by position
+        const priceInput = cells[2]?.querySelector("input"); // Price column
+        const discountPercentInput = cells[3]?.querySelector("div input"); // Discount % input
+        const discountPriceInput = cells[3]?.querySelector("small input"); // Discount price display
+        const taxPercentInput = cells[4]?.querySelector("div input"); // Tax % input  
+        const taxPriceInput = cells[4]?.querySelector("small input"); // Tax price display
+        
+        const price = parseFloat(priceInput?.value || 0);
+        const discountPercent = parseFloat(discountPercentInput?.value || 0);
+        const taxPercent = parseFloat(taxPercentInput?.value || 0);
         
         const discountAmount = parseFloat(calc(price, discountPercent));
         const priceAfterDiscount = price - discountAmount;
         const taxAmount = parseFloat(calc(priceAfterDiscount, taxPercent));
         const finalTotal = priceAfterDiscount + taxAmount;
         
-        // Show discount amount in the small field under discount %
-        if (inputs[3]) inputs[3].value = discountAmount.toFixed(2);
-        // Show tax amount in the small field under tax %
-        if (inputs[5]) inputs[5].value = taxAmount.toFixed(2);
+        // Show final price after discount in the small field under discount %
+        if (discountPriceInput) {
+          discountPriceInput.value = priceAfterDiscount.toFixed(2);
+          console.log(`✅ Discount calculation: ${price} - ${discountPercent}% = ₹${priceAfterDiscount.toFixed(2)}`);
+        }
+        // Show final price after tax in the small field under tax %
+        if (taxPriceInput) {
+          taxPriceInput.value = finalTotal.toFixed(2);
+          console.log(`✅ Tax calculation: ₹${priceAfterDiscount.toFixed(2)} + ${taxPercent}% tax = ₹${finalTotal.toFixed(2)}`);
+        }
         
-        console.log(`Price: ${price}, Discount: ${discountPercent}% = ₹${discountAmount}, Final after discount: ₹${priceAfterDiscount.toFixed(2)}, Tax: ₹${taxAmount}, Total: ₹${finalTotal.toFixed(2)}`);
+        console.log(`🔍 Full calculation: Price: ${price}, Discount: ${discountPercent}% (₹${discountAmount}), Final after discount: ₹${priceAfterDiscount.toFixed(2)}, Tax: ${taxPercent}% (₹${taxAmount}), Final total: ₹${finalTotal.toFixed(2)}`);
 
         // Box calculations
-        const boxQty = parseFloat(inputs[6]?.value || 0);
-        const boxDiscountPercent = parseFloat(inputs[7]?.value || 0);
-        const boxTaxPercent = parseFloat(inputs[9]?.value || 0);
+        const boxQtyInput = cells[5]?.querySelector("input"); // Box quantity column
+        const boxDiscountPercentInput = cells[6]?.querySelector("div input"); // Box Discount % input
+        const boxDiscountPriceInput = cells[6]?.querySelector("small input"); // Box discount price display
+        const boxTaxPercentInput = cells[7]?.querySelector("div input"); // Box Tax % input  
+        const boxTaxPriceInput = cells[7]?.querySelector("small input"); // Box tax price display
+        
+        const boxQty = parseFloat(boxQtyInput?.value || 0);
+        const boxDiscountPercent = parseFloat(boxDiscountPercentInput?.value || 0);
+        const boxTaxPercent = parseFloat(boxTaxPercentInput?.value || 0);
         
         if (boxQty > 0) {
           const boxPrice = price * boxQty;
           const boxDiscountAmount = parseFloat(calc(boxPrice, boxDiscountPercent));
           const boxPriceAfterDiscount = boxPrice - boxDiscountAmount;
           const boxTaxAmount = parseFloat(calc(boxPriceAfterDiscount, boxTaxPercent));
+          const boxFinalTotal = boxPriceAfterDiscount + boxTaxAmount;
           
-          if (inputs[8]) inputs[8].value = boxDiscountAmount.toFixed(2);
-          if (inputs[10]) inputs[10].value = boxTaxAmount.toFixed(2);
+          // Show final box price after discount
+          if (boxDiscountPriceInput) boxDiscountPriceInput.value = boxPriceAfterDiscount.toFixed(2);
+          // Show final box price after tax
+          if (boxTaxPriceInput) boxTaxPriceInput.value = boxFinalTotal.toFixed(2);
         }
       }
 
       // --- Dealer Calculations ---
       function updateDealerCalc(element) {
         const row = element.closest("tr");
-        const inputs = row.querySelectorAll("input");
+        const cells = row.querySelectorAll("td");
         
-        // Purchase price calculations
-        const purchasePrice = parseFloat(inputs[3]?.value || 0);
-        const purchaseDiscountPercent = parseFloat(inputs[4]?.value || 0);
-        const purchaseTaxPercent = parseFloat(inputs[6]?.value || 0);
+        // Dealer row structure: colspan="13", then dealer_name, slol, date, price, discount, tax, box, box_discount, box_tax, actions
+        // So actual inputs start at index 1 (after the colspan)
+        const dealerPriceInput = cells[4]?.querySelector("input"); // Dealer Price column (4th cell after colspan)
+        const dealerDiscountPercentInput = cells[5]?.querySelector("div input"); // Dealer Discount % input
+        const dealerDiscountPriceInput = cells[5]?.querySelector("small input"); // Dealer discount price display
+        const dealerTaxPercentInput = cells[6]?.querySelector("div input"); // Dealer Tax % input  
+        const dealerTaxPriceInput = cells[6]?.querySelector("small input"); // Dealer tax price display
+        
+        const purchasePrice = parseFloat(dealerPriceInput?.value || 0);
+        const purchaseDiscountPercent = parseFloat(dealerDiscountPercentInput?.value || 0);
+        const purchaseTaxPercent = parseFloat(dealerTaxPercentInput?.value || 0);
         
         const purchaseDiscountAmount = parseFloat(calc(purchasePrice, purchaseDiscountPercent));
         const purchasePriceAfterDiscount = purchasePrice - purchaseDiscountAmount;
         const purchaseTaxAmount = parseFloat(calc(purchasePriceAfterDiscount, purchaseTaxPercent));
+        const purchaseFinalTotal = purchasePriceAfterDiscount + purchaseTaxAmount;
         
-        if (inputs[5]) inputs[5].value = purchaseDiscountAmount.toFixed(2);
-        if (inputs[7]) inputs[7].value = purchaseTaxAmount.toFixed(2);
+        // Show final price after discount in the small field under discount %
+        if (dealerDiscountPriceInput) {
+          dealerDiscountPriceInput.value = purchasePriceAfterDiscount.toFixed(2);
+          console.log(`✅ Dealer Discount: ${purchasePrice} - ${purchaseDiscountPercent}% = ₹${purchasePriceAfterDiscount.toFixed(2)}`);
+        }
+        // Show final price after tax in the small field under tax %
+        if (dealerTaxPriceInput) {
+          dealerTaxPriceInput.value = purchaseFinalTotal.toFixed(2);
+          console.log(`✅ Dealer Tax: ₹${purchasePriceAfterDiscount.toFixed(2)} + ${purchaseTaxPercent}% tax = ₹${purchaseFinalTotal.toFixed(2)}`);
+        }
 
         // Purchase box calculations
-        const purchaseBoxQty = parseFloat(inputs[8]?.value || 0);
-        const purchaseBoxDiscountPercent = parseFloat(inputs[9]?.value || 0);
-        const purchaseBoxTaxPercent = parseFloat(inputs[11]?.value || 0);
+        const dealerBoxQtyInput = cells[7]?.querySelector("input"); // Dealer Box quantity column
+        const dealerBoxDiscountPercentInput = cells[8]?.querySelector("div input"); // Dealer Box Discount % input
+        const dealerBoxDiscountPriceInput = cells[8]?.querySelector("small input"); // Dealer box discount price display
+        const dealerBoxTaxPercentInput = cells[9]?.querySelector("div input"); // Dealer Box Tax % input  
+        const dealerBoxTaxPriceInput = cells[9]?.querySelector("small input"); // Dealer box tax price display
+        
+        const purchaseBoxQty = parseFloat(dealerBoxQtyInput?.value || 0);
+        const purchaseBoxDiscountPercent = parseFloat(dealerBoxDiscountPercentInput?.value || 0);
+        const purchaseBoxTaxPercent = parseFloat(dealerBoxTaxPercentInput?.value || 0);
         
         if (purchaseBoxQty > 0) {
           const purchaseBoxPrice = purchasePrice * purchaseBoxQty;
           const purchaseBoxDiscountAmount = parseFloat(calc(purchaseBoxPrice, purchaseBoxDiscountPercent));
           const purchaseBoxPriceAfterDiscount = purchaseBoxPrice - purchaseBoxDiscountAmount;
           const purchaseBoxTaxAmount = parseFloat(calc(purchaseBoxPriceAfterDiscount, purchaseBoxTaxPercent));
+          const purchaseBoxFinalTotal = purchaseBoxPriceAfterDiscount + purchaseBoxTaxAmount;
           
-          if (inputs[10]) inputs[10].value = purchaseBoxDiscountAmount.toFixed(2);
-          if (inputs[12]) inputs[12].value = purchaseBoxTaxAmount.toFixed(2);
+          // Show final box price after discount
+          if (dealerBoxDiscountPriceInput) dealerBoxDiscountPriceInput.value = purchaseBoxPriceAfterDiscount.toFixed(2);
+          // Show final box price after tax
+          if (dealerBoxTaxPriceInput) dealerBoxTaxPriceInput.value = purchaseBoxFinalTotal.toFixed(2);
         }
       }
 
@@ -403,6 +430,8 @@
                   box_tax_price: parseFloat(priceInputs[10]?.value || 0),
                   dealers: []
                 };
+                
+                console.log(`💾 Saving price data: Price=${priceData.price}, Discount=${priceData.discount}%, Discount_Price=₹${priceData.discount_price}, Tax=${priceData.tax}%, Tax_Price=₹${priceData.tax_price}`);
 
                 // Get dealer rows for this price
                 const dealerRows = document.querySelectorAll(`.product_${productId}_size_${sizeId}_price_${priceId}_dealer`);
@@ -437,8 +466,36 @@
 
           console.log("✅ Final Data:", JSON.stringify(data, null, 2));
 
-          // --- Send each product separately ---
-          data.forEach(async (productData, index) => {
+          // Check if we're in edit mode
+          if (editingProductId) {
+            // Update mode - send PUT request for single product
+            if (data.length > 0) {
+              const productData = data[0]; // Only update the first product
+              updateProduct(editingProductId, productData);
+            }
+          } else {
+            // Create mode - send POST requests for all products
+            saveAllProducts(data);
+          }
+        });
+
+      // Save all products function with proper async handling
+      async function saveAllProducts(data) {
+        let successCount = 0;
+        let errorCount = 0;
+        const totalProducts = data.length;
+        
+        console.log(`💾 Starting to save ${totalProducts} products...`);
+        
+        // Show loading state
+        const saveBtn = document.getElementById("saveProductsBtn");
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "💾 Saving...";
+        saveBtn.disabled = true;
+        
+        try {
+          // Use Promise.all to wait for all saves to complete
+          const savePromises = data.map(async (productData, index) => {
             try {
               const response = await fetch("/api/product-create/", {
                 method: "POST",
@@ -452,19 +509,185 @@
               const result = await response.json();
               
               if (response.ok) {
-                console.log(`✅ Product ${index + 1} saved:`, result);
+                console.log(`✅ Product ${index + 1} saved successfully:`, result);
+                successCount++;
+                return result;
               } else {
                 console.error(`❌ Error saving product ${index + 1}:`, result);
-                alert(`Error saving product ${index + 1}: ${JSON.stringify(result)}`);
+                errorCount++;
+                throw new Error(`Product ${index + 1}: ${JSON.stringify(result)}`);
               }
             } catch (err) {
               console.error(`❌ Network error for product ${index + 1}:`, err);
-              alert(`Network error saving product ${index + 1}`);
+              errorCount++;
+              throw err;
             }
           });
           
-          alert(`Attempting to save ${data.length} products. Check console for details.`);
+          // Wait for all save operations to complete
+          await Promise.allSettled(savePromises);
+          
+          // Show results and refresh
+          if (successCount > 0) {
+            console.log(`✅ Successfully saved ${successCount} out of ${totalProducts} products!`);
+            
+            // Show brief success indication on button
+            saveBtn.textContent = "✅ Saved!";
+            saveBtn.className = "btn btn-success mt-2 w-100";
+            
+            // Clear the form after a brief delay
+            setTimeout(() => {
+              document.getElementById('productList').innerHTML = '';
+              productCount = 0;
+              sizeCount = 0;
+              priceCount = 0;
+              
+              // Refresh the product display
+              displayProductsWithNestedStructure();
+              
+              console.log(`🔄 Page refreshed to show new products`);
+            }, 1000);
+          }
+          
+          if (errorCount > 0) {
+            console.log(`⚠️ ${errorCount} products failed to save. Check console for details.`);
+          }
+          
+        } catch (err) {
+          console.error('❌ Unexpected error during save operation:', err);
+        } finally {
+          // Restore button state
+          saveBtn.textContent = originalText;
+          saveBtn.disabled = false;
+        }
+      }
+
+      // Update product function
+      async function updateProduct(productId, productData) {
+        console.log(`🔧 Updating product ID: ${productId}`);
+        console.log(`📝 Product data:`, JSON.stringify(productData, null, 2));
+        
+        try {
+          const url = `/api/product-create/${productId}/`;
+          console.log(`📡 Sending PATCH request to: ${url}`);
+          
+          const response = await fetch(url, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify(productData),
+          });
+          
+          console.log(`📡 Response status: ${response.status}`);
+          console.log(`📡 Response headers:`, response.headers);
+          
+          const result = await response.json();
+          console.log(`📋 Response data:`, result);
+          
+          if (response.ok) {
+            console.log(`✅ Product updated successfully!`);
+            
+            // Reset edit mode UI
+            cancelEdit();
+            
+            // Reload the product list
+            window.location.reload();
+          } else {
+            console.error(`❌ Error response status: ${response.status}`);
+            console.error(`❌ Error response body:`, result);
+          }
+        } catch (err) {
+          console.error(`❌ Network error updating product:`, err);
+        }
+      }
+
+      // Cancel edit mode function
+      function cancelEdit() {
+        editingProductId = null;
+        document.getElementById("saveProductsBtn").textContent = "💾 Save Products";
+        document.getElementById("saveProductsBtn").className = "btn btn-success mt-2 w-100";
+        document.getElementById("cancelEditBtn").style.display = "none";
+        document.getElementById('productList').innerHTML = '';
+        productCount = 0;
+        sizeCount = 0;
+        priceCount = 0;
+        console.log("✅ Edit mode cancelled");
+        
+        // Refresh page to show product list
+        displayProductsWithNestedStructure();
+      }
+
+      // Delete product function
+      async function deleteProduct(productId) {
+        console.log(`🗑️ Attempting to delete product ID: ${productId}`);
+        
+        // Get product name for better confirmation message
+        let productName = "this product";
+        try {
+          const productRow = document.querySelector(`button[onclick="deleteProduct(${productId})"]`);
+          if (productRow) {
+            const nameCell = productRow.closest('tr').querySelector('td:nth-child(2)');
+            if (nameCell && nameCell.textContent.trim()) {
+              productName = `"${nameCell.textContent.trim()}"`;
+            }
+          }
+        } catch (e) {
+          // Fallback to generic message if we can't get the name
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${productName}?\n\nThis action cannot be undone and will remove all associated sizes, prices, and dealer information.`)) {
+          console.log("❌ Delete cancelled by user");
+          return;
+        }
+        
+        // Find and disable all delete buttons temporarily
+        const deleteButtons = document.querySelectorAll(`button[onclick="deleteProduct(${productId})"]`);
+        deleteButtons.forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = "🗑 Deleting...";
         });
+        
+        try {
+          const url = `/api/product-create/${productId}/`;
+          console.log(`📡 Sending DELETE request to: ${url}`);
+          
+          const response = await fetch(url, {
+            method: "DELETE",
+            headers: {
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+          });
+          
+          console.log(`📡 Delete response status: ${response.status}`);
+          
+          if (response.ok) {
+            console.log("✅ Product deleted successfully!");
+            
+            // Refresh the product display instead of full page reload
+            displayProductsWithNestedStructure();
+            console.log("🔄 Product list refreshed after deletion");
+          } else {
+            const result = await response.json();
+            console.error(`❌ Error deleting product (${response.status}):`, result);
+            
+            // Restore button state on error
+            deleteButtons.forEach(btn => {
+              btn.disabled = false;
+              btn.textContent = "🗑 Delete";
+            });
+          }
+        } catch (err) {
+          console.error("❌ Network error deleting product:", err);
+          
+          // Restore button state on error
+          deleteButtons.forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = "🗑 Delete";
+          });
+        }
+      }
 
       function getCookie(name) {
         let cookieValue = null;
@@ -559,10 +782,10 @@
                             <td>${dealer?.purchase_box || ""}</td>
                             <td><div>${dealer?.purchase_box_discount || ""}%</div><small class="text-muted">₹${dealer?.purchase_box_discount_price || ""}</small></td>
                             <td><div>${dealer?.purchase_box_tax || ""}%</div><small class="text-muted">₹${dealer?.purchase_box_tax_price || ""}</small></td>
-                            <td>
-                              <button class="btn btn-sm btn-success">✎ Edit</button>
-                              <button class="btn btn-sm btn-danger">🗑 Delete</button>
-                            </td>
+                            ${firstProductRow ? `<td rowspan="${totalRows}">
+                              <button class="btn btn-sm btn-success" onclick="editProduct(${product.id})" title="Edit Product">✎ Edit</button>
+                              <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})" title="Delete Product">🗑 Delete</button>
+                            </td>` : ""}
                           `;
                           tbody.appendChild(tr);
                           firstProductRow = false;
@@ -586,10 +809,10 @@
                           <td><div>${price.box_discount || ""}%</div><small class="text-muted">₹${price.box_discount_price || ""}</small></td>
                           <td><div>${price.box_tax || ""}%</div><small class="text-muted">₹${price.box_tax_price || ""}</small></td>
                           <td colspan="9">No dealers</td>
-                          <td>
-                            <button class="btn btn-sm btn-success">✎ Edit</button>
-                            <button class="btn btn-sm btn-danger">🗑 Delete</button>
-                          </td>
+                          ${firstProductRow ? `<td rowspan="${totalRows}">
+                            <button class="btn btn-sm btn-success" onclick="editProduct(${product.id})" title="Edit Product">✎ Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})" title="Delete Product">🗑 Delete</button>
+                          </td>` : ""}
                         `;
                         tbody.appendChild(tr);
                         firstProductRow = false;
@@ -606,11 +829,11 @@
                       <td>${size.code || ""}</td>
                       <td>${size.hsn || ""}</td>
                       <td>${size.mrp || ""}</td>
-                      <td colspan="18">No prices defined</td>
-                      <td>
-                        <button class="btn btn-sm btn-success">✎ Edit</button>
-                        <button class="btn btn-sm btn-danger">🗑 Delete</button>
-                      </td>
+                      <td colspan="16">No prices defined</td>
+                      ${firstProductRow ? `<td rowspan="${totalRows}">
+                        <button class="btn btn-sm btn-success" onclick="editProduct(${product.id})" title="Edit Product">✎ Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})" title="Delete Product">🗑 Delete</button>
+                      </td>` : ""}
                     `;
                     tbody.appendChild(tr);
                     firstProductRow = false;
@@ -622,11 +845,10 @@
                 tr.innerHTML = `
                   <td>${product.photo ? `<img src="${product.photo}" alt="Photo" width="50">` : ""}</td>
                   <td>${product.name || ""}</td>
-                  <td colspan="4">No sizes defined</td>
-                  <td colspan="18"></td>
+                  <td colspan="20">No sizes defined</td>
                   <td>
-                    <button class="btn btn-sm btn-success">✎ Edit</button>
-                    <button class="btn btn-sm btn-danger">🗑 Delete</button>
+                    <button class="btn btn-sm btn-success" onclick="editProduct(${product.id})" title="Edit Product">✎ Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})" title="Delete Product">🗑 Delete</button>
                   </td>
                 `;
                 tbody.appendChild(tr);
@@ -634,6 +856,178 @@
             });
           })
           .catch((err) => console.error("Error loading products:", err));
+      }
+
+      // --- Edit Product Function ---
+      function editProduct(productId) {
+        console.log(`🔧 Editing product ID: ${productId}`);
+        
+        // Fetch the specific product data
+        fetch(`/api/product-create/`)
+          .then(res => res.json())
+          .then(products => {
+            const product = products.find(p => p.id === productId);
+            if (!product) {
+              console.error('❌ Product not found!');
+              return;
+            }
+            
+            // Clear existing form and populate with product data
+            populateFormWithProductData(product);
+          })
+          .catch(err => {
+            console.error('❌ Error fetching product:', err);
+          });
+      }
+
+      // --- Populate Form with Product Data ---
+      function populateFormWithProductData(product) {
+        // Clear existing form
+        document.getElementById('productList').innerHTML = '';
+        
+        // Reset counters
+        productCount = 0;
+        sizeCount = 0;
+        priceCount = 0;
+        
+        // Store the product ID for updating instead of creating new
+        editingProductId = product.id;
+        
+        // Change UI to indicate edit mode
+        document.getElementById("saveProductsBtn").textContent = "🔄 Update Product";
+        document.getElementById("saveProductsBtn").className = "btn btn-warning mt-2 w-100";
+        document.getElementById("cancelEditBtn").style.display = "block";
+        
+        // Show a message to user that they're in edit mode
+        console.log(`📝 Editing product: ${product.name} (ID: ${product.id})`);
+        
+        // Add product row first - this creates the basic structure
+        addProductRow();
+        
+        // Fill in product basic info
+        const productRow = document.getElementById('product_0');
+        if (productRow) {
+          const inputs = productRow.querySelectorAll('input');
+          if (inputs.length >= 2) {
+            inputs[0].value = product.photo || '';  // Photo input
+            inputs[1].value = product.name || '';   // Name input
+          }
+        }
+        
+        // Add sizes, prices, and dealers using existing functions
+        if (product.sizes && product.sizes.length > 0) {
+          product.sizes.forEach((size, sizeIndex) => {
+            // Add size row using existing function
+            addSizeRow(0);
+            
+            // Fill size data
+            const sizeRows = document.querySelectorAll('.product_0_size');
+            const currentSizeRow = sizeRows[sizeIndex];
+            
+            if (currentSizeRow) {
+              const sizeInputs = currentSizeRow.querySelectorAll('input');
+              if (sizeInputs.length >= 4) {
+                sizeInputs[0].value = size.size || '';
+                sizeInputs[1].value = size.code || '';
+                sizeInputs[2].value = size.hsn || '';
+                sizeInputs[3].value = size.mrp || '';
+              }
+              
+              // Add prices for this size
+              if (size.prices && size.prices.length > 0) {
+                size.prices.forEach((price, priceIndex) => {
+                  // Add price row using existing function
+                  addPriceRow(0, sizeIndex);
+                  
+                  // Fill price data
+                  const priceRows = document.querySelectorAll(`.product_0_size_${sizeIndex}_price`);
+                  const currentPriceRow = priceRows[priceIndex];
+                  
+                  if (currentPriceRow) {
+                    const priceInputs = currentPriceRow.querySelectorAll('input, select');
+                    
+                    // Fill price inputs in order they appear in the addPriceRow function
+                    let inputIndex = 0;
+                    
+                    // Payment type (select)
+                    const paymentSelect = currentPriceRow.querySelector('select');
+                    if (paymentSelect) paymentSelect.value = price.payment_type || 'cash';
+                    
+                    // Price inputs
+                    const inputs = currentPriceRow.querySelectorAll('input');
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.price || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.discount || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.discount_price || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.tax || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.tax_price || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.box || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.box_discount || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.box_discount_price || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.box_tax || '';
+                    inputIndex++;
+                    if (inputs[inputIndex]) inputs[inputIndex].value = price.box_tax_price || '';
+                    
+                    // Add dealers for this price
+                    if (price.dealers && price.dealers.length > 0) {
+                      price.dealers.forEach((dealer, dealerIndex) => {
+                        // Add dealer row using existing function
+                        addDealerRow(currentPriceRow, 0, sizeIndex, priceIndex);
+                        
+                        // Fill dealer data
+                        const dealerRows = document.querySelectorAll(`.product_0_size_${sizeIndex}_price_${priceIndex}_dealer`);
+                        const currentDealerRow = dealerRows[dealerIndex];
+                        
+                        if (currentDealerRow) {
+                          const dealerInputs = currentDealerRow.querySelectorAll('input');
+                          let dealerInputIndex = 0;
+                          
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.dlr_name || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.slol || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_date || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_price || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_discount || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_discount_price || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_tax || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_tax_price || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_box || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_box_discount || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_box_discount_price || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_box_tax || '';
+                          dealerInputIndex++;
+                          if (dealerInputs[dealerInputIndex]) dealerInputs[dealerInputIndex].value = dealer.purchase_box_tax_price || '';
+                        }
+                      });
+                    }
+                  }
+                });
+              }
+            }
+          });
+        }
+        
+        console.log('✅ Product loaded into form for editing');
+        
+        // Scroll to top of form so user can see the loaded data
+        document.getElementById('productTable').scrollIntoView({ behavior: 'smooth' });
       }
 
       // Call the correct function when page loads

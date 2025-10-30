@@ -50,12 +50,36 @@ class BulkProductCreateAPIView(APIView):
 
     def put(self, request, pk=None):
         product = get_object_or_404(Product, pk=pk)
+        
+        # For a complete update, delete existing related data and recreate
+        product.sizes.all().delete()  # This will cascade delete prices and dealers
+        
         serializer = ProductSerializer(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def delete(self, request, pk=None):
+    def patch(self, request, pk=None):
+        print(f"🔧 PATCH request for product ID: {pk}")
+        print(f"📝 Request data: {request.data}")
+        
         product = get_object_or_404(Product, pk=pk)
+        print(f"✅ Found product: {product.name}")
+        
+        # For PATCH, also do a complete replacement of nested data
+        product.sizes.all().delete()  # This will cascade delete prices and dealers
+        print(f"🗑️ Deleted existing sizes/prices/dealers for product {pk}")
+        
+        serializer = ProductSerializer(product, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        print(f"💾 Successfully updated product {pk}")
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk=None):
+        print(f"🗑️ DELETE request for product ID: {pk}")
+        product = get_object_or_404(Product, pk=pk)
+        print(f"✅ Found product to delete: {product.name}")
         product.delete()
+        print(f"💀 Successfully deleted product {pk}")
         return Response({'message': 'Product deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
