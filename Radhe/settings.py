@@ -30,6 +30,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dh2xuwmxn',
+    'API_KEY': '233565244812544',
+    'API_SECRET': 'LCfhjus6h6ctwGx8BX5z57qh8nQ',
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
 
 # Application definition
 
@@ -41,6 +53,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'cloudinary',
+    'cloudinary_storage',
     'corsheaders',
     'import_export',
     'django_filters',
