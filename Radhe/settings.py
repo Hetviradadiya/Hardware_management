@@ -60,7 +60,6 @@ INSTALLED_APPS = [
     'django_filters',
     'inventory_app',
     'nested_admin',
-    'pricemanagement_app',
     'apps.dashboards',
     'apps.authentication',
 ]
