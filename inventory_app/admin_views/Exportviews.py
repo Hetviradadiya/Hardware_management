@@ -176,3 +176,93 @@ def export_supplier_purchases_pdf(request, pk):
     # response = HttpResponse(pdf, content_type="application/pdf")
     # response["Content-Disposition"] = f'attachment; filename="{filename}"'
     # return response
+
+
+# ==================== PRINT PDF FUNCTIONS (Direct View/Print) ====================
+
+@permission_classes([IsAuthenticated])
+def print_customer_orders_pdf(request, pk):
+    """Generate PDF for direct printing (inline display in browser)"""
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    try:
+        customer = Customer.objects.get(id=pk)
+    except Customer.DoesNotExist:
+        return HttpResponse(f'Customer with ID {pk} not found', status=404)
+
+    orders = Order.objects.filter(customer_id=pk)
+    if start_date and end_date:
+        orders = orders.filter(order_date__date__range=[start_date, end_date])
+
+    # Calculate grand total
+    total_sum = sum(order.total_amount or 0 for order in orders)
+
+    # Render HTML template
+    template_path = "pdf_templates/customer_orders.html"
+    context = {
+        "customer": customer,
+        "orders": orders,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_sum": total_sum,
+    }
+
+    template = get_template(template_path)
+    html = template.render(context)
+
+    # Generate PDF using xhtml2pdf
+    result = io.BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result)
+    
+    if pdf_status.err:
+        return HttpResponse('We had some errors <pre>' + html + '</pre>')
+
+    # Return response for inline display (no attachment header)
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = "inline"  # This makes it display in browser instead of download
+    return response
+
+
+@permission_classes([IsAuthenticated])
+def print_supplier_purchases_pdf(request, pk):
+    """Generate PDF for direct printing (inline display in browser)"""
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    try:
+        supplier = Supplier.objects.get(id=pk)
+    except Supplier.DoesNotExist:
+        return HttpResponse(f'Supplier with ID {pk} not found', status=404)
+
+    purchases = Purchase.objects.filter(supplier_id=pk)
+    if start_date and end_date:
+        purchases = purchases.filter(date__range=[start_date, end_date])
+
+    # Calculate grand total
+    total_sum = sum(p.total_price or 0 for p in purchases)
+
+    # Render HTML template
+    template_path = "pdf_templates/supplier_purchases.html"
+    context = {
+        "supplier": supplier,
+        "purchases": purchases,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_sum": total_sum,
+    }
+
+    template = get_template(template_path)
+    html = template.render(context)
+    
+    # Generate PDF using xhtml2pdf
+    result = io.BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result)
+    
+    if pdf_status.err:
+        return HttpResponse('We had some errors <pre>' + html + '</pre>')
+
+    # Return response for inline display (no attachment header)
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = "inline"  # This makes it display in browser instead of download
+    return response
