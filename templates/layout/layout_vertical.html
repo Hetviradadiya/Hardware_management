@@ -160,30 +160,98 @@
               new_password2: new2,
             }),
           })
-          .then(res => {
-            return res.json();
-          })
-          .then(data => {
-            if (data.success) {
-              showToast("Success", "Password changed successfully", "success");
-              form.reset();
-              setTimeout(() => {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
-                if (modal) modal.hide();
-              }, 1500);
+          .then(response => {
+            if (response.ok) {
+              return response.json().then(data => {
+                showToast("Success", "Password changed successfully", "success");
+                form.reset();
+                clearGlobalFormErrors("changePasswordForm");
+                setTimeout(() => {
+                  const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                  if (modal) modal.hide();
+                }, 1500);
+              });
             } else {
-              let errorMessage = data.error || "An error occurred.";
-              showToast("Error", errorMessage, "danger");      
+              return response.json().then(data => {
+                // Handle validation errors
+                if (data && typeof data === 'object' && !data.error) {
+                  // Field-specific validation errors
+                  displayGlobalFormErrors("changePasswordForm", data);
+                  showToast("Error", "Please fix the validation errors below", "danger");
+                } else {
+                  // Generic error
+                  let errorMessage = data.error || "An error occurred.";
+                  showToast("Error", errorMessage, "danger");
+                }
+              });
             }
           })
           .catch(err => {
-            showToast("Error", "Something went wrong.", "danger");
+            showToast("Error", "Network error occurred. Please try again.", "danger");
           });
         });
       } else {
         console.log("Change password form not found!");
       }
+
+      // Clear errors when change password modal is shown
+      const changePasswordModal = document.getElementById('changePasswordModal');
+      if (changePasswordModal) {
+        changePasswordModal.addEventListener('shown.bs.modal', function () {
+          clearGlobalFormErrors('changePasswordForm');
+        });
+      }
     });
+
+    // Global form error handling functions for change password modal
+    function displayGlobalFormErrors(formId, errors) {
+      // Clear existing errors first
+      clearGlobalFormErrors(formId);
+      
+      // Display new errors
+      Object.keys(errors).forEach(fieldName => {
+        const errorMessages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[fieldName]];
+        
+        // Map backend field names to form field IDs for global change password form
+        const fieldMapping = {
+          'current_password': 'currentPassword',
+          'new_password1': 'newPassword1',
+          'new_password2': 'newPassword2'
+        };
+        
+        const fieldId = fieldMapping[fieldName] || fieldName;
+        const field = document.getElementById(fieldId);
+        
+        if (field) {
+          // Add error class to field
+          field.classList.add('is-invalid');
+          
+          // Create error message element
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'invalid-feedback';
+          errorDiv.textContent = errorMessages[0]; // Show first error message
+          
+          // Insert error message after the field
+          field.parentNode.insertBefore(errorDiv, field.nextSibling);
+        }
+      });
+    }
+
+    // Clear global form validation errors
+    function clearGlobalFormErrors(formId) {
+      const form = document.getElementById(formId);
+      if (!form) return;
+      
+      // Remove error classes
+      form.querySelectorAll('.is-invalid').forEach(field => {
+        field.classList.remove('is-invalid');
+      });
+      
+      // Remove error messages
+      form.querySelectorAll('.invalid-feedback').forEach(errorDiv => {
+        errorDiv.remove();
+      });
+    }
   </script>
 
   {% endblock layout %}

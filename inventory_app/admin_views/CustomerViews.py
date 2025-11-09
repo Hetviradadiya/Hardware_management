@@ -7,6 +7,7 @@ from ..models import *
 from rest_framework.decorators import action
 from rest_framework import status
 from inventory_app.pagination import ListPagination 
+from django.db import IntegrityError 
 
 class CustomerView(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -17,6 +18,105 @@ class CustomerView(viewsets.ModelViewSet):
     search_fields = [
         'name','email','phone','address'      
     ]
+    
+    def create(self, request, *args, **kwargs):
+        """Override create method to handle phone number uniqueness"""
+        try:
+            # Check if phone number already exists (only if phone is provided and not empty)
+            phone = request.data.get('phone')
+            phone = phone.strip() if phone else ''
+            
+            if phone and Customer.objects.filter(phone=phone).exists():
+                return Response(
+                    {
+                        "status": False,
+                        "message": f"A customer with phone number '{phone}' already exists.",
+                        "field": "phone"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # If phone is empty, set it to None to avoid unique constraint issues
+            if not phone:
+                request.data['phone'] = None
+            
+            return super().create(request, *args, **kwargs)
+            
+        except IntegrityError as e:
+            if 'phone' in str(e):
+                return Response(
+                    {
+                        "status": False,
+                        "message": "This phone number is already registered with another customer.",
+                        "field": "phone"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {
+                    "status": False,
+                    "message": "A customer with this information already exists.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "status": False,
+                    "message": f"An error occurred: {str(e)}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    
+    def update(self, request, *args, **kwargs):
+        """Override update method to handle phone number uniqueness"""
+        try:
+            instance = self.get_object()
+            phone = request.data.get('phone')
+            phone = phone.strip() if phone else ''
+            
+            # Check if phone number already exists (only if phone is provided and not empty, excluding current customer)
+            if phone and Customer.objects.filter(phone=phone).exclude(id=instance.id).exists():
+                return Response(
+                    {
+                        "status": False,
+                        "message": f"A customer with phone number '{phone}' already exists.",
+                        "field": "phone"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # If phone is empty, set it to None to avoid unique constraint issues
+            if not phone:
+                request.data['phone'] = None
+            
+            return super().update(request, *args, **kwargs)
+            
+        except IntegrityError as e:
+            if 'phone' in str(e):
+                return Response(
+                    {
+                        "status": False,
+                        "message": "This phone number is already registered with another customer.",
+                        "field": "phone"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {
+                    "status": False,
+                    "message": "A customer with this information already exists.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "status": False,
+                    "message": f"An error occurred: {str(e)}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     
     @action(detail=True, methods=['post'], url_path='payment')
     def add_payment(self, request, pk=None):

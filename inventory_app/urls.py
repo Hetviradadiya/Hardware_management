@@ -65,7 +65,7 @@ urlpatterns = [
     path('purchase/edit/<int:id>/', DashboardsView.as_view(template_name="purchase_edit_view.html"), name='purchase-edit'),
     path('purchase/detail/<int:id>/', DashboardsView.as_view(template_name="purchase_edit_view.html"), name='purchase-detail'),
 
-    path('inventpory-list/', DashboardsView.as_view(template_name="inventory_list.html"), name='inventory-list'),
+    path('inventory-list/', DashboardsView.as_view(template_name="inventory_list.html"), name='inventory-list'),
     
     path('sales-list/', DashboardsView.as_view(template_name="sales_list.html"), name='sales-list'),
 

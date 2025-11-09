@@ -105,31 +105,50 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
         
-        # Validate required fields
-        if not all([old_password, new_password, confirm_password]):
-            return Response(
-                {"error": "All password fields are required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # For admin changing other user's password, old password is not required
+        is_admin_changing_other_user = request.user.is_superuser and user != request.user
         
-        # Validate old password (only for own account)
-        if user == request.user and not check_password(old_password, user.password):
-            return Response(
-                {"error": "Current password is incorrect"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if is_admin_changing_other_user:
+            # Admin changing another user's password - only new password fields required
+            errors = {}
+            if not new_password:
+                errors["new_password"] = ["This field is required."]
+            if not confirm_password:
+                errors["confirm_password"] = ["This field is required."]
+            
+            if errors:
+                return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # User changing their own password - all fields required
+            errors = {}
+            if not old_password:
+                errors["old_password"] = ["This field is required."]
+            if not new_password:
+                errors["new_password"] = ["This field is required."]
+            if not confirm_password:
+                errors["confirm_password"] = ["This field is required."]
+            
+            if errors:
+                return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate old password (only for own account)
+            if not check_password(old_password, user.password):
+                return Response(
+                    {"old_password": ["Current password is incorrect."]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
         # Validate password match
         if new_password != confirm_password:
             return Response(
-                {"error": "New passwords do not match"}, 
+                {"confirm_password": ["New passwords do not match."]}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Validate password length
         if len(new_password) < 8:
             return Response(
-                {"error": "Password must be at least 8 characters long"}, 
+                {"new_password": ["Password must be at least 8 characters long."]}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         

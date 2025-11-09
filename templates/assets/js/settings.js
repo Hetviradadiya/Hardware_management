@@ -2,6 +2,7 @@
 let currentUserId = null;
 let currentRoleId = null;
 let currentUserData = null;
+let currentUserPasswordId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize settings page
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('saveUserBtn').addEventListener('click', saveUser);
     document.getElementById('saveRoleBtn').addEventListener('click', saveRole);
     document.getElementById('userSearch').addEventListener('input', searchUsers);
+    document.getElementById('saveUserPasswordBtn').addEventListener('click', saveUserPassword);
     
     // Form submissions
     document.getElementById('profileForm').addEventListener('submit', updateProfile);
@@ -186,6 +188,7 @@ function showAddUserModal() {
     document.getElementById('passwordSection').style.display = 'block';
     document.getElementById('userForm').reset();
     document.getElementById('userIsActive').checked = true;
+    clearFormErrors('userForm');
     new bootstrap.Modal(document.getElementById('userModal')).show();
 }
 
@@ -194,6 +197,7 @@ function showAddRoleModal() {
     currentRoleId = null;
     document.getElementById('roleModalTitle').textContent = 'Add Role';
     document.getElementById('roleForm').reset();
+    clearFormErrors('roleForm');
     new bootstrap.Modal(document.getElementById('roleModal')).show();
 }
 
@@ -209,6 +213,9 @@ function editUser(userId) {
         currentUserId = userId;
         document.getElementById('userModalTitle').textContent = 'Edit User';
         document.getElementById('passwordSection').style.display = 'none';
+        
+        // Clear any existing errors
+        clearFormErrors('userForm');
         
         // Populate form
         document.getElementById('userFullName').value = user.full_name;
@@ -242,6 +249,10 @@ function editRole(roleId) {
     .then(role => {
         currentRoleId = roleId;
         document.getElementById('roleModalTitle').textContent = 'Edit Role';
+        
+        // Clear any existing errors
+        clearFormErrors('roleForm');
+        
         document.getElementById('roleName').value = role.name;
         document.getElementById('roleDescription').value = role.description || '';
         
@@ -250,6 +261,107 @@ function editRole(roleId) {
     .catch(error => {
         console.error('Error loading role:', error);
         showToast('Error', 'Failed to load role data', 'danger');
+    });
+}
+
+// Change user password
+function changeUserPassword(userId) {
+    // Check if current user is superuser
+    if (!currentUserData || !currentUserData.is_superuser) {
+        showToast('Error', 'Only superusers can change other users passwords', 'danger');
+        return;
+    }
+    
+    // Check if trying to change own password (should use profile change password instead)
+    if (currentUserData.id === userId) {
+        showToast('Error', 'Use the profile section to change your own password', 'warning');
+        return;
+    }
+    
+    // Find the user data to display name
+    fetch(`/admin_api/users/${userId}/`, {
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(user => {
+        // Set the current user ID for password change
+        currentUserPasswordId = userId;
+        
+        // Display user name in modal
+        document.getElementById('changePasswordUserName').textContent = user.full_name;
+        
+        // Clear form and errors
+        document.getElementById('changeUserPasswordForm').reset();
+        clearFormErrors('changeUserPasswordForm');
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('changeUserPasswordModal')).show();
+    })
+    .catch(error => {
+        console.error('Error loading user:', error);
+        showToast('Error', 'Failed to load user data', 'danger');
+    });
+}
+
+// Save user password
+function saveUserPassword() {
+    const newPassword = document.getElementById('newUserPassword').value;
+    const confirmPassword = document.getElementById('confirmUserPassword').value;
+    
+    // Client-side validation
+    if (newPassword !== confirmPassword) {
+        showToast('Error', 'Passwords do not match', 'danger');
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        showToast('Error', 'Password must be at least 8 characters long', 'danger');
+        return;
+    }
+    
+    const formData = {
+        new_password: newPassword,
+        confirm_password: confirmPassword
+    };
+    
+    console.log('Debug: Current user:', currentUserData);
+    console.log('Debug: Target user ID:', currentUserPasswordId);
+    console.log('Debug: Form data:', formData);
+    
+    fetch(`/admin_api/users/${currentUserPasswordId}/change_password/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json().then(data => {
+                bootstrap.Modal.getInstance(document.getElementById('changeUserPasswordModal')).hide();
+                showToast('Success', 'User password changed successfully', 'success');
+                clearFormErrors('changeUserPasswordForm');
+            });
+        } else {
+            return response.json().then(data => {
+                // Handle validation errors
+                if (data && typeof data === 'object' && !data.error) {
+                    // Field-specific validation errors
+                    displayFormErrors('changeUserPasswordForm', data);
+                    showToast('Error', 'Please fix the validation errors below', 'danger');
+                } else {
+                    // Generic error
+                    showToast('Error', data.error || 'Failed to change password', 'danger');
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error changing user password:', error);
+        showToast('Error', 'Network error occurred. Please try again.', 'danger');
     });
 }
 
@@ -286,19 +398,31 @@ function saveUser() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error || data.errors) {
-            throw new Error(data.error || 'Validation errors occurred');
+    .then(response => {
+        if (response.ok) {
+            return response.json().then(data => {
+                bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+                loadUsers();
+                showToast('Success', `User ${currentUserId ? 'updated' : 'created'} successfully`, 'success');
+                clearFormErrors('userForm');
+            });
+        } else {
+            return response.json().then(data => {
+                // Handle validation errors
+                if (data && typeof data === 'object' && !data.error) {
+                    // Field-specific validation errors
+                    displayFormErrors('userForm', data);
+                    showToast('Error', 'Please fix the validation errors below', 'danger');
+                } else {
+                    // Generic error
+                    showToast('Error', data.error || 'Failed to save user', 'danger');
+                }
+            });
         }
-        
-        bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
-        loadUsers();
-        showToast('Success', `User ${currentUserId ? 'updated' : 'created'} successfully`, 'success');
     })
     .catch(error => {
         console.error('Error saving user:', error);
-        showToast('Error', error.message || 'Failed to save user', 'danger');
+        showToast('Error', 'Network error occurred. Please try again.', 'danger');
     });
 }
 
@@ -320,19 +444,31 @@ function saveRole() {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
+    .then(response => {
+        if (response.ok) {
+            return response.json().then(data => {
+                bootstrap.Modal.getInstance(document.getElementById('roleModal')).hide();
+                loadRoles();
+                showToast('Success', `Role ${currentRoleId ? 'updated' : 'created'} successfully`, 'success');
+                clearFormErrors('roleForm');
+            });
+        } else {
+            return response.json().then(data => {
+                // Handle validation errors
+                if (data && typeof data === 'object' && !data.error) {
+                    // Field-specific validation errors
+                    displayFormErrors('roleForm', data);
+                    showToast('Error', 'Please fix the validation errors below', 'danger');
+                } else {
+                    // Generic error
+                    showToast('Error', data.error || 'Failed to save role', 'danger');
+                }
+            });
         }
-        
-        bootstrap.Modal.getInstance(document.getElementById('roleModal')).hide();
-        loadRoles();
-        showToast('Success', `Role ${currentRoleId ? 'updated' : 'created'} successfully`, 'success');
     })
     .catch(error => {
         console.error('Error saving role:', error);
-        showToast('Error', error.message || 'Failed to save role', 'danger');
+        showToast('Error', 'Network error occurred. Please try again.', 'danger');
     });
 }
 
@@ -483,17 +619,30 @@ function changePassword(e) {
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
+    .then(response => {
+        if (response.ok) {
+            return response.json().then(data => {
+                document.getElementById('changePasswordForm').reset();
+                clearFormErrors('changePasswordForm');
+                showToast('Success', 'Password changed successfully', 'success');
+            });
+        } else {
+            return response.json().then(data => {
+                // Handle validation errors
+                if (data && typeof data === 'object' && !data.error) {
+                    // Field-specific validation errors
+                    displayFormErrors('changePasswordForm', data);
+                    showToast('Error', 'Please fix the validation errors below', 'danger');
+                } else {
+                    // Generic error
+                    showToast('Error', data.error || 'Failed to change password', 'danger');
+                }
+            });
         }
-        document.getElementById('changePasswordForm').reset();
-        showToast('Success', 'Password changed successfully', 'success');
     })
     .catch(error => {
         console.error('Error changing password:', error);
-        showToast('Error', error.message || 'Failed to change password', 'danger');
+        showToast('Error', 'Network error occurred. Please try again.', 'danger');
     });
 }
 
@@ -552,4 +701,82 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+// Display field-specific validation errors
+function displayFormErrors(formId, errors) {
+    // Clear existing errors first
+    clearFormErrors(formId);
+    
+    // Display new errors
+    Object.keys(errors).forEach(fieldName => {
+        const errorMessages = Array.isArray(errors[fieldName]) ? errors[fieldName] : [errors[fieldName]];
+        
+        // Map backend field names to form field IDs
+        let fieldMapping = {};
+        
+        if (formId === 'userForm') {
+            fieldMapping = {
+                'full_name': 'userFullName',
+                'username': 'userUsername',
+                'email': 'userEmail',
+                'mobile': 'userMobile',
+                'password': 'userPassword',
+                'confirm_password': 'userConfirmPassword',
+                'role': 'userRole',
+                'address_line': 'userAddress',
+                'city': 'userCity',
+                'state': 'userState',
+                'postal_code': 'userPostal'
+            };
+        } else if (formId === 'roleForm') {
+            fieldMapping = {
+                'name': 'roleName',
+                'description': 'roleDescription'
+            };
+        } else if (formId === 'changePasswordForm') {
+            fieldMapping = {
+                'old_password': 'currentPassword',
+                'new_password': 'newPassword',
+                'confirm_password': 'confirmPassword'
+            };
+        } else if (formId === 'changeUserPasswordForm') {
+            fieldMapping = {
+                'new_password': 'newUserPassword',
+                'confirm_password': 'confirmUserPassword'
+            };
+        }
+        
+        const fieldId = fieldMapping[fieldName] || fieldName;
+        const field = document.getElementById(fieldId);
+        
+        if (field) {
+            // Add error class to field
+            field.classList.add('is-invalid');
+            
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            errorDiv.textContent = errorMessages[0]; // Show first error message
+            
+            // Insert error message after the field
+            field.parentNode.insertBefore(errorDiv, field.nextSibling);
+        }
+    });
+}
+
+// Clear form validation errors
+function clearFormErrors(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    
+    // Remove error classes
+    form.querySelectorAll('.is-invalid').forEach(field => {
+        field.classList.remove('is-invalid');
+    });
+    
+    // Remove error messages
+    form.querySelectorAll('.invalid-feedback').forEach(errorDiv => {
+        errorDiv.remove();
+    });
 }

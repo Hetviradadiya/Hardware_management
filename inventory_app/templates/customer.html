@@ -35,27 +35,30 @@
             <label class="col-sm-2 col-form-label" for="name">Name</label>
             <div class="col-sm-10">
               <input type="text" id="name" class="form-control" required />
+              <div class="invalid-feedback" id="name-error" style="display: none;"></div>
             </div>
           </div>
 
           <div class="row mb-4">
-            <label class="col-sm-2 col-form-label" for="phone">Phone</label>
+            <label class="col-sm-2 col-form-label" for="phone">Phone <small class="text-muted">(Optional)</small></label>
             <div class="col-sm-10">
-              <input type="text" id="phone" class="form-control"/>
+              <input type="text" id="phone" class="form-control" placeholder="Enter phone number (optional)"/>
+              <div class="invalid-feedback" id="phone-error" style="display: none;"></div>
             </div>
           </div>
 
           <div class="row mb-4">
-            <label class="col-sm-2 col-form-label" for="email">Email</label>
+            <label class="col-sm-2 col-form-label" for="email">Email <small class="text-muted">(Optional)</small></label>
             <div class="col-sm-10">
-              <input type="email" id="email" class="form-control" />
+              <input type="email" id="email" class="form-control" placeholder="Enter email address (optional)" />
+              <div class="invalid-feedback" id="email-error" style="display: none;"></div>
             </div>
           </div>
 
           <div class="row mb-4">
-            <label class="col-sm-2 col-form-label" for="address">Address</label>
+            <label class="col-sm-2 col-form-label" for="address">Address <small class="text-muted">(Optional)</small></label>
             <div class="col-sm-10">
-              <textarea id="address" class="form-control"></textarea>
+              <textarea id="address" class="form-control" placeholder="Enter address (optional)"></textarea>
             </div>
           </div>
 
@@ -65,7 +68,7 @@
               {% if view_only == 'false' %}
                 <button type="submit" class="btn btn-primary" id="submit-button">Add Customer</button>
               {% endif %}
-              <button type="button" class="btn btn-secondary" id="back-button" onclick="window.location.href='/customer-list/'">Back</button>
+              <button type="button" class="btn btn-secondary" id="back-button" onclick="goBackToCustomerList()">Back</button>
             </div>
           </div>
         </form>
@@ -112,7 +115,7 @@
     fetch(`/admin_api/customers/${id}/`)
       .then(res => res.json())
       .then(data => {
-        document.getElementById("name").value = data.name;
+        document.getElementById("name").value = data.name || '';
         document.getElementById("phone").value = data.phone || '';
         document.getElementById("email").value = data.email || '';
         document.getElementById("address").value = data.address || '';
@@ -134,46 +137,79 @@
     e.preventDefault();
     if (isView) return;
 
+    console.log("Form submitted, starting customer creation/update...");
+    
     loader.style.display = "block";
     form.style.display = "none";
 
     const payload = {
       name: document.getElementById("name").value,
-      phone: document.getElementById("phone").value,
-      email: document.getElementById("email").value,
-      address: document.getElementById("address").value
+      phone: document.getElementById("phone").value.trim() || null, // Send null for empty phone
+      email: document.getElementById("email").value.trim() || null, // Send null for empty email
+      address: document.getElementById("address").value.trim() || null // Send null for empty address
     };
+
+    console.log("Payload:", payload);
 
     const url = isEdit
       ? `/admin_api/customers/${customerId}/`
       : `/admin_api/customers/`;
     const method = isEdit ? "PATCH" : "POST";
 
+    console.log(`Making ${method} request to ${url}`);
+
+    // Get CSRF token
+    const csrfToken = getCookie("csrftoken");
+    console.log("CSRF Token:", csrfToken ? "Present" : "Missing");
+
     fetch(url, {
       method: method,
       headers: {
         "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken")
+        "X-CSRFToken": csrfToken
       },
       body: JSON.stringify(payload)
     })
       .then(res => {
+        console.log("Response status:", res.status);
         loader.style.display = "none";
         if (res.ok) {
-          showToast("Success", `Customer ${isEdit ? "updated" : "added"} successfully`, "success");
-          setTimeout(() => window.location.href = "/customer-list/", 1500);
+          return res.json().then(data => {
+            console.log("Success response data:", data);
+            showToast("Success", `Customer ${isEdit ? "updated" : "added"} successfully`, "success");
+            
+            // Redirect immediately for better user experience
+            console.log("Redirecting to customer list...");
+            window.location.href = "/customer-list/";
+          }).catch(jsonErr => {
+            // If JSON parsing fails but response was ok, still redirect
+            console.log("JSON parse error but response was ok, redirecting anyway");
+            showToast("Success", `Customer ${isEdit ? "updated" : "added"} successfully`, "success");
+            window.location.href = "/customer-list/";
+          });
         } else {
-          res.json().then(data => {
+          return res.json().then(data => {
+            console.log("Error response data:", data);
             form.style.display = "block";
-            const error = data?.detail || "Operation failed.";
-            showToast("Error", error, "danger");
+            
+            // Clear previous errors
+            clearFieldErrors();
+            
+            // Handle field-specific errors
+            if (data.field) {
+              showFieldError(data.field, data.message);
+            } else {
+              const error = data?.detail || data?.message || "Operation failed.";
+              showToast("Error", error, "danger");
+            }
           });
         }
       })
       .catch(err => {
+        console.error("Customer operation error:", err);
         loader.style.display = "none";
         form.style.display = "block";
-        showToast("Error", "Something went wrong.", "danger");
+        showToast("Error", "Something went wrong. Please try again.", "danger");
       });
   });
 
@@ -200,5 +236,63 @@
     }
     return cookieValue;
   }
+
+  function goBackToCustomerList() {
+    console.log("Navigating back to customer list...");
+    window.location.href = "/customer-list/";
+  }
+
+  function clearFieldErrors() {
+    // Clear all field error states
+    const fields = ['phone', 'email', 'name'];
+    fields.forEach(fieldName => {
+      const field = document.getElementById(fieldName);
+      const errorDiv = document.getElementById(fieldName + '-error');
+      
+      if (field) {
+        field.classList.remove('is-invalid');
+      }
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+      }
+    });
+  }
+
+  function showFieldError(fieldName, message) {
+    const field = document.getElementById(fieldName);
+    const errorDiv = document.getElementById(fieldName + '-error');
+    
+    if (field) {
+      field.classList.add('is-invalid');
+      field.focus(); // Focus on the field with error
+    }
+    
+    if (errorDiv) {
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+    }
+    
+    // Also show a toast for better visibility
+    showToast("Validation Error", message, "danger");
+  }
+
+  // Clear field errors when user starts typing
+  document.addEventListener('DOMContentLoaded', function() {
+    const fields = ['name', 'phone', 'email'];
+    
+    fields.forEach(fieldName => {
+      const field = document.getElementById(fieldName);
+      if (field) {
+        field.addEventListener('input', function() {
+          this.classList.remove('is-invalid');
+          const errorDiv = document.getElementById(fieldName + '-error');
+          if (errorDiv) {
+            errorDiv.style.display = 'none';
+          }
+        });
+      }
+    });
+  });
 </script>
 {% endblock %}
