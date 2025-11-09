@@ -76,15 +76,15 @@
         <td>{{ p.date|date:"d/m/Y" }}</td>
         <td>{{ p.variant }}</td>
         <td>{{ p.quantity }}</td>
-        <td>₹ {{ p.purchase_price|floatformat:2 }}</td>
-        <td>₹ {{ p.discount|floatformat:2 }}</td>
+        <td>Rs. {{ p.purchase_price|floatformat:2 }}</td>
+        <td>Rs. {{ p.discount|floatformat:2 }}</td>
         <td>{{ p.gst|floatformat:2 }}</td>
-        <td>₹ {{ p.total_price|floatformat:2 }}</td>
+        <td>Rs. {{ p.total_price|floatformat:2 }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <h4 style="text-align: right;">Grand Total: ₹ {{ total_sum|floatformat:2 }}</h4>
+  <h4 style="text-align: right;">Grand Total: Rs. {{ total_sum|floatformat:2 }}</h4>
 </body>
 </html>

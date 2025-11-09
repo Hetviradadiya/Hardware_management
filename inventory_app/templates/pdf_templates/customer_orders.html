@@ -68,15 +68,15 @@
       <tr>
         <td>{{ order.id }}</td>
         <td>{{ order.order_date|date:"d/m/Y" }}</td>
-        <td>₹ {{ order.subtotal|floatformat:2 }}</td>
+        <td>Rs. {{ order.subtotal|floatformat:2 }}</td>
         <td>
-            ₹ {{ order.total_discount|floatformat:2 }}
+            Rs. {{ order.total_discount|floatformat:2 }}
         </td>
-        <td>₹ {{ order.total_gst|floatformat:2 }} </td>
-        <td>₹ {{ order.total_amount|floatformat:2 }}</td>
+        <td>Rs. {{ order.total_gst|floatformat:2 }} </td>
+        <td>Rs. {{ order.total_amount|floatformat:2 }}</td>
         <td>
           {% for item in order.items.all %}
-            {{ item.variant.product.name }} - {{ item.variant.size }} ({{ item.quantity }}) – ₹ {{ item.price_at_sale|floatformat:2 }}<br>
+            {{ item.variant.product.name }} - {{ item.variant.size }} ({{ item.quantity }}) – Rs. {{ item.price_at_sale|floatformat:2 }}<br>
           {% empty %}
             No items
           {% endfor %}
@@ -86,6 +86,6 @@
     </tbody>
   </table>
 
-  <h4 class="summary">Grand Total: ₹ {{ total_sum|floatformat:2 }}</h4>
+  <h4 class="summary">Grand Total: Rs. {{ total_sum|floatformat:2 }}</h4>
 </body>
 </html>

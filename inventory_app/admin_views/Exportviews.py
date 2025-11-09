@@ -7,7 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from django.template.loader import get_template
 from django.http import HttpResponse
 from datetime import datetime
-import pdfkit
+import pdfkit  # For wkhtmltopdf (commented out below)
+from xhtml2pdf import pisa  # For xhtml2pdf
+import io
 
 @permission_classes([IsAuthenticated])
 def export_customer_orders_excel(request, pk):
@@ -97,19 +99,32 @@ def export_customer_orders_pdf(request, pk):
     template = get_template(template_path)
     html = template.render(context)
 
-    # Generate PDF using pdfkit
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"  
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-
+    # Generate PDF using xhtml2pdf
+    result = io.BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result)
+    
+    if pdf_status.err:
+        return HttpResponse('We had some errors <pre>' + html + '</pre>')
+    
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"customer_{pk}_orders_{current_time}.pdf"
 
-    pdf = pdfkit.from_string(html, False, configuration=config)
-
     # Return response
-    response = HttpResponse(pdf, content_type="application/pdf")
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+    # --- COMMENTED OUT: wkhtmltopdf/pdfkit implementation ---
+    # Generate PDF using pdfkit (wkhtmltopdf)
+    # path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"  
+    # config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    # current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # filename = f"customer_{pk}_orders_{current_time}.pdf"
+    # pdf = pdfkit.from_string(html, False, configuration=config)
+    # Return response
+    # response = HttpResponse(pdf, content_type="application/pdf")
+    # response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # return response
 
 @permission_classes([IsAuthenticated])
 def export_supplier_purchases_pdf(request, pk):
@@ -135,16 +150,29 @@ def export_supplier_purchases_pdf(request, pk):
     template = get_template(template_path)
     html = template.render(context)
     
-    # Generate PDF using pdfkit
-    path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe" 
-    config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    # Generate PDF using xhtml2pdf
+    result = io.BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result)
+    
+    if pdf_status.err:
+        return HttpResponse('We had some errors <pre>' + html + '</pre>')
 
     current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"supplier_{pk}_purchases_{current_time}.pdf"
 
-    pdf = pdfkit.from_string(html, False, configuration=config)
-
     # Return response
-    response = HttpResponse(pdf, content_type="application/pdf")
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+    # --- COMMENTED OUT: wkhtmltopdf/pdfkit implementation ---
+    # Generate PDF using pdfkit (wkhtmltopdf)
+    # path_wkhtmltopdf = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe" 
+    # config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+    # current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # filename = f"supplier_{pk}_purchases_{current_time}.pdf"
+    # pdf = pdfkit.from_string(html, False, configuration=config)
+    # Return response
+    # response = HttpResponse(pdf, content_type="application/pdf")
+    # response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # return response
