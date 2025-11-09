@@ -219,6 +219,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "item_discount",
             "is_percentage",
             "gst",
+            "is_return",
             "discount_price",
             "gst_amount",
             "total_price",
@@ -242,7 +243,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     order_items = OrderItemSerializer(source="items", many=True, read_only=True)
-    order_date = serializers.DateTimeField(format="%Y-%m-%d", read_only=True)
+    order_date = serializers.SerializerMethodField()
+    
+    def get_order_date(self, obj):
+        """Convert order date to local timezone for proper display"""
+        from django.utils import timezone
+        if obj.order_date:
+            # Convert to local timezone
+            local_time = timezone.localtime(obj.order_date)
+            # Return in ISO format which JavaScript can properly parse
+            return local_time.isoformat()
+        return None
+    
     class Meta:
         model = Order
         fields = [
@@ -250,6 +262,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "customer",
             "customer_name",
             "order_date",
+            "status",
             "subtotal",
             "total_item_discount",
             "order_discount",
@@ -261,6 +274,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "is_paid",
             "pod_number",
             "paid_amount",
+            "return_amount",
             "note",
             "order_items",
         ]
@@ -305,4 +319,107 @@ class OrderSerializer(serializers.ModelSerializer):
 
 #     def get_final_amount(self, obj):
 #         return obj.total_amount
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for user profile management in settings"""
+    role_name = serializers.CharField(source='role.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.full_name', read_only=True)
+    
+    class Meta:
+        model = UserAccount
+        fields = [
+            'id', 'username', 'full_name', 'email', 'mobile',
+            'is_active', 'is_staff', 'is_superuser', 'date_joined',
+            'address_line', 'city', 'state', 'country', 'postal_code',
+            'role', 'role_name', 'created_by', 'created_by_name'
+        ]
+        read_only_fields = ['date_joined', 'created_by']
+        
+    def validate_email(self, value):
+        """Validate email uniqueness excluding current user"""
+        if self.instance and self.instance.email == value:
+            return value
+        if UserAccount.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+        
+    def validate_mobile(self, value):
+        """Validate mobile uniqueness excluding current user"""
+        if self.instance and self.instance.mobile == value:
+            return value
+        if UserAccount.objects.filter(mobile=value).exists():
+            raise serializers.ValidationError("A user with this mobile number already exists.")
+        return value
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new users"""
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+    
+    class Meta:
+        model = UserAccount
+        fields = [
+            'username', 'full_name', 'email', 'mobile', 'password', 'confirm_password',
+            'is_active', 'is_staff', 'address_line', 'city', 'state', 'country', 
+            'postal_code', 'role'
+        ]
+        
+    def validate(self, data):
+        """Validate password confirmation"""
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
+        
+    def create(self, validated_data):
+        """Create user with hashed password"""
+        validated_data.pop('confirm_password')
+        password = validated_data.pop('password')
+        
+        user = UserAccount.objects.create(**validated_data)
+        user.set_password(password)
+        user.save()
+        
+        return user
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    """Serializer for role management"""
+    class Meta:
+        model = Role
+        fields = ['id', 'name', 'description', 'created_at', 'updated_at']
+
+
+class ReturnItemSerializer(serializers.ModelSerializer):
+    """Serializer for return items"""
+    order_item_product_name = serializers.CharField(source="order_item.variant.product.name", read_only=True)
+    order_item_variant_size = serializers.CharField(source="order_item.variant.size", read_only=True)
+    order_item_price = serializers.DecimalField(source="order_item.price_at_sale", max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = ReturnItem
+        fields = [
+            'id', 'order_item', 'return_quantity', 'condition', 
+            'refund_per_unit', 'total_refund',
+            'order_item_product_name', 'order_item_variant_size', 'order_item_price'
+        ]
+
+
+class OrderReturnSerializer(serializers.ModelSerializer):
+    """Serializer for order returns"""
+    return_items = ReturnItemSerializer(many=True, read_only=True)
+    customer_name = serializers.CharField(source="original_order.customer.name", read_only=True)
+    order_id = serializers.IntegerField(source="original_order.id", read_only=True)
+    processed_by_name = serializers.CharField(source="processed_by.full_name", read_only=True)
+    
+    class Meta:
+        model = OrderReturn
+        fields = [
+            'id', 'original_order', 'order_id', 'customer_name', 
+            'return_date', 'status', 'reason', 'notes',
+            'total_return_amount', 'refund_amount', 'processing_fee',
+            'processed_by', 'processed_by_name', 'processed_at',
+            'return_items'
+        ]
     

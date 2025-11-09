@@ -146,6 +146,16 @@
           <td><strong>Total Amount</strong></td>
           <td><strong>₹{{ order.total_amount }}</strong></td>
         </tr>
+        {% if order.return_amount > 0 %}
+        <tr>
+          <td>Return Amount</td>
+          <td class="text-danger">- ₹{{ order.return_amount|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td><strong>Net Amount</strong></td>
+          <td><strong>₹{{ net_amount|floatformat:2 }}</strong></td>
+        </tr>
+        {% endif %}
         <tr>
           <td>Paid Amount</td>
           <td>₹{{ order.paid_amount }}</td>

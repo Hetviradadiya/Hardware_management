@@ -55,7 +55,7 @@
   <h1>Supplier Purchases Report</h1>
   <h4>Supplier: {{ supplier.name }}</h4>
   {% if start_date and end_date %}
-  <p><strong>From:</strong> {{ start_date }} <strong>To:</strong> {{ end_date }}</p>
+  <p><strong>From:</strong> {{ start_date|date:"d/m/Y" }} <strong>To:</strong> {{ end_date|date:"d/m/Y" }}</p>
   {% endif %}
 
   <table>
@@ -73,18 +73,18 @@
     <tbody>
       {% for p in purchases %}
       <tr>
-        <td>{{ p.date }}</td>
+        <td>{{ p.date|date:"d/m/Y" }}</td>
         <td>{{ p.variant }}</td>
         <td>{{ p.quantity }}</td>
-        <td>₹ {{ p.purchase_price }}</td>
-        <td>₹ {{ p.discount }}</td>
-        <td>{{ p.gst }}</td>
-        <td>₹ {{ p.total_price }}</td>
+        <td>₹ {{ p.purchase_price|floatformat:2 }}</td>
+        <td>₹ {{ p.discount|floatformat:2 }}</td>
+        <td>{{ p.gst|floatformat:2 }}</td>
+        <td>₹ {{ p.total_price|floatformat:2 }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <h4 style="text-align: right;">Grand Total: ₹ {{ total_sum }}</h4>
+  <h4 style="text-align: right;">Grand Total: ₹ {{ total_sum|floatformat:2 }}</h4>
 </body>
 </html>

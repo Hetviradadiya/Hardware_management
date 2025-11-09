@@ -22,6 +22,15 @@ Dashboard{% endblock %} {% block page_js %}
         document.getElementById("today-orders").innerText = data.today_orders;
         document.getElementById("total-sales-amount").innerText =
           "₹" + data.total_sales_amount;
+        document.getElementById("total-inventory-value").innerText =
+          "₹" + data.total_inventory_value;
+        document.getElementById("monthly-orders").innerText = data.monthly_orders;
+        document.getElementById("monthly-sales").innerText = "₹" + data.monthly_sales;
+        document.getElementById("weekly-orders").innerText = data.weekly_orders;
+        document.getElementById("weekly-sales").innerText = "₹" + data.weekly_sales;
+        document.getElementById("total-variants").innerText = data.total_variants;
+        document.getElementById("critical-stock").innerText = data.critical_stock_products;
+        document.getElementById("out-of-stock").innerText = data.out_of_stock_products;
 
         renderOrdersChart(data.last_10_days_orders || []);
       });
@@ -49,6 +58,32 @@ Dashboard{% endblock %} {% block page_js %}
           "phone",
           "email",
         ]);
+        
+        // Render new data sections
+        renderRecentData("recent-orders", data.recent_orders, [
+          "id",
+          "order_date",
+          "total_amount",
+          "customer__name"
+        ]);
+        
+        renderRecentData("top-products", data.top_products, [
+          "product__name",
+          "size",
+          "total_sold",
+          "order_count"
+        ]);
+        
+        renderRecentData("low-stock-details", data.low_stock_items, [
+          "variant__product__name",
+          "variant__size", 
+          "quantity"
+        ]);
+        
+        // Render monthly sales chart
+        if (data.monthly_sales_trend) {
+          renderMonthlySalesChart(data.monthly_sales_trend);
+        }
       });
 
     // --- Chart ---
@@ -83,9 +118,59 @@ Dashboard{% endblock %} {% block page_js %}
       });
     }
 
+    // --- Monthly Sales Chart ---
+    function renderMonthlySalesChart(monthlyData) {
+      const ctx = document.getElementById("monthlySalesChart").getContext("2d");
+      const labels = monthlyData.map(item => item.month);
+      const values = monthlyData.map(item => item.sales);
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Monthly Sales (₹)",
+              data: values,
+              backgroundColor: "rgba(40, 167, 69, 0.1)",
+              borderColor: "#28a745",
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: "#28a745",
+              pointBorderColor: "#fff",
+              pointBorderWidth: 2,
+              pointRadius: 6
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '₹' + value.toLocaleString();
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          }
+        },
+      });
+    }
+
     // --- Render Tables ---
     function renderRecentData(tableId, items, fields) {
       const tbody = document.getElementById(tableId);
+      if (!tbody) return; // Skip if table doesn't exist
+      
       tbody.innerHTML = "";
 
       if (!items || items.length === 0) {
@@ -97,7 +182,18 @@ Dashboard{% endblock %} {% block page_js %}
         const row = document.createElement("tr");
         fields.forEach((field) => {
           const cell = document.createElement("td");
-          cell.textContent = item[field] ?? "-";
+          let value = item[field] ?? "-";
+          
+          // Format specific fields
+          if (field.includes("date")) {
+            value = new Date(value).toLocaleDateString();
+          } else if (field.includes("amount") || field.includes("total_amount")) {
+            value = "₹" + parseFloat(value).toLocaleString();
+          } else if (field === "id") {
+            value = "#" + value;
+          }
+          
+          cell.textContent = value;
           row.appendChild(cell);
         });
         tbody.appendChild(row);
@@ -251,17 +347,123 @@ Dashboard{% endblock %} {% block page_js %}
     </div>
   </div>
 
-  <!-- Orders Chart -->
-  <div class="card chart-card mt-5">
-    <div class="card-header bg-light">
-      <h5 class="mb-0">📊 Orders Overview (Last 10 Days)</h5>
+  <!-- Additional Enhanced Stats -->
+  <div class="row g-4 mt-3">
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-blue">
+        <div class="card-body text-center">
+          <i class="bi bi-safe"></i>
+          <p>Total Inventory Value</p>
+          <h4 id="total-inventory-value">₹0</h4>
+        </div>
+      </div>
     </div>
-    <div class="card-body"><canvas id="ordersChart" height="120"></canvas></div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-green">
+        <div class="card-body text-center">
+          <i class="bi bi-calendar-month"></i>
+          <p>Monthly Orders</p>
+          <h4 id="monthly-orders">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-orange">
+        <div class="card-body text-center">
+          <i class="bi bi-graph-up"></i>
+          <p>Monthly Sales</p>
+          <h4 id="monthly-sales">₹0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-purple">
+        <div class="card-body text-center">
+          <i class="bi bi-calendar-week"></i>
+          <p>Weekly Orders</p>
+          <h4 id="weekly-orders">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-teal">
+        <div class="card-body text-center">
+          <i class="bi bi-cash-stack"></i>
+          <p>Weekly Sales</p>
+          <h4 id="weekly-sales">₹0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-red">
+        <div class="card-body text-center">
+          <i class="bi bi-boxes"></i>
+          <p>Product Variants</p>
+          <h4 id="total-variants">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-pink">
+        <div class="card-body text-center">
+          <i class="bi bi-exclamation-circle-fill"></i>
+          <p>Critical Stock</p>
+          <h4 id="critical-stock">0</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+      <div class="card dashboard-card bg-dark">
+        <div class="card-body text-center">
+          <i class="bi bi-x-circle-fill"></i>
+          <p>Out of Stock</p>
+          <h4 id="out-of-stock">0</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="row mt-5">
+    <div class="col-md-6">
+      <div class="card chart-card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">📊 Orders Overview (Last 10 Days)</h5>
+        </div>
+        <div class="card-body"><canvas id="ordersChart" height="150"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card chart-card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">📈 Monthly Sales Trend</h5>
+        </div>
+        <div class="card-body"><canvas id="monthlySalesChart" height="150"></canvas></div>
+      </div>
+    </div>
   </div>
 
   <!-- Recent Data Section -->
   <div class="row mt-5">
     <div class="col-md-6">
+      <div class="card recent-card mb-4">
+        <div class="card-header bg-light">
+          <strong>🛒 Recent Orders</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Customer</th>
+              </tr>
+            </thead>
+            <tbody id="recent-orders"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card recent-card mb-4">
         <div class="card-header bg-light">
           <strong>🧾 Recent Purchases</strong>
@@ -273,7 +475,6 @@ Dashboard{% endblock %} {% block page_js %}
                 <th>Date</th>
                 <th>Total</th>
                 <th>Supplier Name</th>
-                <th></th>
               </tr>
             </thead>
             <tbody id="recent-purchases"></tbody>
@@ -300,6 +501,41 @@ Dashboard{% endblock %} {% block page_js %}
     </div>
 
     <div class="col-md-6">
+      <div class="card recent-card mb-4">
+        <div class="card-header bg-light">
+          <strong>🏆 Top Selling Products</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Size</th>
+                <th>Sold Qty</th>
+                <th>Orders</th>
+              </tr>
+            </thead>
+            <tbody id="top-products"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card recent-card mb-4">
+        <div class="card-header bg-light">
+          <strong>⚠️ Low Stock Items</strong>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>Size</th>
+                <th>Stock</th>
+              </tr>
+            </thead>
+            <tbody id="low-stock-details"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card recent-card mb-4">
         <div class="card-header bg-light">
           <strong>📦 Recent Products</strong>

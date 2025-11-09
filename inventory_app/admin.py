@@ -113,3 +113,24 @@ class SaleAdmin(admin.ModelAdmin):
     list_display = ('order', 'sale_date', 'total_amount')
     list_filter = ('sale_date',)
     search_fields = ('order__customer_name',)
+
+
+class ReturnItemInline(admin.TabularInline):
+    model = ReturnItem
+    extra = 1
+
+
+@admin.register(OrderReturn)
+class OrderReturnAdmin(admin.ModelAdmin):
+    list_display = ('id', 'original_order', 'return_date', 'status', 'reason', 'refund_amount')
+    list_filter = ('status', 'reason', 'return_date')
+    search_fields = ('original_order__id', 'original_order__customer__name')
+    inlines = [ReturnItemInline]
+    readonly_fields = ('return_date', 'total_return_amount')
+
+
+@admin.register(ReturnItem)
+class ReturnItemAdmin(admin.ModelAdmin):
+    list_display = ('return_order', 'order_item', 'return_quantity', 'condition', 'total_refund')
+    list_filter = ('condition',)
+    search_fields = ('return_order__id', 'order_item__variant__product__name')

@@ -1,13 +1,22 @@
 {% extends layout_path %}
 {% load static %}
+{% csrf_token %}
 {% block title %}Bill Detail{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="fw-bold">Bill Detail</h4>
-  <a href="javascript:history.back()" class="btn btn-primary">
-    <i class="bx bx-arrow-back"></i> Back
-  </a>
+  <div>
+    <a href="javascript:history.back()" class="btn btn-secondary me-2">
+      <i class="bx bx-arrow-back"></i> Back
+    </a>
+    <button class="btn btn-primary me-2" onclick="editOrder()">
+      <i class="bx bx-edit"></i> Edit Order
+    </button>
+    <button class="btn btn-warning" onclick="createReturn()">
+      <i class="bx bx-undo"></i> Create Return
+    </button>
+  </div>
 </div>
 
 <div class="card p-4 shadow-sm">
@@ -35,6 +44,7 @@
             <th>Discount</th>
             <th>GST</th>
             <th>Total</th>
+            <th>Return Status</th>
           </tr>
         </thead>
         <tbody id="orderItemsBody">
@@ -73,8 +83,20 @@
           tbody.innerHTML = "";
           if (order.order_items && order.order_items.length > 0) {
             order.order_items.forEach((item, idx) => {
+              const returnCheckbox = `
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" 
+                         id="return_${item.id}" 
+                         ${item.is_return ? 'checked' : ''} 
+                         onchange="toggleReturnStatus(${item.id}, this.checked)">
+                  <label class="form-check-label" for="return_${item.id}">
+                    ${item.is_return ? 'Returned' : 'Active'}
+                  </label>
+                </div>
+              `;
+              
               tbody.insertAdjacentHTML("beforeend", `
-                <tr>
+                <tr ${item.is_return ? 'class="table-warning"' : ''}>
                   <td>${idx + 1}</td>
                   <td>${item.product_name}</td>
                   <td>${item.product_size ?? "-"}</td>
@@ -83,13 +105,14 @@
                   <td>${item.is_percentage ? item.item_discount + "%" : "₹ " + item.item_discount}</td>
                   <td>₹ ${item.gst_amount}</td>
                   <td>₹ ${item.total_price}</td>
+                  <td>${returnCheckbox}</td>
                 </tr>
               `);
             });
           } else {
             tbody.innerHTML = `
               <tr>
-                <td colspan="6" class="text-center text-muted py-4">No items in this order.</td>
+                <td colspan="9" class="text-center text-muted py-4">No items in this order.</td>
               </tr>`;
           }
         }
@@ -98,5 +121,84 @@
         console.error("Error fetching order:", err);
       });
   });
+
+  // Functions for order management buttons
+  function editOrder() {
+    const orderId = document.getElementById('orderId').textContent;
+    if (orderId && orderId !== 'Loading...') {
+      window.location.href = `/order/${orderId}/`;
+    }
+  }
+
+  function createReturn() {
+    const orderId = document.getElementById('orderId').textContent;
+    if (orderId && orderId !== 'Loading...') {
+      // Simple return confirmation
+      if (confirm('Create a return request for this order?')) {
+        alert('Return functionality will be available from the main order page or returns management.');
+        window.location.href = `/order/${orderId}/`;
+      }
+    }
+  }
+
+  function toggleReturnStatus(itemId, isReturned) {
+    // Show loading state
+    const checkbox = document.getElementById(`return_${itemId}`);
+    const label = checkbox.nextElementSibling;
+    const originalText = label.textContent;
+    label.textContent = 'Updating...';
+    checkbox.disabled = true;
+
+    // Make API call to update return status
+    fetch(`/admin_api/order-items/${itemId}/toggle-return/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+      },
+      body: JSON.stringify({ is_return: isReturned })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update UI
+        label.textContent = isReturned ? 'Returned' : 'Active';
+        const row = checkbox.closest('tr');
+        if (isReturned) {
+          row.classList.add('table-warning');
+        } else {
+          row.classList.remove('table-warning');
+        }
+        
+        // Show success notification
+        if (typeof showSuccessToast === 'function') {
+          showSuccessToast(data.message || 'Return status updated successfully');
+        }
+      } else {
+        // Revert checkbox state
+        checkbox.checked = !isReturned;
+        label.textContent = originalText;
+        
+        // Show error notification
+        if (typeof showErrorToast === 'function') {
+          showErrorToast(data.message || 'Failed to update return status');
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error updating return status:', error);
+      // Revert checkbox state
+      checkbox.checked = !isReturned;
+      label.textContent = originalText;
+      
+      // Show error notification
+      if (typeof showErrorToast === 'function') {
+        showErrorToast('Network error occurred');
+      }
+    })
+    .finally(() => {
+      checkbox.disabled = false;
+    });
+  }
 </script>
 {% endblock %}
