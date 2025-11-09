@@ -8,6 +8,9 @@
     <button type="button" class="btn btn-outline-danger" id="exportPdfBtn">
       <i class="bx bxs-file-pdf"></i> Export PDF
     </button>
+    <button type="button" class="btn btn-outline-success" id="printPdfBtn">
+      <i class="bx bx-printer"></i> Print Bill
+    </button>
     <a href="/supplier-list/" class="btn btn-primary">
       <i class="bx bx-arrow-back"></i> Back to Suppliers
     </a>
@@ -182,6 +185,15 @@ document.addEventListener("DOMContentLoaded", function () {
     let url = `/admin_api/supplier-purchases/${supplierId}/export_pdf/`;
     if (s && e) url += `?start_date=${s}&end_date=${e}`;
     window.location.href = url;
+  });
+
+  // 🔹 Print PDF (opens in new tab for direct printing)
+  document.getElementById("printPdfBtn").addEventListener("click", function () {
+    const s = document.getElementById("startDate").value;
+    const e = document.getElementById("endDate").value;
+    let url = `/admin_api/supplier-purchases/${supplierId}/print_pdf/`;
+    if (s && e) url += `?start_date=${s}&end_date=${e}`;
+    window.open(url, '_blank');  // Opens in new tab for printing
   });
 });
 </script>

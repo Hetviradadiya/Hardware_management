@@ -10,7 +10,7 @@ from inventory_app.admin_views.CustomerViews import CustomerView
 from inventory_app.admin_views.inventoryView import InventoryViewSet
 from inventory_app.admin_views.POSViews import CartViewSet, place_order,bill_page
 from inventory_app.admin_views.CustomerOrderView import customer_orders,order_detail_api
-from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf, export_supplier_purchases_pdf
+from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf, export_supplier_purchases_pdf, print_customer_orders_pdf, print_supplier_purchases_pdf
 from inventory_app.admin_views.SalesView import SalesListAPI
 from inventory_app.admin_views.UserManagementViews import UserManagementViewSet, RoleManagementViewSet
 from inventory_app.admin_views.OrderManagementViews import OrderManagementViewSet
@@ -87,9 +87,11 @@ urlpatterns = [
     # API Endpoints
     path("admin_api/customer-orders/<int:pk>/export_excel/", export_customer_orders_excel, name="export_customer-order_excel"),
     path("admin_api/customer-orders/<int:pk>/export_pdf/", export_customer_orders_pdf, name="customer_orders_pdf"),
+    path("admin_api/customer-orders/<int:pk>/print_pdf/", print_customer_orders_pdf, name="print_customer_orders_pdf"),
     
     path('supplier-purchases/<int:pk>/', DashboardsView.as_view(template_name="supplier_purchses.html"), name='supplier_purchses'),
     path("admin_api/supplier-purchases/<int:pk>/export_pdf/", export_supplier_purchases_pdf, name="supplier_purchases_pdf"),
+    path("admin_api/supplier-purchases/<int:pk>/print_pdf/", print_supplier_purchases_pdf, name="print_supplier_purchases_pdf"),
     
     path('place_order/', place_order, name='place_order'),
     path('bill/<int:order_id>/', bill_page, name='bill_page'),
