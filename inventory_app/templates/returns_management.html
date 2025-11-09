@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadReturns() {
-    fetch('/admin_api/order-management/returns_list/')
+    fetch('/admin_api/returns-management/')
     .then(response => response.json())
     .then(data => {
         console.log('Returns data received:', data); // Debug log
@@ -21,6 +21,7 @@ function loadReturns() {
     })
     .catch(error => {
         console.error('Error loading returns:', error);
+        showToast('Error', 'Failed to load returns data', 'danger');
     });
 }
 
@@ -96,34 +97,65 @@ function getStatusBadge(status) {
 }
 
 function viewReturn(returnId) {
-    // Show return details in modal or redirect to order page
-    window.location.href = `/returns-management/`;
+    // Fetch return details and show in modal or new page
+    fetch(`/admin_api/returns-management/${returnId}/`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error', data.error, 'danger');
+        } else {
+            // For now, redirect to the original order page
+            // You could also create a modal to show return details
+            window.location.href = `/order/${data.original_order}/`;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading return details:', error);
+        showToast('Error', 'Failed to load return details', 'danger');
+    });
 }
 
 function processReturn(returnId, action) {
     const actionText = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : 'complete';
+    const confirmMessage = `Are you sure you want to ${actionText} this return?`;
     
-    fetch('/admin_api/order-management/process_return/', {
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    let endpoint = `/admin_api/returns-management/${returnId}/${action}_return/`;
+    let requestData = {};
+    
+    // For reject action, ask for rejection reason
+    if (action === 'reject') {
+        const rejectionReason = prompt('Please provide a reason for rejection (optional):');
+        if (rejectionReason !== null) { // User didn't cancel
+            requestData.rejection_reason = rejectionReason;
+        } else {
+            return; // User cancelled
+        }
+    }
+    
+    fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify({
-            return_id: returnId,
-            action: action
-        })
+        body: JSON.stringify(requestData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            console.error('Error: ' + data.error);
+            showToast('Error', data.error, 'danger');
         } else {
+            showToast('Success', data.message || `Return ${actionText}d successfully`, 'success');
             loadReturns(); // Refresh the table
         }
     })
     .catch(error => {
         console.error('Error:', error);
+        showToast('Error', 'Network error occurred. Please try again.', 'danger');
     });
 }
 
@@ -292,6 +324,32 @@ function updateStatusCounts() {
     document.getElementById('completed-count').textContent = counts.completed;
     document.getElementById('rejected-count').textContent = counts.rejected;
 }
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Note: showToast function should be available globally from layout
+// If not available, you can uncomment the function below:
+/*
+function showToast(title, message, type = 'info') {
+    // Simple fallback if global showToast is not available
+    console.log(`${title}: ${message}`);
+    alert(`${title}: ${message}`);
+}
+*/
 </script>
 
 {% csrf_token %}

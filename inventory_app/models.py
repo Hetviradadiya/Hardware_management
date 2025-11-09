@@ -362,6 +362,21 @@ class OrderItem(models.Model):
 
     def final_price(self):
             return (self.price_at_sale * self.quantity) - self.discount_price() + self.gst_amount()
+    
+    def update_return_status(self):
+        """Update is_return field based on actual return records"""
+        # Check if there are any approved or completed returns for this item
+        has_returns = self.returned_items.filter(
+            return_order__status__in=['approved', 'completed']
+        ).exists()
+        
+        # Update the is_return field if it doesn't match the actual status
+        if self.is_return != has_returns:
+            self.is_return = has_returns
+            self.save()
+            print(f"DEBUG: Synced OrderItem {self.id} is_return to {has_returns}")
+        
+        return self.is_return
         
     def __str__(self):
         return f"{self.variant} x {self.quantity}"

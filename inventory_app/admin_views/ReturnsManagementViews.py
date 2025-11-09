@@ -96,6 +96,13 @@ class ReturnsManagementViewSet(viewsets.ModelViewSet):
                         refund_per_unit=refund_per_unit
                     )
                     
+                    # Update OrderItem.is_return field when return is created
+                    # Mark as returned if any quantity is being returned
+                    if return_quantity > 0:
+                        order_item.is_return = True
+                        order_item.save()
+                        print(f"DEBUG: Updated OrderItem {order_item.id} is_return to True (return created)")
+                    
                     total_return_amount += return_item.total_refund
                 
                 # Update return order totals
@@ -132,7 +139,7 @@ class ReturnsManagementViewSet(viewsets.ModelViewSet):
                 return_order.processed_at = timezone.now()
                 return_order.save()
                 
-                # Update inventory for returned items
+                # Update inventory for returned items and sync return status
                 for return_item in return_order.return_items.all():
                     if return_item.condition in ['good', 'unopened']:
                         # Add back to inventory only if item is in good condition
@@ -141,6 +148,10 @@ class ReturnsManagementViewSet(viewsets.ModelViewSet):
                         )
                         inventory.quantity += return_item.return_quantity
                         inventory.save()
+                    
+                    # Sync OrderItem.is_return field based on actual return records
+                    order_item = return_item.order_item
+                    order_item.update_return_status()
                 
                 # Update order's return amount
                 return_order.original_order.update_return_amount()
@@ -174,6 +185,12 @@ class ReturnsManagementViewSet(viewsets.ModelViewSet):
             return_order.processed_at = timezone.now()
             return_order.notes = f"{return_order.notes}\n\nRejection Reason: {rejection_reason}".strip()
             return_order.save()
+            
+            # Sync OrderItem.is_return field when return is rejected
+            for return_item in return_order.return_items.all():
+                order_item = return_item.order_item
+                # Use the new sync method to properly update based on actual return status
+                order_item.update_return_status()
             
             serializer = self.get_serializer(return_order)
             return Response({

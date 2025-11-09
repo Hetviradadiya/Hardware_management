@@ -550,4 +550,37 @@ class OrderManagementViewSet(viewsets.ModelViewSet):
         
         return True, "Order is consistent"
 
+    @action(detail=True, methods=['post'])
+    def sync_return_status(self, request, pk=None):
+        """Sync is_return field for all order items based on actual return records"""
+        try:
+            order = self.get_object()
+            synced_items = []
+            
+            for item in order.items.all():
+                old_status = item.is_return
+                new_status = item.update_return_status()
+                
+                synced_items.append({
+                    'item_id': item.id,
+                    'product_name': item.variant.product.name if item.variant else 'Unknown',
+                    'old_status': old_status,
+                    'new_status': new_status,
+                    'changed': old_status != new_status
+                })
+            
+            changed_count = sum(1 for item in synced_items if item['changed'])
+            
+            return Response({
+                'success': True,
+                'message': f'Synced {len(synced_items)} items, {changed_count} changed',
+                'synced_items': synced_items
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Failed to sync return status: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
 

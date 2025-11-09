@@ -83,20 +83,27 @@
           tbody.innerHTML = "";
           if (order.order_items && order.order_items.length > 0) {
             order.order_items.forEach((item, idx) => {
+              // Debug logging
+              console.log('Order item:', item);
+              console.log('is_return value:', item.is_return, 'type:', typeof item.is_return);
+              
+              // Ensure is_return is a boolean value
+              const isReturned = Boolean(item.is_return);
+              
               const returnCheckbox = `
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" 
                          id="return_${item.id}" 
-                         ${item.is_return ? 'checked' : ''} 
+                         ${isReturned ? 'checked' : ''} 
                          onchange="toggleReturnStatus(${item.id}, this.checked)">
                   <label class="form-check-label" for="return_${item.id}">
-                    ${item.is_return ? 'Returned' : 'Active'}
+                    ${isReturned ? 'Returned' : 'Active'}
                   </label>
                 </div>
               `;
               
               tbody.insertAdjacentHTML("beforeend", `
-                <tr ${item.is_return ? 'class="table-warning"' : ''}>
+                <tr ${isReturned ? 'class="table-warning"' : ''}>
                   <td>${idx + 1}</td>
                   <td>${item.product_name}</td>
                   <td>${item.product_size ?? "-"}</td>
@@ -142,25 +149,53 @@
   }
 
   function toggleReturnStatus(itemId, isReturned) {
+    console.log('toggleReturnStatus called:', {itemId, isReturned}); // Debug log
+    
     // Show loading state
     const checkbox = document.getElementById(`return_${itemId}`);
     const label = checkbox.nextElementSibling;
     const originalText = label.textContent;
+    const originalChecked = checkbox.checked;
+    
     label.textContent = 'Updating...';
     checkbox.disabled = true;
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    console.log('CSRF Token:', csrfToken); // Debug log
+    console.log('API URL:', `/admin_api/order-items/${itemId}/toggle-return/`); // Debug log
 
     // Make API call to update return status
     fetch(`/admin_api/order-items/${itemId}/toggle-return/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        'X-CSRFToken': csrfToken,
       },
       body: JSON.stringify({ is_return: isReturned })
     })
-    .then(response => response.json())
+    .then(response => {
+      console.log('Response status:', response.status); // Debug log
+      console.log('Response headers:', response.headers); // Debug log
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
+      console.log('Response data:', data); // Debug log
+      
       if (data.success) {
+        // Additional verification logging
+        console.log('Database update verification:', {
+          'old_value': data.old_value,
+          'new_value': data.is_return,
+          'confirmed_saved': data.confirmed_saved
+        });
+        
         // Update UI
         label.textContent = isReturned ? 'Returned' : 'Active';
         const row = checkbox.closest('tr');
@@ -170,35 +205,127 @@
           row.classList.remove('table-warning');
         }
         
-        // Show success notification
-        if (typeof showSuccessToast === 'function') {
-          showSuccessToast(data.message || 'Return status updated successfully');
+        // Show success notification with verification details
+        let message = data.message || 'Return status updated successfully';
+        if (data.confirmed_saved) {
+          message += ' ✓ Database confirmed';
+        } else {
+          message += ' ⚠️ Database update not confirmed';
         }
+        
+        showSuccessToast(message);
+        
+        // Optional: Re-fetch order data to verify database persistence
+        setTimeout(() => {
+          verifyDatabaseUpdate(itemId, isReturned);
+        }, 1000); // Wait 1 second then verify
       } else {
         // Revert checkbox state
-        checkbox.checked = !isReturned;
+        checkbox.checked = originalChecked;
         label.textContent = originalText;
         
         // Show error notification
-        if (typeof showErrorToast === 'function') {
-          showErrorToast(data.message || 'Failed to update return status');
-        }
+        showErrorToast(data.message || 'Failed to update return status');
       }
     })
     .catch(error => {
       console.error('Error updating return status:', error);
+      
       // Revert checkbox state
-      checkbox.checked = !isReturned;
+      checkbox.checked = originalChecked;
       label.textContent = originalText;
       
-      // Show error notification
-      if (typeof showErrorToast === 'function') {
-        showErrorToast('Network error occurred');
+      // Show detailed error notification
+      let errorMessage = 'Network error occurred';
+      if (error.message.includes('404')) {
+        errorMessage = 'API endpoint not found. Please check the URL configuration.';
+      } else if (error.message.includes('403')) {
+        errorMessage = 'Permission denied. Please check your access rights.';
+      } else if (error.message.includes('400')) {
+        errorMessage = 'Bad request. Please check the data being sent.';
       }
+      
+      showErrorToast(errorMessage);
     })
     .finally(() => {
       checkbox.disabled = false;
     });
+  }
+
+  // Function to verify database persistence by re-fetching order data
+  function verifyDatabaseUpdate(itemId, expectedValue) {
+    console.log('Verifying database update for item:', itemId, 'expected:', expectedValue);
+    
+    const orderId = document.getElementById('orderId').textContent;
+    if (orderId && orderId !== 'Loading...') {
+      fetch(`/admin_api/order/${orderId}/`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.order_items) {
+            const item = data.order_items.find(item => item.id == itemId);
+            if (item) {
+              const actualValue = Boolean(item.is_return);
+              console.log('Database verification:', {
+                itemId: itemId,
+                expected: expectedValue,
+                actual: actualValue,
+                matches: actualValue === expectedValue
+              });
+              
+              if (actualValue === expectedValue) {
+                console.log('✓ Database update confirmed: is_return =', actualValue);
+              } else {
+                console.warn('⚠️ Database mismatch: expected', expectedValue, 'but got', actualValue);
+                showErrorToast('Database update verification failed');
+              }
+            } else {
+              console.warn('Item not found in verification response');
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Verification failed:', error);
+        });
+    }
+  }
+
+  // Toast notification functions (fallback if not available globally)
+  function showSuccessToast(message) {
+    if (typeof showToast === 'function') {
+      showToast('Success', message, 'success');
+    } else if (typeof window.showToast === 'function') {
+      window.showToast('Success', message, 'success');
+    } else {
+      console.log('Success:', message);
+      alert('Success: ' + message); // Fallback to alert for debugging
+    }
+  }
+
+  function showErrorToast(message) {
+    if (typeof showToast === 'function') {
+      showToast('Error', message, 'danger');
+    } else if (typeof window.showToast === 'function') {
+      window.showToast('Error', message, 'danger');
+    } else {
+      console.error('Error:', message);
+      alert('Error: ' + message); // Fallback to alert for debugging
+    }
+  }
+
+  // Utility function for CSRF token (if not already available)
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
   }
 </script>
 {% endblock %}
