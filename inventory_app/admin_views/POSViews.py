@@ -2,6 +2,10 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.conf import settings
+from datetime import datetime
+import pytz
 from ..models import Cart, ProductVariant,Customer, Order, OrderItem, Sale, Inventory
 from django.shortcuts import render,redirect
 from ..serializers import CartSerializer,OrderItemSerializer
@@ -107,7 +111,7 @@ def place_order(request):
     paid_amount = to_decimal(request.POST.get("paid_amount"))
     pay_type = request.POST.get("pay_type")
 
-    # Create Order
+    # Create Order - let Django auto_now_add handle the timezone properly
     order = Order.objects.create(
         customer=customer,
         subtotal=subtotal,
@@ -216,8 +220,12 @@ def bill_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     items = order.items.all()
     serializer = OrderItemSerializer(items, many=True)
+    
+    # Calculate net amount after returns
+    net_amount = order.get_net_amount() if hasattr(order, 'get_net_amount') else order.total_amount
 
     return render(request, "bill_page.html", {
         "order": order,
-        "items": serializer.data
+        "items": serializer.data,
+        "net_amount": net_amount
     })

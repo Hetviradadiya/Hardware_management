@@ -1,0 +1,297 @@
+<!-- All Orders Modal -->
+<div class="modal fade" id="allOrdersModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">All Orders</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Search and Filters -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="order-search" placeholder="Search by Order ID, Customer..." onkeyup="filterOrders()">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="order-status-filter" onchange="filterOrders()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="order-payment-filter" onchange="filterOrders()">
+                            <option value="">All Payments</option>
+                            <option value="paid">Paid</option>
+                            <option value="partial">Partial</option>
+                            <option value="unpaid">Unpaid</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" onclick="refreshOrdersList()">
+                            <i class="bx bx-refresh"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Orders Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Total Amount</th>
+                                <th>Payment Status</th>
+                                <th>Order Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-modal-tbody">
+                            <tr>
+                                <td colspan="7" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <span id="orders-count-info">Showing 0 orders</span>
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm" id="orders-pagination">
+                            <!-- Pagination will be generated dynamically -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allOrdersData = [];
+let filteredOrdersData = [];
+let currentOrdersPage = 1;
+const ordersPerPage = 10;
+
+function showOrdersModal() {
+    const modal = new bootstrap.Modal(document.getElementById('allOrdersModal'));
+    modal.show();
+    loadAllOrders();
+}
+
+function loadAllOrders() {
+    const tbody = document.getElementById('orders-modal-tbody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    fetch('/admin_api/order-management/') // Using existing API endpoint
+    .then(response => response.json())
+    .then(data => {
+        console.log('Orders API response:', data); // Debug log
+        allOrdersData = data || [];
+        filteredOrdersData = [...allOrdersData];
+        renderOrdersTable();
+    })
+    .catch(error => {
+        console.error('Error loading orders:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-danger">
+                    Error loading orders. Please try again.
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function renderOrdersTable() {
+    const tbody = document.getElementById('orders-modal-tbody');
+    tbody.innerHTML = '';
+
+    if (filteredOrdersData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    No orders found
+                </td>
+            </tr>
+        `;
+        document.getElementById('orders-count-info').textContent = 'No orders found';
+        return;
+    }
+
+    // Pagination
+    const startIndex = (currentOrdersPage - 1) * ordersPerPage;
+    const endIndex = startIndex + ordersPerPage;
+    const paginatedOrders = filteredOrdersData.slice(startIndex, endIndex);
+
+    paginatedOrders.forEach(order => {
+        const paymentStatus = getOrderPaymentStatus(order);
+        const paymentBadge = getPaymentStatusBadge(paymentStatus);
+        const statusBadge = getOrderStatusBadge(order.status || 'pending');
+        const orderDate = order.order_date || order.created_at;
+        const customerName = order.customer?.name || order.customer_name || 'Walk-in Customer';
+        
+        const row = `
+            <tr>
+                <td>
+                    <strong>#${order.id}</strong>
+                </td>
+                <td>${customerName}</td>
+                <td>${orderDate ? new Date(orderDate).toLocaleDateString() : 'N/A'}</td>
+                <td>₹${parseFloat(order.total_amount || 0).toFixed(2)}</td>
+                <td>${paymentBadge}</td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewOrderDetails(${order.id})" title="View Details">
+                            <i class="bx bx-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="editOrderInModal(${order.id})" title="Edit Order">
+                            <i class="bx bx-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="openOrderInNewTab(${order.id})" title="Open in New Tab">
+                            <i class="bx bx-external-link"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+
+    // Update pagination
+    renderOrdersPagination();
+    
+    // Update count info
+    document.getElementById('orders-count-info').textContent = 
+        `Showing ${startIndex + 1}-${Math.min(endIndex, filteredOrdersData.length)} of ${filteredOrdersData.length} orders`;
+}
+
+function getOrderPaymentStatus(order) {
+    const total = parseFloat(order.total_amount || 0);
+    const paid = parseFloat(order.paid_amount || 0);
+    
+    if (paid >= total) return 'paid';
+    if (paid > 0) return 'partial';
+    return 'unpaid';
+}
+
+function getPaymentStatusBadge(status) {
+    const badges = {
+        'paid': '<span class="badge bg-success">Paid</span>',
+        'partial': '<span class="badge bg-warning">Partial</span>',
+        'unpaid': '<span class="badge bg-danger">Unpaid</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function getOrderStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge bg-warning">Pending</span>',
+        'confirmed': '<span class="badge bg-info">Confirmed</span>',
+        'completed': '<span class="badge bg-success">Completed</span>',
+        'cancelled': '<span class="badge bg-danger">Cancelled</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">' + status + '</span>';
+}
+
+function filterOrders() {
+    const searchTerm = document.getElementById('order-search').value.toLowerCase();
+    const statusFilter = document.getElementById('order-status-filter').value;
+    const paymentFilter = document.getElementById('order-payment-filter').value;
+
+    filteredOrdersData = allOrdersData.filter(order => {
+        const matchesSearch = !searchTerm || 
+            order.id.toString().includes(searchTerm) ||
+            (order.customer?.name || order.customer_name || '').toLowerCase().includes(searchTerm);
+        
+        const matchesStatus = !statusFilter || (order.status || 'pending') === statusFilter;
+        
+        const paymentStatus = getOrderPaymentStatus(order);
+        const matchesPayment = !paymentFilter || paymentStatus === paymentFilter;
+
+        return matchesSearch && matchesStatus && matchesPayment;
+    });
+
+    currentOrdersPage = 1; // Reset to first page
+    renderOrdersTable();
+}
+
+function renderOrdersPagination() {
+    const totalPages = Math.ceil(filteredOrdersData.length / ordersPerPage);
+    const paginationEl = document.getElementById('orders-pagination');
+    
+    if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+    }
+
+    let paginationHTML = '';
+    
+    // Previous button
+    if (currentOrdersPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changeOrdersPage(${currentOrdersPage - 1})">Previous</a></li>`;
+    }
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentOrdersPage) {
+            paginationHTML += `<li class="page-item active"><a class="page-link" href="#">${i}</a></li>`;
+        } else {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changeOrdersPage(${i})">${i}</a></li>`;
+        }
+    }
+    
+    // Next button
+    if (currentOrdersPage < totalPages) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changeOrdersPage(${currentOrdersPage + 1})">Next</a></li>`;
+    }
+    
+    paginationEl.innerHTML = paginationHTML;
+}
+
+function changeOrdersPage(page) {
+    currentOrdersPage = page;
+    renderOrdersTable();
+}
+
+function refreshOrdersList() {
+    loadAllOrders();
+}
+
+function viewOrderDetails(orderId) {
+    // Close the orders modal and open order details in the same tab
+    bootstrap.Modal.getInstance(document.getElementById('allOrdersModal')).hide();
+    window.location.href = `/order/${orderId}/`;
+}
+
+function editOrderInModal(orderId) {
+    // Close the orders modal and open order for editing
+    bootstrap.Modal.getInstance(document.getElementById('allOrdersModal')).hide();
+    window.location.href = `/order/${orderId}/`;
+}
+
+function openOrderInNewTab(orderId) {
+    // Open order in new tab
+    window.open(`/order/${orderId}/`, '_blank');
+}
+</script>

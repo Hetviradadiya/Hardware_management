@@ -80,16 +80,15 @@ def export_customer_orders_pdf(request, pk):
         orders = orders.filter(order_date__date__range=[start_date, end_date])
 
     customer = Customer.objects.get(id=pk)
-    serializer = OrderSerializer(orders, many=True)
-    orders_data = serializer.data
-    #Calculate grand total here in Python
-    total_sum = sum(float(order["total_amount"]) for order in orders_data)
+    
+    #Calculate grand total here in Python  
+    total_sum = sum(order.total_amount for order in orders)
 
-    # Render HTML template
+    # Render HTML template - use queryset directly for proper date formatting
     template_path = "pdf_templates/customer_orders.html"
     context = {
         "customer": customer,
-        "orders": orders_data,
+        "orders": orders,  # Use queryset instead of serialized data
         "start_date": start_date,
         "end_date": end_date,
         "total_sum": total_sum,
@@ -122,7 +121,7 @@ def export_supplier_purchases_pdf(request, pk):
         purchases = purchases.filter(date__range=[start_date, end_date])
 
     supplier = Supplier.objects.get(id=pk)
-    total_sum = sum(float(p.total_price) for p in purchases)
+    total_sum = sum(p.total_price for p in purchases)
 
     template_path = "pdf_templates/supplier_purchases.html"
     context = {

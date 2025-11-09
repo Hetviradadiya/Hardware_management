@@ -12,6 +12,10 @@ from inventory_app.admin_views.POSViews import CartViewSet, place_order,bill_pag
 from inventory_app.admin_views.CustomerOrderView import customer_orders,order_detail_api
 from inventory_app.admin_views.Exportviews import export_customer_orders_excel, export_customer_orders_pdf, export_supplier_purchases_pdf
 from inventory_app.admin_views.SalesView import SalesListAPI
+from inventory_app.admin_views.UserManagementViews import UserManagementViewSet, RoleManagementViewSet
+from inventory_app.admin_views.OrderManagementViews import OrderManagementViewSet
+from inventory_app.admin_views.ReturnsManagementViews import ReturnsManagementViewSet
+from inventory_app.admin_views.OrderItemManagementViews import OrderItemManagementViewSet
 
 from rest_framework.routers import DefaultRouter
 
@@ -24,6 +28,11 @@ router.register('product-variants', ProductVariantView, basename='product-varian
 router.register('purchases', PurchaseViewSet, basename='purchases')
 router.register('inventories', InventoryViewSet, basename='inventories')
 router.register('cart', CartViewSet, basename='cart')
+router.register('users', UserManagementViewSet, basename='users')
+router.register('roles', RoleManagementViewSet, basename='roles')
+router.register('order-management', OrderManagementViewSet, basename='order-management')
+router.register('returns-management', ReturnsManagementViewSet, basename='returns-management')
+router.register('order-items', OrderItemManagementViewSet, basename='order-items')
 
 urlpatterns = [
 
@@ -65,6 +74,17 @@ urlpatterns = [
     
     path('customer-orders/<int:pk>/', DashboardsView.as_view(template_name="customer_orders.html"), name='customer-orders'),
     path('customer-orders/<int:pk>/customer-order-detail/<int:id>/', DashboardsView.as_view(template_name="customer_order_detail.html"), name= 'customer-order-detail'),
+
+    # Settings Page
+    path('settings/', DashboardsView.as_view(template_name="settings.html"), name='settings'),
+    
+    # Order Management and Returns
+    path('orders-list/', DashboardsView.as_view(template_name="orders_list.html"), name='orders-list'),
+    path('order/<int:order_id>/edit/', DashboardsView.as_view(template_name="order_edit.html"), name='order-edit'),
+    path('order/<int:order_id>/', DashboardsView.as_view(template_name="order.html"), name='order-detail'),
+    path('returns-management/', DashboardsView.as_view(template_name="returns_management.html"), name='returns-management'),
+
+    # API Endpoints
     path("admin_api/customer-orders/<int:pk>/export_excel/", export_customer_orders_excel, name="export_customer-order_excel"),
     path("admin_api/customer-orders/<int:pk>/export_pdf/", export_customer_orders_pdf, name="customer_orders_pdf"),
     

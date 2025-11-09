@@ -49,6 +49,32 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         if errors:
             return Response({"created": created, "errors": errors}, status=status.HTTP_207_MULTI_STATUS)  # Partial success
         return Response({"created": created}, status=status.HTTP_201_CREATED)
+    
+    def update(self, request, *args, **kwargs):
+        """
+        Override update method to handle single purchase edit properly
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # Get the data from request
+        data = request.data.copy()
+        
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        
+        if serializer.is_valid():
+            # The model's save method will handle inventory updates properly
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Handle PATCH requests for single purchase edit
+        """
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response

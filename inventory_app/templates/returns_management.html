@@ -1,0 +1,298 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Returns Management{% endblock %}
+
+{% block page_js %}
+<script>
+let returnsData = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadReturns();
+});
+
+function loadReturns() {
+    fetch('/admin_api/order-management/returns_list/')
+    .then(response => response.json())
+    .then(data => {
+        console.log('Returns data received:', data); // Debug log
+        returnsData = data;
+        renderReturnsTable();
+        updateStatusCounts(); // Explicitly call updateStatusCounts
+    })
+    .catch(error => {
+        console.error('Error loading returns:', error);
+    });
+}
+
+function renderReturnsTable() {
+    const tbody = document.getElementById('returns-tbody');
+    tbody.innerHTML = '';
+    
+    if (!returnsData || returnsData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    No returns found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    returnsData.forEach(returnItem => {
+        const statusBadge = getStatusBadge(returnItem.status);
+        const row = `
+            <tr>
+                <td>
+                    <a href="/return/${returnItem.id}/" class="text-decoration-none">
+                        #${returnItem.id}
+                    </a>
+                </td>
+                <td>
+                    <a href="/order/${returnItem.order_id}/" class="text-decoration-none">
+                        #${returnItem.order_id}
+                    </a>
+                </td>
+                <td>${returnItem.customer_name}</td>
+                <td>${new Date(returnItem.return_date).toLocaleDateString()}</td>
+                <td>${returnItem.reason}</td>
+                <td>${statusBadge}</td>
+                <td>₹${parseFloat(returnItem.refund_amount).toFixed(2)}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewReturn(${returnItem.id})">
+                            <i class="bx bx-eye"></i> View
+                        </button>
+                        ${returnItem.status === 'pending' ? `
+                            <button class="btn btn-outline-success btn-sm" onclick="processReturn(${returnItem.id}, 'approve')">
+                                <i class="bx bx-check"></i> Approve
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="processReturn(${returnItem.id}, 'reject')">
+                                <i class="bx bx-x"></i> Reject
+                            </button>
+                        ` : ''}
+                        ${returnItem.status === 'approved' ? `
+                            <button class="btn btn-outline-info btn-sm" onclick="processReturn(${returnItem.id}, 'complete')">
+                                <i class="bx bx-check-double"></i> Complete
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function getStatusBadge(status) {
+    const statusClasses = {
+        'pending': 'bg-warning text-dark',
+        'approved': 'bg-info text-white',
+        'rejected': 'bg-danger text-white',
+        'completed': 'bg-success text-white'
+    };
+    
+    return `<span class="badge ${statusClasses[status] || 'bg-secondary'}">${status.toUpperCase()}</span>`;
+}
+
+function viewReturn(returnId) {
+    // Show return details in modal or redirect to order page
+    window.location.href = `/returns-management/`;
+}
+
+function processReturn(returnId, action) {
+    const actionText = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : 'complete';
+    
+    fetch('/admin_api/order-management/process_return/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            return_id: returnId,
+            action: action
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error: ' + data.error);
+        } else {
+            loadReturns(); // Refresh the table
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function filterByStatus() {
+    const status = document.getElementById('status-filter').value;
+    
+    if (status === '') {
+        renderReturnsTable();
+        return;
+    }
+    
+    const filteredData = returnsData.filter(item => item.status === status);
+    const tbody = document.getElementById('returns-tbody');
+    tbody.innerHTML = '';
+    
+    filteredData.forEach(returnItem => {
+        const statusBadge = getStatusBadge(returnItem.status);
+        const row = `
+            <tr>
+                <td>#${returnItem.id}</td>
+                <td>#${returnItem.order_id}</td>
+                <td>${returnItem.customer_name}</td>
+                <td>${new Date(returnItem.return_date).toLocaleDateString()}</td>
+                <td>${returnItem.reason}</td>
+                <td>${statusBadge}</td>
+                <td>₹${parseFloat(returnItem.refund_amount).toFixed(2)}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewReturn(${returnItem.id})">
+                            <i class="bx bx-eye"></i> View
+                        </button>
+                        ${returnItem.status === 'pending' ? `
+                            <button class="btn btn-outline-success btn-sm" onclick="processReturn(${returnItem.id}, 'approve')">
+                                <i class="bx bx-check"></i> Approve
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="processReturn(${returnItem.id}, 'reject')">
+                                <i class="bx bx-x"></i> Reject
+                            </button>
+                        ` : ''}
+                        ${returnItem.status === 'approved' ? `
+                            <button class="btn btn-outline-info btn-sm" onclick="processReturn(${returnItem.id}, 'complete')">
+                                <i class="bx bx-check-double"></i> Complete
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold">Returns Management</h4>
+        <!-- <a href="/dashboard/" class="btn btn-secondary">
+            <i class="bx bx-arrow-back"></i> Back to Dashboard
+        </a> -->
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Filters</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select id="status-filter" class="form-select" onchange="filterByStatus()">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <h5 class="text-warning" id="pending-count">0</h5>
+                            <small>Pending</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-info" id="approved-count">0</h5>
+                            <small>Approved</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-success" id="completed-count">0</h5>
+                            <small>Completed</small>
+                        </div>
+                        <div class="col-3">
+                            <h5 class="text-danger" id="rejected-count">0</h5>
+                            <small>Rejected</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Returns Table -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0">All Returns</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Return ID</th>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Return Date</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Refund Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returns-tbody">
+                        <tr>
+                            <td colspan="8" class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update counts when data loads
+function updateStatusCounts() {
+    console.log('Updating status counts, returnsData:', returnsData); // Debug log
+    const counts = {
+        pending: 0,
+        approved: 0,
+        completed: 0,
+        rejected: 0
+    };
+    
+    returnsData.forEach(item => {
+        console.log('Item status:', item.status); // Debug log
+        if (counts[item.status] !== undefined) {
+            counts[item.status]++;
+        }
+    });
+    
+    console.log('Final counts:', counts); // Debug log
+    
+    document.getElementById('pending-count').textContent = counts.pending;
+    document.getElementById('approved-count').textContent = counts.approved;
+    document.getElementById('completed-count').textContent = counts.completed;
+    document.getElementById('rejected-count').textContent = counts.rejected;
+}
+</script>
+
+{% csrf_token %}
+{% endblock %}

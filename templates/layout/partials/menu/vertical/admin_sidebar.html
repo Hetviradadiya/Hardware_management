@@ -9,35 +9,35 @@
   </a>
 </li>
 
-<li class="menu-item {% if '/category-list/' in request.path %}active open{% endif %}">
+<li class="menu-item {% if '/category' in request.path %}active open{% endif %}">
   <a href="{% url 'category-list' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-category"></i>
     <div class="text-truncate" data-i18n="Dashboards">Categories</div>
   </a>
 </li>
 
-<li class="menu-item {% if '/product-list/' in request.path %}active open{% endif %}">
+<li class="menu-item {% if '/product' in request.path %}active open{% endif %}">
   <a href="{% url 'product-list' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-package"></i>
     <div class="text-truncate" data-i18n="Dashboards">Products</div>
   </a>
 </li>
 
-<li class="menu-item {% if '/supplier-list/' in request.path %}active open{% endif %}">
+<li class="menu-item {% if '/supplier' in request.path %}active open{% endif %}">
   <a href="{% url 'supplier-list' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-user-pin"></i>
     <div class="text-truncate" data-i18n="Dashboards">Supplier</div>
   </a>
 </li>
 
-<li class="menu-item {% if '/customer-list/' in request.path %}active open{% endif %}">
+<li class="menu-item {% if '/customer' in request.path %}active open{% endif %}">
   <a href="{% url 'customer-list' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-user-circle"></i>
     <div class="text-truncate" data-i18n="Dashboards">Customer</div>
   </a>
 </li>
 
-<li class="menu-item {% if '/purchase-list/' in request.path %}active open{% endif %}">
+<li class="menu-item {% if '/purchase' in request.path %}active open{% endif %}">
   <a href="{% url 'purchase-list' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-cart-download"></i>
     <div class="text-truncate" data-i18n="Dashboards">Purchase</div>
@@ -59,12 +59,30 @@
 </li>
 
 <li class="menu-header small text-uppercase">
+  <span class="menu-header-text">Order Management</span>
+</li>
+
+<li class="menu-item {% if '/orders-list/' in request.path %}active open{% endif %}">
+  <a href="{% url 'orders-list' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-list-ul"></i>
+    <div class="text-truncate" data-i18n="Dashboards">All Orders</div>
+  </a>
+</li>
+
+<li class="menu-item {% if '/returns-management/' in request.path %}active open{% endif %}">
+  <a href="{% url 'returns-management' %}" class="menu-link">
+    <i class="menu-icon tf-icons bx bx-undo"></i>
+    <div class="text-truncate" data-i18n="Dashboards">Returns Management</div>
+  </a>
+</li>
+
+<li class="menu-header small text-uppercase">
   <span class="menu-header-text">Account Manage</span>
 </li>
 
 <li class="menu-item {% if '/settings/' in request.path %}active open{% endif %}">
-  <a href="{% url 'pos' %}" class="menu-link">
+  <a href="{% url 'settings' %}" class="menu-link">
     <i class="menu-icon tf-icons bx bx-cog"></i>
-    <div class="text-truncate" data-i18n="Dashboards">Setting</div>
+    <div class="text-truncate" data-i18n="Dashboards">Settings</div>
   </a>
 </li>

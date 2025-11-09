@@ -112,9 +112,14 @@ function fetchOrders(initialLoad = false) {
               <td>₹ ${finalAmount}</td>
               <td>₹ ${order.paid_amount}</td>
               <td>
-                <a href="customer-order-detail/${order.id}/" class="btn btn-sm btn-primary">
-                  <i class="bx bx-show"></i> View
-                </a>
+                <div class="btn-group btn-group-sm">
+                  <a href="customer-order-detail/${order.id}/" class="btn btn-outline-primary">
+                    <i class="bx bx-show"></i> View
+                  </a>
+                  <a href="/order/${order.id}/" class="btn btn-outline-success">
+                    <i class="bx bx-edit"></i> Manage
+                  </a>
+                </div>
               </td>
             </tr>`;
           tbody.insertAdjacentHTML("beforeend", row);

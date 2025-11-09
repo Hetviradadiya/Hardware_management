@@ -60,6 +60,14 @@ class DashboardsView(TemplateView):
             "customer_orders.html": ("Customer", reverse("customer-list"), "Customer-orders"),
             "customer_order_detail.html": ("Customer", reverse("customer-list"), "Customer-orders", "DYNAMIC", "Order Detail"),
             
+            "settings.html": ("Settings", None),
+            
+            # Order Management and Returns
+            "order.html": ("Order Management", None),
+            "orders_list.html": ("Orders", None),
+            "order_edit.html": ("Order Management", None, "Edit Order"),
+            "returns_management.html": ("Returns Management", None),
+            
             # "properties_list.html": ("Properties", None),
             # "property_detail.html": ("Properties", reverse("properties"), "Property Detail"),
             # "property_add.html": ("Properties", reverse("properties"), "Add Property"),
@@ -98,6 +106,9 @@ class DashboardsView(TemplateView):
 
         slug = self.kwargs.get("slug")
         pk = self.kwargs.get("pk")
+        order_id = self.kwargs.get("order_id")
+        return_id = self.kwargs.get("return_id")
+        
         if 'id' in self.kwargs and 'detail' in self.request.path:
             context['view_only'] = 'true'
             context['id'] = self.kwargs['id']
@@ -107,6 +118,12 @@ class DashboardsView(TemplateView):
         else:
             context['view_only'] = 'false'
             context['id'] = ''
+        
+        # Add order and return IDs to context
+        if order_id:
+            context['order_id'] = order_id
+        if return_id:
+            context['return_id'] = return_id
 
         route = route_map.get(template)
         if route:

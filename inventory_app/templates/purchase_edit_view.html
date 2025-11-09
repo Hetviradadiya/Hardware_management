@@ -41,7 +41,7 @@
           <div class="row mb-4">
             <label class="col-sm-2 col-form-label" for="variant">Product Variant</label>
             <div class="col-sm-10">
-              <select id="variant" class="form-control" required></select>
+              <select id="variant" class="form-control"></select>
             </div>
           </div>
 
@@ -108,6 +108,8 @@
   const isEdit = Boolean(purchaseId) && !isView;
 
   document.addEventListener("DOMContentLoaded", () => {
+    console.log("DOM loaded. purchaseId:", purchaseId, "isView:", isView, "isEdit:", isEdit);
+    
     const submitBtn = document.getElementById("submit-button");
     const formHeading = document.querySelector(".card-header h5");
 
@@ -125,12 +127,20 @@
     }
 
     // wait for dropdowns to load before setting values
+    console.log("Loading dropdowns...");
     loadDropdowns().then(() => {
+      console.log("Dropdowns loaded successfully");
       if (isEdit || isView) {
+        console.log("Loading purchase data for edit/view mode");
         loadPurchase(purchaseId);
       } else {
+        console.log("Showing form for add mode");
         form.style.display = "block";
       }
+    }).catch(err => {
+      console.error("Failed to load dropdowns:", err);
+      // Show form anyway
+      form.style.display = "block";
     });
 
     ["quantity", "purchase_price", "discount", "gst"].forEach(id => {
@@ -138,26 +148,80 @@
     });
   });
 
+  // Function to fetch all variants across all pages
+  async function fetchAllVariants() {
+    let allVariants = [];
+    let page = 1;
+    let hasMorePages = true;
+    
+    while (hasMorePages) {
+      try {
+        const response = await fetch(`/admin_api/product-variants/?page=${page}`);
+        if (!response.ok) throw new Error(`Variants API error: ${response.status}`);
+        
+        const data = await response.json();
+        console.log(`Variants page ${page}:`, data);
+        
+        // Handle paginated response
+        const variants = data.rows || data.results || data;
+        if (Array.isArray(variants)) {
+          allVariants = allVariants.concat(variants);
+        }
+        
+        // Check if there are more pages
+        hasMorePages = data.next !== null;
+        page++;
+        
+        // Safety check to avoid infinite loops
+        if (page > 10) {
+          console.warn("Too many pages, stopping at page 10");
+          break;
+        }
+      } catch (error) {
+        console.error("Error fetching variants page", page, ":", error);
+        hasMorePages = false;
+      }
+    }
+    
+    return allVariants;
+  }
+
   function loadDropdowns() {
+    console.log("Starting to load dropdowns...");
     return Promise.all([
-      fetch("/admin_api/suppliers/")
-        .then(r => r.json())
+      fetch("/admin_api/suppliers/?page_size=1000")
+        .then(r => {
+          console.log("Suppliers API response status:", r.status);
+          if (!r.ok) throw new Error(`Suppliers API error: ${r.status}`);
+          return r.json();
+        })
         .then(data => {
+          console.log("Suppliers data:", data);
           let supplierSelect = document.getElementById("supplier");
           supplierSelect.innerHTML = `<option value="">-- Select Supplier --</option>`;
-          data.forEach(s => {
-            supplierSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-          });
+          
+          // Handle both paginated and direct array responses
+          const suppliers = data.rows || data.results || data;
+          if (Array.isArray(suppliers)) {
+            suppliers.forEach(s => {
+              supplierSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            });
+            console.log("Suppliers dropdown populated with", suppliers.length, "items");
+          } else {
+            console.error("Suppliers data is not an array:", suppliers);
+          }
         }),
 
-      fetch("/admin_api/product-variants/")
-        .then(r => r.json())
-        .then(data => {
+      // Load ALL variants (not paginated) for the dropdown
+      fetchAllVariants()
+        .then(variants => {
+          console.log("All variants loaded:", variants.length);
           let variantSelect = document.getElementById("variant");
           variantSelect.innerHTML = `<option value="">-- Select Product Variant --</option>`;
-          data.forEach(variant => {
+          variants.forEach(variant => {
             variantSelect.innerHTML += `<option value="${variant.id}">${variant.product_name} - ${variant.size}</option>`;
           });
+          console.log("Variants dropdown populated with", variants.length, "items");
         }),
     ]);
   }
@@ -176,27 +240,79 @@
   }
 
   function loadPurchase(id) {
+    console.log("Loading purchase with ID:", id);
     fetch(`/admin_api/purchases/${id}/`)
-      .then(res => res.json())
+      .then(res => {
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        document.getElementById("supplier").value = data.supplier;
-        document.getElementById("variant").value = data.variant;
-        document.getElementById("quantity").value = data.quantity;
-        document.getElementById("purchase_price").value = data.purchase_price;
-        document.getElementById("discount").value = data.discount || 0;
-        document.getElementById("gst").value = data.gst || 0;
+        console.log("Purchase data loaded:", data);
+        
+        // Check if elements exist and set values
+        const supplierSelect = document.getElementById("supplier");
+        const variantSelect = document.getElementById("variant");
+        const quantityInput = document.getElementById("quantity");
+        const priceInput = document.getElementById("purchase_price");
+        const discountInput = document.getElementById("discount");
+        const gstInput = document.getElementById("gst");
+        
+        if (supplierSelect) {
+          supplierSelect.value = data.supplier || '';
+          console.log("Supplier set to:", data.supplier);
+        }
+        
+        if (variantSelect) {
+          variantSelect.value = data.variant || '';
+          console.log("Variant set to:", data.variant);
+        }
+        
+        if (quantityInput) {
+          quantityInput.value = data.quantity || '';
+          console.log("Quantity set to:", data.quantity);
+        }
+        
+        if (priceInput) {
+          priceInput.value = data.purchase_price || '';
+          console.log("Purchase price set to:", data.purchase_price);
+        }
+        
+        if (discountInput) {
+          discountInput.value = data.discount || 0;
+          console.log("Discount set to:", data.discount);
+        }
+        
+        if (gstInput) {
+          gstInput.value = data.gst || 0;
+          console.log("GST set to:", data.gst);
+        }
+        
         calculateTotal();
 
         if (isView) {
           form.querySelectorAll("input, select, button").forEach(el => {
             if (el.id !== "back-button") el.disabled = true;
           });
+        } else if (isEdit) {
+          // In edit mode, make variant field read-only (not changeable)
+          if (variantSelect) {
+            variantSelect.disabled = true;
+            variantSelect.style.backgroundColor = "#f8f9fa";
+            variantSelect.style.cursor = "not-allowed";
+            console.log("Variant field set to read-only for edit mode");
+          }
         }
         form.style.display = "block";
+        console.log("Form displayed successfully with all values set");
       })
       .catch(err => {
         console.error("Failed to load purchase:", err);
-        showToast("Error", "Failed to load data", "danger");
+        showToast("Error", "Failed to load data: " + err.message, "danger");
+        // Show form anyway so user can see there's an issue
+        form.style.display = "block";
       });
   }
 
@@ -209,13 +325,17 @@
 
     const payload = {
       supplier: document.getElementById("supplier").value,
-      variant: document.getElementById("variant").value,
       quantity: document.getElementById("quantity").value,
       purchase_price: document.getElementById("purchase_price").value,
       discount: document.getElementById("discount").value,
       gst: document.getElementById("gst").value,
       total_price: document.getElementById("total_price").value
     };
+
+    // Only include variant in payload for new purchases, not for edits
+    if (!isEdit) {
+      payload.variant = document.getElementById("variant").value;
+    }
 
     const url = isEdit
       ? `/admin_api/purchases/${purchaseId}/`

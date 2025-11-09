@@ -191,16 +191,41 @@ class Purchase(models.Model):
     date = models.DateField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
+        # Check if this is an update (instance has pk) or create (no pk)
+        is_update = self.pk is not None
+        old_variant = None
+        old_quantity = 0
+        
+        # If updating, get old values before saving
+        if is_update:
+            try:
+                old_purchase = Purchase.objects.get(pk=self.pk)
+                old_variant = old_purchase.variant
+                old_quantity = old_purchase.quantity
+            except Purchase.DoesNotExist:
+                is_update = False
+        
+        # Calculate total price
         base_price = self.quantity * self.purchase_price
-
         discounted_price = base_price - self.discount if self.discount else base_price
-
-        # Apply GST (assuming gst is %)
         gst_amount = (discounted_price * self.gst) / 100
         self.total_price = discounted_price + gst_amount
         
         super().save(*args, **kwargs)
+        
         # Update Inventory
+        if is_update and old_variant:
+            # Remove old quantity from old variant's inventory
+            old_inventory = Inventory.objects.get_or_create(
+                variant=old_variant,
+                defaults={'quantity': 0}
+            )[0]
+            old_inventory.quantity -= old_quantity
+            if old_inventory.quantity < 0:
+                old_inventory.quantity = 0
+            old_inventory.save()
+        
+        # Add new quantity to current variant's inventory
         inventory_item, created = Inventory.objects.get_or_create(
             variant=self.variant,
             defaults={'quantity': self.quantity}
@@ -246,10 +271,18 @@ class Order(models.Model):
         ('card', 'card'),
     )
     
+    ORDER_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="orders", null=True, blank=True
     )
     order_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
     # totals
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)         # 💡 sum of qty * price
     total_item_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
@@ -265,6 +298,7 @@ class Order(models.Model):
     note = models.TextField(blank=True, null=True)
     pod_number = models.CharField(max_length=255, blank=True, null=True)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    return_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Total amount returned to customer")
     
     # def subtotal(self):
     #     return sum(item.total_price() for item in self.items.all())
@@ -277,6 +311,27 @@ class Order(models.Model):
 
     # def get_total_amount(self):
     #     return self.subtotal() - self.discount_value()
+
+    def calculate_total_returned_amount(self):
+        """Calculate total amount returned for this order"""
+        total_returned = sum(
+            return_order.refund_amount 
+            for return_order in self.returns.filter(status='approved')
+        )
+        return total_returned
+    
+    def update_return_amount(self):
+        """Update the return_amount field with calculated returned amount"""
+        self.return_amount = self.calculate_total_returned_amount()
+        self.save(update_fields=['return_amount'])
+    
+    def get_net_amount(self):
+        """Get net amount after deducting returns (for billing)"""
+        return self.total_amount - self.return_amount
+    
+    def get_pending_amount(self):
+        """Get pending amount after considering payments and returns"""
+        return self.get_net_amount() - self.paid_amount
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer.name if self.customer else 'No Customer'}"
@@ -291,6 +346,7 @@ class OrderItem(models.Model):
     item_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_percentage = models.BooleanField(default=True)  # True if discount is %
     gst = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    is_return = models.BooleanField(default=False, help_text="Mark if this item has been returned")
 
     def discount_price(self):
         total = self.price_at_sale * self.quantity
@@ -360,3 +416,104 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"Sale for Order #{self.order.id}"
+
+
+# ---------- RETURNS ----------
+class OrderReturn(models.Model):
+    RETURN_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+    )
+    
+    RETURN_REASON_CHOICES = (
+        ('damaged', 'Damaged Product'),
+        ('wrong_item', 'Wrong Item'),
+        ('defective', 'Defective Product'),
+        ('customer_request', 'Customer Request'),
+        ('quality_issue', 'Quality Issue'),
+        ('other', 'Other'),
+    )
+    
+    original_order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="returns")
+    return_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=RETURN_STATUS_CHOICES, default='pending')
+    reason = models.CharField(max_length=50, choices=RETURN_REASON_CHOICES)
+    notes = models.TextField(blank=True, null=True)
+    
+    # Financial details
+    total_return_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    refund_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    processing_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # System tracking
+    processed_by = models.ForeignKey(UserAccount, on_delete=models.SET_NULL, null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Return #{self.id} for Order #{self.original_order.id}"
+    
+    def calculate_refund(self):
+        """Calculate total refund amount based on returned items"""
+        total_refund = sum(item.calculate_refund_amount() for item in self.return_items.all())
+        return total_refund - self.processing_fee
+    
+    def save(self, *args, **kwargs):
+        # Check if status changed to approved
+        is_new = self.pk is None
+        old_status = None
+        
+        if not is_new:
+            try:
+                old_return = OrderReturn.objects.get(pk=self.pk)
+                old_status = old_return.status
+            except OrderReturn.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # Update order's return amount when status changes to approved
+        if self.status == 'approved' and old_status != 'approved':
+            self.original_order.update_return_amount()
+        elif old_status == 'approved' and self.status != 'approved':
+            # If status changed from approved to something else, recalculate
+            self.original_order.update_return_amount()
+
+
+class ReturnItem(models.Model):
+    return_order = models.ForeignKey(OrderReturn, on_delete=models.CASCADE, related_name="return_items")
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE)
+    return_quantity = models.PositiveIntegerField()
+    condition = models.CharField(max_length=50, choices=(
+        ('good', 'Good Condition'),
+        ('damaged', 'Damaged'),
+        ('defective', 'Defective'),
+        ('unopened', 'Unopened'),
+    ), default='good')
+    
+    # Refund calculation
+    refund_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+    total_refund = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    def save(self, *args, **kwargs):
+        # Calculate total refund
+        self.total_refund = self.refund_per_unit * self.return_quantity
+        super().save(*args, **kwargs)
+    
+    def calculate_refund_amount(self):
+        """Calculate refund amount based on condition and policies"""
+        base_amount = self.refund_per_unit * self.return_quantity
+        
+        # Apply condition-based adjustments
+        if self.condition == 'damaged':
+            return base_amount * Decimal('0.5')  # 50% for damaged items
+        elif self.condition == 'defective':
+            return base_amount  # Full refund for defective items
+        elif self.condition == 'good' or self.condition == 'unopened':
+            return base_amount  # Full refund for good condition
+        
+        return base_amount
+    
+    def __str__(self):
+        return f"Return {self.return_quantity}x {self.order_item.variant}"

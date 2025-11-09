@@ -1,0 +1,345 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Create Return{% endblock %}
+
+{% block page_js %}
+<script>
+let orderData = {};
+let returnItems = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const orderId = {{ order_id|default:0 }};
+    
+    fetch(`/admin_api/order-management/${orderId}/`)
+    .then(response => response.json())
+    .then(data => {
+        orderData = data;
+        renderOrderInfo();
+        renderOrderItems();
+    });
+});
+
+function renderOrderInfo() {
+    document.getElementById('order-info').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Order Details</h6>
+                <p><strong>Order ID:</strong> #${orderData.id}</p>
+                <p><strong>Customer:</strong> ${orderData.customer_name || 'N/A'}</p>
+                <p><strong>Order Date:</strong> ${new Date(orderData.order_date).toLocaleDateString()}</p>
+                <p><strong>Total Amount:</strong> ₹${parseFloat(orderData.total_amount).toFixed(2)}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Return Information</h6>
+                <div class="mb-3">
+                    <label class="form-label">Reason for Return</label>
+                    <select id="return-reason" class="form-select" required>
+                        <option value="">Select Reason</option>
+                        <option value="damaged">Damaged Product</option>
+                        <option value="wrong_item">Wrong Item</option>
+                        <option value="defective">Defective Product</option>
+                        <option value="customer_request">Customer Request</option>
+                        <option value="quality_issue">Quality Issue</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Processing Fee (₹)</label>
+                    <input type="number" id="processing-fee" class="form-control" value="0" step="0.01" min="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Additional Notes</label>
+                    <textarea id="return-notes" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderOrderItems() {
+    const tbody = document.getElementById('order-items-body');
+    tbody.innerHTML = '';
+    
+    orderData.order_items.forEach((item, index) => {
+        const row = `
+            <tr>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input item-checkbox" type="checkbox" 
+                               data-item-id="${item.id}" data-index="${index}" 
+                               onchange="toggleReturnItem(${index})">
+                    </div>
+                </td>
+                <td>${item.product_name} - ${item.product_size}</td>
+                <td>${item.quantity}</td>
+                <td>₹${parseFloat(item.price_at_sale).toFixed(2)}</td>
+                <td>₹${parseFloat(item.total_price).toFixed(2)}</td>
+                <td>
+                    <input type="number" class="form-control return-quantity" 
+                           min="1" max="${item.quantity}" value="1" 
+                           data-index="${index}" disabled
+                           onchange="updateReturnQuantity(${index})">
+                </td>
+                <td>
+                    <select class="form-select item-condition" data-index="${index}" disabled>
+                        <option value="good">Good Condition</option>
+                        <option value="damaged">Damaged</option>
+                        <option value="defective">Defective</option>
+                        <option value="unopened">Unopened</option>
+                    </select>
+                </td>
+                <td class="refund-amount">₹0.00</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function toggleReturnItem(index) {
+    const checkbox = document.querySelector(`input[data-index="${index}"]`);
+    const quantityInput = document.querySelector(`input.return-quantity[data-index="${index}"]`);
+    const conditionSelect = document.querySelector(`select.item-condition[data-index="${index}"]`);
+    
+    if (checkbox.checked) {
+        quantityInput.disabled = false;
+        conditionSelect.disabled = false;
+        
+        // Add to return items
+        const item = orderData.order_items[index];
+        returnItems.push({
+            order_item_id: item.id,
+            index: index,
+            return_quantity: 1,
+            condition: 'good',
+            max_quantity: item.quantity,
+            price_per_unit: parseFloat(item.price_at_sale),
+            item_discount: parseFloat(item.item_discount || 0),
+            is_percentage: item.is_percentage
+        });
+    } else {
+        quantityInput.disabled = true;
+        conditionSelect.disabled = true;
+        
+        // Remove from return items
+        returnItems = returnItems.filter(returnItem => returnItem.index !== index);
+    }
+    
+    updateReturnQuantity(index);
+    calculateTotalRefund();
+}
+
+function updateReturnQuantity(index) {
+    const quantityInput = document.querySelector(`input.return-quantity[data-index="${index}"]`);
+    const returnItem = returnItems.find(item => item.index === index);
+    
+    if (returnItem) {
+        returnItem.return_quantity = parseInt(quantityInput.value) || 1;
+        updateRefundAmount(index);
+    }
+}
+
+function updateItemCondition(index) {
+    const conditionSelect = document.querySelector(`select.item-condition[data-index="${index}"]`);
+    const returnItem = returnItems.find(item => item.index === index);
+    
+    if (returnItem) {
+        returnItem.condition = conditionSelect.value;
+        updateRefundAmount(index);
+    }
+}
+
+function updateRefundAmount(index) {
+    const returnItem = returnItems.find(item => item.index === index);
+    if (!returnItem) return;
+    
+    // Calculate base refund amount
+    const itemTotal = returnItem.price_per_unit * returnItem.return_quantity;
+    let discountAmount = 0;
+    
+    if (returnItem.is_percentage) {
+        discountAmount = (itemTotal * returnItem.item_discount) / 100;
+    } else {
+        discountAmount = (returnItem.item_discount / orderData.order_items[index].quantity) * returnItem.return_quantity;
+    }
+    
+    let baseRefund = itemTotal - discountAmount;
+    
+    // Apply condition-based adjustment
+    let refundAmount = baseRefund;
+    if (returnItem.condition === 'damaged') {
+        refundAmount = baseRefund * 0.5; // 50% for damaged items
+    }
+    
+    // Update display
+    const refundCell = document.querySelector(`tr:nth-child(${index + 1}) .refund-amount`);
+    if (refundCell) {
+        refundCell.textContent = `₹${refundAmount.toFixed(2)}`;
+    }
+    
+    returnItem.refund_amount = refundAmount;
+    calculateTotalRefund();
+}
+
+function calculateTotalRefund() {
+    const totalRefund = returnItems.reduce((sum, item) => sum + (item.refund_amount || 0), 0);
+    const processingFee = parseFloat(document.getElementById('processing-fee').value) || 0;
+    const finalRefund = Math.max(0, totalRefund - processingFee);
+    
+    document.getElementById('total-refund').textContent = totalRefund.toFixed(2);
+    document.getElementById('processing-fee-display').textContent = processingFee.toFixed(2);
+    document.getElementById('final-refund').textContent = finalRefund.toFixed(2);
+}
+
+function submitReturn() {
+    const reason = document.getElementById('return-reason').value;
+    const processingFee = parseFloat(document.getElementById('processing-fee').value) || 0;
+    const notes = document.getElementById('return-notes').value;
+    
+    if (!reason) {
+        alert('Please select a reason for return');
+        return;
+    }
+    
+    if (returnItems.length === 0) {
+        alert('Please select at least one item to return');
+        return;
+    }
+    
+    // Update conditions from form
+    returnItems.forEach(item => {
+        const conditionSelect = document.querySelector(`select.item-condition[data-index="${item.index}"]`);
+        item.condition = conditionSelect.value;
+        updateRefundAmount(item.index);
+    });
+    
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    
+    const returnData = {
+        reason: reason,
+        processing_fee: processingFee,
+        notes: notes,
+        return_items: returnItems.map(item => ({
+            order_item_id: item.order_item_id,
+            return_quantity: item.return_quantity,
+            condition: item.condition
+        }))
+    };
+    
+    fetch(`/admin_api/order-management/${orderData.id}/create_return/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(returnData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Return created successfully! Return ID: #${data.return_id}`);
+            window.location.href = `/returns-management/`;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to create return');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Create Return';
+    });
+}
+
+// Add event listeners for condition changes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('item-condition')) {
+        const index = parseInt(e.target.dataset.index);
+        updateItemCondition(index);
+    }
+    
+    if (e.target.id === 'processing-fee') {
+        calculateTotalRefund();
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold">Create Return</h4>
+        <a href="javascript:history.back()" class="btn btn-secondary">
+            <i class="bx bx-arrow-back"></i> Back
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Order Information -->
+                    <div id="order-info" class="mb-4"></div>
+
+                    <!-- Items to Return -->
+                    <h6>Select Items to Return</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">Select</th>
+                                    <th>Product</th>
+                                    <th>Ordered Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Total Price</th>
+                                    <th>Return Qty</th>
+                                    <th>Condition</th>
+                                    <th>Refund Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order-items-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Return Summary -->
+                    <div class="row">
+                        <div class="col-md-6 offset-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Return Summary</h6>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Total Refund:</span>
+                                        <span>₹<span id="total-refund">0.00</span></span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Processing Fee:</span>
+                                        <span>₹<span id="processing-fee-display">0.00</span></span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>Final Refund:</span>
+                                        <span class="text-success">₹<span id="final-refund">0.00</span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" onclick="history.back()">Cancel</button>
+                        <button type="button" id="submit-btn" class="btn btn-warning" onclick="submitReturn()">
+                            <i class="bx bx-undo"></i> Create Return
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}

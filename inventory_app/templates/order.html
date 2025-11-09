@@ -1,0 +1,1035 @@
+{% extends layout_path %}
+{% load static %}
+{% block title %}Order Management{% endblock %}
+
+{% block page_js %}
+<script>
+let orderData = {};
+let isEditMode = false;
+let availableProducts = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const orderId = {{ order_id|default:0 }};
+    
+    if (orderId) {
+        loadOrderData(orderId);
+        loadAvailableProducts();
+    }
+});
+
+function loadOrderData(orderId) {
+    fetch(`/admin_api/order-management/${orderId}/`)
+    .then(response => response.json())
+    .then(data => {
+        orderData = data;
+        
+        // Ensure order data has proper structure
+        orderData.order_items = orderData.order_items || [];
+        orderData.subtotal = orderData.subtotal || 0;
+        orderData.total_item_discount = orderData.total_item_discount || 0;
+        orderData.order_discount = orderData.order_discount || 0;
+        orderData.is_percentage = orderData.is_percentage !== undefined ? orderData.is_percentage : false;
+        orderData.total_gst = orderData.total_gst || 0;
+        orderData.total_amount = orderData.total_amount || 0;
+        
+        console.log('Order data loaded:', orderData);
+        
+        renderOrderDetails();
+        renderOrderItems();
+        // Ensure totals are calculated properly on initial load
+        calculateOrderTotals();
+    })
+    .catch(error => {
+        console.error('Error loading order:', error);
+        alert('Failed to load order details');
+    });
+}
+
+function loadAvailableProducts() {
+    fetch('/admin_api/order-management/available_products/')
+    .then(response => response.json())
+    .then(data => {
+        availableProducts = data.products || [];
+        console.log('Available products loaded:', availableProducts);
+    })
+    .catch(error => {
+        console.error('Error loading available products:', error);
+        availableProducts = [];
+    });
+}
+
+function renderOrderDetails() {
+    const orderInfo = document.getElementById('order-info');
+    orderInfo.innerHTML = `
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h5>Order #${orderData.id}</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Customer:</strong> ${orderData.customer_name || 'N/A'}</p>
+                        <p><strong>Date:</strong> ${new Date(orderData.order_date).toLocaleDateString()}</p>
+                        <p><strong>Status:</strong> <span class="badge ${orderData.is_paid ? 'bg-success' : 'bg-warning'}">${orderData.is_paid ? 'Paid' : 'Pending'}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Payment Type:</strong> ${orderData.pay_type || 'N/A'}</p>
+                        <p><strong>Paid Amount:</strong> ₹${parseFloat(orderData.paid_amount || 0).toFixed(2)}</p>
+                        <p><strong>Total Amount:</strong> ₹${parseFloat(orderData.total_amount || 0).toFixed(2)}</p>
+                    </div>
+                </div>
+                ${!isEditMode ? `
+                    <div class="mb-3">
+                        <label class="form-label">Order Notes</label>
+                        <p class="form-control-plaintext">${orderData.note || 'No notes'}</p>
+                    </div>
+                ` : `
+                    <div class="mb-3">
+                        <label class="form-label">Order Notes</label>
+                        <textarea id="order-notes" class="form-control" rows="2">${orderData.note || ''}</textarea>
+                    </div>
+                `}
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Quick Actions</h6>
+                        <div class="d-grid gap-2">
+                            ${!isEditMode ? `
+                                <button class="btn btn-primary" onclick="toggleEditMode()">
+                                    <i class="bx bx-edit"></i> Edit Order
+                                </button>
+                                <button class="btn btn-warning" onclick="createReturn()">
+                                    <i class="bx bx-undo"></i> Create Return
+                                </button>
+                                <button class="btn btn-info" onclick="printOrder()">
+                                    <i class="bx bx-printer"></i> Print Bill
+                                </button>
+                            ` : `
+                                <button class="btn btn-success" onclick="saveOrder()">
+                                    <i class="bx bx-save"></i> Save Changes
+                                </button>
+                                <button class="btn btn-secondary" onclick="cancelEdit()">
+                                    <i class="bx bx-x"></i> Cancel
+                                </button>
+                                <button class="btn btn-info" onclick="addNewItem()">
+                                    <i class="bx bx-plus"></i> Add Item
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderOrderItems() {
+    const container = document.getElementById('order-items-container');
+    
+    let tableHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6>Order Items</h6>
+            ${isEditMode ? '<span class="badge bg-info">Edit Mode</span>' : ''}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Discount</th>
+                        <th>GST %</th>
+                        <th>Total</th>
+                        ${isEditMode ? '<th>Action</th>' : ''}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    orderData.order_items.forEach((item, index) => {
+        tableHTML += `
+            <tr data-index="${index}">
+                <td>${item.product_name} - ${item.product_size}</td>
+                <td>
+                    ${!isEditMode ? item.quantity : `
+                        <input type="number" class="form-control form-control-sm item-quantity" 
+                               value="${item.quantity}" min="0" onchange="updateItem(${index})">
+                    `}
+                </td>
+                <td>
+                    ${!isEditMode ? '₹' + parseFloat(item.price_at_sale).toFixed(2) : `
+                        <input type="number" class="form-control form-control-sm item-price" 
+                               value="${item.price_at_sale}" step="0.01" onchange="updateItem(${index})">
+                    `}
+                </td>
+                <td>
+                    ${!isEditMode ? 
+                        (item.is_percentage ? item.item_discount + '%' : '₹' + item.item_discount) 
+                        : `
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control item-discount" 
+                                   value="${item.item_discount}" step="0.01" onchange="updateItem(${index})">
+                            <select class="form-select discount-type" onchange="updateItem(${index})">
+                                <option value="false" ${!item.is_percentage ? 'selected' : ''}>₹</option>
+                                <option value="true" ${item.is_percentage ? 'selected' : ''}>%</option>
+                            </select>
+                        </div>
+                    `}
+                </td>
+                <td>
+                    ${!isEditMode ? item.gst + '%' : `
+                        <input type="number" class="form-control form-control-sm item-gst" 
+                               value="${item.gst}" step="0.01" onchange="updateItem(${index})">
+                    `}
+                </td>
+                <td class="item-total">₹${calculateItemTotal(item).toFixed(2)}</td>
+                ${isEditMode ? `
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeItem(${index})" title="Remove Item">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    </td>
+                ` : ''}
+            </tr>
+        `;
+    });
+    
+    tableHTML += '</tbody></table></div>';
+    
+    // Add order summary
+    tableHTML += `
+        <div class="row mt-4">
+            <div class="col-md-8"></div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Order Summary</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Subtotal:</span>
+                            <span>₹<span id="subtotal">${parseFloat(orderData.subtotal || 0).toFixed(2)}</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Item Discount:</span>
+                            <span>₹<span id="item-discount">${parseFloat(orderData.total_item_discount || 0).toFixed(2)}</span></span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Order Discount:</span>
+                            ${!isEditMode ? `
+                                <span>₹<span id="order-discount-display">${parseFloat(orderData.order_discount || 0).toFixed(2)}</span></span>
+                            ` : `
+                                <div class="input-group input-group-sm">
+                                    <input type="number" id="order-discount-value" class="form-control" 
+                                           value="${orderData.order_discount || 0}" step="0.01" onchange="updateOrderDiscount()">
+                                    <select id="order-discount-type" class="form-select" onchange="updateOrderDiscount()">
+                                        <option value="false" ${!orderData.is_percentage ? 'selected' : ''}>₹</option>
+                                        <option value="true" ${orderData.is_percentage ? 'selected' : ''}>%</option>
+                                    </select>
+                                </div>
+                            `}
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Total GST:</span>
+                            <span>₹<span id="total-gst">${parseFloat(orderData.total_gst || 0).toFixed(2)}</span></span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between fw-bold">
+                            <span>Grand Total:</span>
+                            <span>₹<span id="grand-total">${parseFloat(orderData.total_amount || 0).toFixed(2)}</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = tableHTML;
+    
+    // Calculate and update all item totals after rendering
+    updateAllItemTotals();
+}
+
+function calculateItemTotal(item) {
+    // Match the backend OrderItem model calculation
+    const subtotal = item.quantity * item.price_at_sale;
+    
+    // Calculate discount amount
+    const discountAmount = item.is_percentage ? 
+        (subtotal * item.item_discount / 100) : 
+        item.item_discount;
+    
+    // Calculate GST on discounted amount
+    const afterDiscount = subtotal - discountAmount;
+    const gstAmount = afterDiscount * item.gst / 100;
+    
+    // Final price = subtotal - discount + GST
+    const finalPrice = subtotal - discountAmount + gstAmount;
+    
+    return finalPrice;
+}
+
+function updateAllItemTotals() {
+    orderData.order_items.forEach((item, index) => {
+        if (item.action === 'delete') return;
+        
+        // Ensure all required fields have default values
+        item.quantity = item.quantity || 1;
+        item.price_at_sale = item.price_at_sale || 0;
+        item.item_discount = item.item_discount || 0;
+        item.is_percentage = item.is_percentage !== undefined ? item.is_percentage : true;
+        item.gst = item.gst || 0;
+        
+        const total = calculateItemTotal(item);
+        item.total_price = total;
+        
+        const row = document.querySelector(`tr[data-index="${index}"]`);
+        if (row) {
+            row.querySelector('.item-total').textContent = `₹${total.toFixed(2)}`;
+        }
+    });
+    
+    calculateOrderTotals();
+}
+
+function toggleEditMode() {
+    isEditMode = !isEditMode;
+    renderOrderDetails();
+    renderOrderItems();
+}
+
+function cancelEdit() {
+    isEditMode = false;
+    loadOrderData(orderData.id); // Reload original data
+}
+
+function updateItem(index) {
+    if (!isEditMode) return;
+    
+    const row = document.querySelector(`tr[data-index="${index}"]`);
+    const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+    const discount = parseFloat(row.querySelector('.item-discount').value) || 0;
+    const isPercentage = row.querySelector('.discount-type').value === 'true';
+    const gst = parseFloat(row.querySelector('.item-gst').value) || 0;
+    
+    // Validate inputs
+    if (quantity < 0) {
+        row.querySelector('.item-quantity').value = orderData.order_items[index].quantity;
+        return;
+    }
+    
+    if (price < 0) {
+        row.querySelector('.item-price').value = orderData.order_items[index].price_at_sale;
+        return;
+    }
+    
+    if (discount < 0) {
+        row.querySelector('.item-discount').value = orderData.order_items[index].item_discount;
+        return;
+    }
+    
+    if (isPercentage && discount > 100) {
+        row.querySelector('.item-discount').value = orderData.order_items[index].item_discount;
+        return;
+    }
+    
+    // Mark item as modified if not already marked
+    if (!orderData.order_items[index].action) {
+        orderData.order_items[index].action = 'update';
+    }
+    
+    // Update item data
+    orderData.order_items[index].quantity = quantity;
+    orderData.order_items[index].price_at_sale = price;
+    orderData.order_items[index].item_discount = discount;
+    orderData.order_items[index].is_percentage = isPercentage;
+    orderData.order_items[index].gst = gst;
+    
+    // Calculate and update item total
+    const finalTotal = calculateItemTotal(orderData.order_items[index]);
+    orderData.order_items[index].total_price = finalTotal;
+    row.querySelector('.item-total').textContent = `₹${finalTotal.toFixed(2)}`;
+    
+    // Add visual indicator for modified items
+    row.style.backgroundColor = '#f8f9fa';
+    
+    calculateOrderTotals();
+}
+
+function removeItem(index) {
+    if (confirm('Are you sure you want to remove this item?')) {
+        orderData.order_items[index].action = 'delete';
+        renderOrderItems();
+        calculateOrderTotals();
+    }
+}
+
+function calculateOrderTotals() {
+    let subtotal = 0;
+    let totalItemDiscount = 0;
+    let totalGST = 0;
+    
+    orderData.order_items.forEach(item => {
+        if (item.action === 'delete') return;
+        
+        // Calculate item subtotal (before any discounts)
+        const itemSubtotal = item.quantity * item.price_at_sale;
+        subtotal += itemSubtotal;
+        
+        // Calculate item discount amount
+        const discountAmount = item.is_percentage ? 
+            (itemSubtotal * item.item_discount / 100) : 
+            item.item_discount;
+        totalItemDiscount += discountAmount;
+        
+        // Calculate GST on discounted amount
+        const afterItemDiscount = itemSubtotal - discountAmount;
+        const gstAmount = afterItemDiscount * item.gst / 100;
+        totalGST += gstAmount;
+    });
+    
+    // Calculate order discount
+    const orderDiscountValue = parseFloat(orderData.order_discount || 0);
+    const isOrderDiscountPercentage = orderData.is_percentage;
+    let orderDiscountAmount = 0;
+    
+    if (isOrderDiscountPercentage) {
+        // Apply order discount on subtotal after item discounts
+        orderDiscountAmount = (subtotal - totalItemDiscount) * orderDiscountValue / 100;
+    } else {
+        orderDiscountAmount = orderDiscountValue;
+    }
+    
+    const grandTotal = subtotal - totalItemDiscount - orderDiscountAmount + totalGST;
+    
+    // Update orderData
+    orderData.subtotal = subtotal;
+    orderData.total_item_discount = totalItemDiscount;
+    orderData.total_discount = totalItemDiscount + orderDiscountAmount;
+    orderData.total_gst = totalGST;
+    orderData.total_amount = grandTotal;
+    
+    // Update display elements
+    const subtotalEl = document.getElementById('subtotal');
+    const itemDiscountEl = document.getElementById('item-discount');
+    const totalGstEl = document.getElementById('total-gst');
+    const grandTotalEl = document.getElementById('grand-total');
+    
+    if (subtotalEl) {
+        subtotalEl.textContent = subtotal.toFixed(2);
+    } else {
+        console.warn('Subtotal element not found');
+    }
+    
+    if (itemDiscountEl) {
+        itemDiscountEl.textContent = totalItemDiscount.toFixed(2);
+    } else {
+        console.warn('Item discount element not found');
+    }
+    
+    if (totalGstEl) {
+        totalGstEl.textContent = totalGST.toFixed(2);
+    } else {
+        console.warn('Total GST element not found');
+    }
+    
+    if (grandTotalEl) {
+        grandTotalEl.textContent = grandTotal.toFixed(2);
+    } else {
+        console.warn('Grand total element not found');
+    }
+    
+    // Update order discount display
+    const orderDiscountEl = document.getElementById('order-discount-display');
+    if (orderDiscountEl) {
+        if (isEditMode) {
+            const orderDiscountDisplay = isOrderDiscountPercentage ? 
+                `${orderDiscountValue}% (₹${orderDiscountAmount.toFixed(2)})` : 
+                `₹${orderDiscountAmount.toFixed(2)}`;
+            orderDiscountEl.parentNode.innerHTML = `
+                <span>Order Discount:</span>
+                <span>${orderDiscountDisplay}</span>
+            `;
+        } else {
+            orderDiscountEl.textContent = orderDiscountAmount.toFixed(2);
+        }
+    }
+    
+    console.log('Order totals calculated:', {
+        subtotal: subtotal.toFixed(2),
+        totalItemDiscount: totalItemDiscount.toFixed(2),
+        orderDiscountAmount: orderDiscountAmount.toFixed(2),
+        totalGST: totalGST.toFixed(2),
+        grandTotal: grandTotal.toFixed(2)
+    });
+}
+
+function updateOrderDiscount() {
+    if (!isEditMode) return;
+    
+    const discountValue = parseFloat(document.getElementById('order-discount-value').value) || 0;
+    const isPercentage = document.getElementById('order-discount-type').value === 'true';
+    
+    // Validate inputs
+    if (discountValue < 0) {
+        document.getElementById('order-discount-value').value = orderData.order_discount || 0;
+        return;
+    }
+    
+    if (isPercentage && discountValue > 100) {
+        document.getElementById('order-discount-value').value = orderData.order_discount || 0;
+        return;
+    }
+    
+    // Update order data
+    orderData.order_discount = discountValue;
+    orderData.is_percentage = isPercentage;
+    
+    // Visual feedback for order discount change
+    const discountContainer = document.getElementById('order-discount-value').parentNode.parentNode;
+    discountContainer.style.backgroundColor = '#e7f3ff';
+    
+    calculateOrderTotals();
+}
+
+function addNewItem() {
+    if (!isEditMode) return;
+    
+    const modal = new bootstrap.Modal(document.getElementById('addItemModal'));
+    
+    // Populate product dropdown
+    const productSelect = document.getElementById('new-item-product');
+    productSelect.innerHTML = '<option value="">Select Product</option>';
+    
+    console.log('Available products count:', availableProducts.length);
+    
+    if (availableProducts.length === 0) {
+        // Try to reload products if empty
+        loadAvailableProducts();
+        setTimeout(() => {
+            populateProductDropdown(productSelect);
+        }, 1000);
+    } else {
+        populateProductDropdown(productSelect);
+    }
+    
+    modal.show();
+}
+
+function populateProductDropdown(productSelect) {
+    availableProducts.forEach(product => {
+        console.log('Adding product:', product.display_name);
+        productSelect.innerHTML += `<option value="${product.variant_id}" data-price="${product.price}" data-gst="${product.gst_rate}" data-quantity="${product.available_quantity}">
+            ${product.display_name}
+        </option>`;
+    });
+}
+
+function saveOrder() {
+    const saveBtn = document.querySelector('.btn-success');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+    
+    // Validate order data
+    if (orderData.order_items.filter(item => item.action !== 'delete').length === 0) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+        return;
+    }
+    
+    const updateData = {
+        items: orderData.order_items.map(item => {
+            if (item.action) {
+                return {
+                    id: item.id,
+                    action: item.action,
+                    variant_id: item.variant_id,
+                    quantity: item.quantity,
+                    price_at_sale: item.price_at_sale,
+                    item_discount: item.item_discount,
+                    is_percentage: item.is_percentage,
+                    gst: item.gst
+                };
+            }
+            return {
+                id: item.id,
+                action: 'update',
+                quantity: item.quantity,
+                price_at_sale: item.price_at_sale,
+                item_discount: item.item_discount,
+                is_percentage: item.is_percentage,
+                gst: item.gst
+            };
+        }),
+        order_discount: orderData.order_discount || 0,
+        is_percentage: orderData.is_percentage || false,
+        note: document.getElementById('order-notes')?.value || orderData.note,
+        // Include calculated totals for validation
+        subtotal: orderData.subtotal,
+        total_item_discount: orderData.total_item_discount,
+        total_discount: orderData.total_discount,
+        total_gst: orderData.total_gst,
+        total_amount: orderData.total_amount
+    };
+    
+    console.log('Sending order update:', updateData);
+    
+    fetch(`/admin_api/order-management/${orderData.id}/edit_order/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error: ' + data.error);
+        } else {
+            isEditMode = false;
+            loadOrderData(orderData.id); // Reload updated data
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bx bx-save"></i> Save Changes';
+    });
+}
+
+function createReturn() {
+    // Show return modal with detailed product selection
+    const modal = new bootstrap.Modal(document.getElementById('createReturnModal'));
+    populateReturnModal();
+    modal.show();
+}
+
+function populateReturnModal() {
+    const returnItemsContainer = document.getElementById('return-items-container');
+    
+    let returnHTML = `
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th width="5%">
+                            <input type="checkbox" id="select-all-items" onchange="toggleAllReturnItems()">
+                        </th>
+                        <th>Product</th>
+                        <th>Ordered Qty</th>
+                        <th>Return Qty</th>
+                        <th>Condition</th>
+                        <th>Refund Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    orderData.order_items.forEach((item, index) => {
+        if (item.action === 'delete') return;
+        
+        const itemTotal = calculateItemTotal(item);
+        const unitRefund = itemTotal / item.quantity;
+        
+        returnHTML += `
+            <tr data-item-index="${index}">
+                <td>
+                    <input type="checkbox" class="return-item-checkbox" data-index="${index}" 
+                           onchange="toggleReturnItem(${index})" checked>
+                </td>
+                <td>
+                    <div>
+                        <strong>${item.product_name}</strong>
+                        ${item.product_size ? ` - ${item.product_size}` : ''}
+                    </div>
+                    <small class="text-muted">Unit Price: ₹${item.price_at_sale}</small>
+                </td>
+                <td>
+                    <span class="badge bg-info">${item.quantity}</span>
+                </td>
+                <td>
+                    <input type="number" class="form-control return-quantity" 
+                           data-index="${index}" value="${item.quantity}" 
+                           min="0" max="${item.quantity}" 
+                           onchange="updateReturnCalculation(${index})">
+                </td>
+                <td>
+                    <select class="form-select return-condition" data-index="${index}" onchange="updateReturnCalculation(${index})">
+                        <option value="good">Good - Full Refund</option>
+                        <option value="damaged">Damaged - 50% Refund</option>
+                        <option value="defective">Defective - 75% Refund</option>
+                        <option value="unopened">Unopened - Full Refund</option>
+                    </select>
+                </td>
+                <td>
+                    <strong class="return-refund-amount">₹${(unitRefund * item.quantity).toFixed(2)}</strong>
+                </td>
+            </tr>
+        `;
+    });
+    
+    returnHTML += `
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="5" class="text-end"><strong>Total Refund Amount:</strong></td>
+                        <td><strong id="total-refund-amount">₹0.00</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+    
+    returnItemsContainer.innerHTML = returnHTML;
+    calculateTotalRefund();
+}
+
+function toggleAllReturnItems() {
+    const selectAll = document.getElementById('select-all-items');
+    const checkboxes = document.querySelectorAll('.return-item-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        const index = parseInt(checkbox.dataset.index);
+        toggleReturnItem(index);
+    });
+}
+
+function toggleReturnItem(index) {
+    const checkbox = document.querySelector(`.return-item-checkbox[data-index="${index}"]`);
+    const row = document.querySelector(`tr[data-item-index="${index}"]`);
+    const quantityInput = row.querySelector('.return-quantity');
+    const conditionSelect = row.querySelector('.return-condition');
+    
+    if (checkbox.checked) {
+        row.style.opacity = '1';
+        quantityInput.disabled = false;
+        conditionSelect.disabled = false;
+        quantityInput.value = orderData.order_items[index].quantity;
+    } else {
+        row.style.opacity = '0.5';
+        quantityInput.disabled = true;
+        conditionSelect.disabled = true;
+        quantityInput.value = 0;
+    }
+    
+    updateReturnCalculation(index);
+}
+
+function updateReturnCalculation(index) {
+    const checkbox = document.querySelector(`.return-item-checkbox[data-index="${index}"]`);
+    const row = document.querySelector(`tr[data-item-index="${index}"]`);
+    const quantityInput = row.querySelector('.return-quantity');
+    const conditionSelect = row.querySelector('.return-condition');
+    const refundAmountEl = row.querySelector('.return-refund-amount');
+    
+    if (!checkbox.checked) {
+        refundAmountEl.textContent = '₹0.00';
+        calculateTotalRefund();
+        return;
+    }
+    
+    const item = orderData.order_items[index];
+    const returnQuantity = parseInt(quantityInput.value) || 0;
+    const condition = conditionSelect.value;
+    
+    // Validate return quantity
+    if (returnQuantity > item.quantity) {
+        quantityInput.value = item.quantity;
+        return;
+    }
+    
+    // Calculate refund based on condition
+    const itemTotal = calculateItemTotal(item);
+    const unitRefund = itemTotal / item.quantity;
+    let conditionMultiplier = 1;
+    
+    switch (condition) {
+        case 'damaged':
+            conditionMultiplier = 0.5;
+            break;
+        case 'defective':
+            conditionMultiplier = 0.75;
+            break;
+        case 'good':
+        case 'unopened':
+            conditionMultiplier = 1;
+            break;
+    }
+    
+    const refundAmount = unitRefund * returnQuantity * conditionMultiplier;
+    refundAmountEl.textContent = `₹${refundAmount.toFixed(2)}`;
+    
+    calculateTotalRefund();
+}
+
+function calculateTotalRefund() {
+    let totalRefund = 0;
+    
+    document.querySelectorAll('.return-refund-amount').forEach(el => {
+        const amount = parseFloat(el.textContent.replace('₹', '')) || 0;
+        totalRefund += amount;
+    });
+    
+    document.getElementById('total-refund-amount').textContent = `₹${totalRefund.toFixed(2)}`;
+}
+
+function processReturn() {
+    const returnItems = [];
+    const checkboxes = document.querySelectorAll('.return-item-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        return;
+    }
+    
+    checkboxes.forEach(checkbox => {
+        const index = parseInt(checkbox.dataset.index);
+        const row = document.querySelector(`tr[data-item-index="${index}"]`);
+        const quantity = parseInt(row.querySelector('.return-quantity').value) || 0;
+        const condition = row.querySelector('.return-condition').value;
+        
+        if (quantity > 0) {
+            returnItems.push({
+                order_item_id: orderData.order_items[index].id,
+                return_quantity: quantity,
+                condition: 'good' // Always set to good condition for direct acceptance
+            });
+        }
+    });
+    
+    if (returnItems.length === 0) {
+        return;
+    }
+    
+    const returnData = {
+        reason: document.getElementById('return-reason').value || 'customer_request',
+        notes: document.getElementById('return-notes').value || 'Return processed from order page',
+        processing_fee: parseFloat(document.getElementById('processing-fee').value) || 0,
+        return_items: returnItems
+    };
+    
+    const processBtn = document.getElementById('process-return-btn');
+    processBtn.disabled = true;
+    processBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+    
+    fetch(`/admin_api/order-management/${orderData.id}/create_return/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(returnData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error: ' + data.error);
+        } else {
+            bootstrap.Modal.getInstance(document.getElementById('createReturnModal')).hide();
+            
+            // Automatically approve the return immediately
+            approveReturnImmediately(data.return_id);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    })
+    .finally(() => {
+        processBtn.disabled = false;
+        processBtn.innerHTML = '<i class="bx bx-check"></i> Process Return';
+    });
+}
+
+function approveReturnImmediately(returnId) {
+    fetch(`/admin_api/order-management/process_return/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            return_id: returnId,
+            action: 'approve',
+            notes: 'Auto-approved from order page'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Return created but approval failed: ' + data.error);
+        } else {
+            loadOrderData(orderData.id); // Reload order data
+        }
+    })
+    .catch(error => {
+        console.error('Error approving return:', error);
+    });
+}
+
+function printOrder() {
+    window.open(`/bill/${orderData.id}/`, '_blank');
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold">Order Management</h4>
+        <a href="javascript:history.back()" class="btn btn-secondary">
+            <i class="bx bx-arrow-back"></i> Back
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Order Information -->
+                    <div id="order-info"></div>
+
+                    <!-- Order Items -->
+                    <div id="order-items-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Return Modal -->
+<div class="modal fade" id="createReturnModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Return Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Return Reason</label>
+                        <select id="return-reason" class="form-select">
+                            <option value="customer_request">Customer Request</option>
+                            <option value="defective">Defective Product</option>
+                            <option value="wrong_item">Wrong Item</option>
+                            <option value="damaged">Damaged in Transit</option>
+                            <option value="quality_issue">Quality Issue</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Processing Fee (₹)</label>
+                        <input type="number" id="processing-fee" class="form-control" value="0" min="0" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Return Notes</label>
+                    <textarea id="return-notes" class="form-control" rows="2" placeholder="Additional notes about the return..."></textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Select Items to Return:</h6>
+                    <div id="return-items-container">
+                        <!-- Return items will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="process-return-btn" class="btn btn-warning" onclick="processReturn()">
+                    <i class="bx bx-check"></i> Process Return
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm">
+                    <div class="mb-3">
+                        <label class="form-label">Product</label>
+                        <select id="new-item-product" class="form-select" required>
+                            <option value="">Select Product</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" id="new-item-quantity" class="form-control" value="1" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Price</label>
+                                <input type="number" id="new-item-price" class="form-control" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addItemToOrder()">Add Item</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addItemToOrder() {
+    const productSelect = document.getElementById('new-item-product');
+    const selectedOption = productSelect.selectedOptions[0];
+    
+    if (!selectedOption.value) {
+        return;
+    }
+    
+    const newItem = {
+        id: null,
+        variant_id: selectedOption.value,
+        product_name: selectedOption.text.split(' - ')[0],
+        product_size: selectedOption.text.split(' - ')[1] || '',
+        quantity: parseInt(document.getElementById('new-item-quantity').value) || 1,
+        price_at_sale: parseFloat(document.getElementById('new-item-price').value) || parseFloat(selectedOption.dataset.price),
+        item_discount: 0,
+        is_percentage: true,
+        gst: parseFloat(selectedOption.dataset.gst) || 0,
+        action: 'add'
+    };
+    
+    // Calculate total using the same logic as other items
+    newItem.total_price = calculateItemTotal(newItem);
+    
+    orderData.order_items.push(newItem);
+    renderOrderItems();
+    
+    // Close modal and reset form
+    bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+    document.getElementById('addItemForm').reset();
+}
+
+// Auto-populate price when product is selected
+document.addEventListener('change', function(e) {
+    if (e.target.id === 'new-item-product') {
+        const selectedOption = e.target.selectedOptions[0];
+        if (selectedOption && selectedOption.value) {
+            document.getElementById('new-item-price').value = selectedOption.dataset.price;
+        }
+    }
+});
+</script>
+
+{% csrf_token %}
+{% endblock %}

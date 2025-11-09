@@ -48,7 +48,7 @@
   <h4>Customer: {{ customer.name }}</h4>
   {% if customer.phone %}<p>Phone: {{ customer.phone|default:"-" }}</p>{% endif %}
   {% if start_date and end_date %}
-    <p><strong>Period:</strong> {{ start_date }} to {{ end_date }}</p>
+    <p><strong>Period:</strong> {{ start_date|date:"d/m/Y" }} to {{ end_date|date:"d/m/Y" }}</p>
   {% endif %}
 
   <table>
@@ -67,16 +67,16 @@
       {% for order in orders %}
       <tr>
         <td>{{ order.id }}</td>
-        <td>{{ order.order_date }}</td>
-        <td>₹ {{ order.subtotal }}</td>
+        <td>{{ order.order_date|date:"d/m/Y" }}</td>
+        <td>₹ {{ order.subtotal|floatformat:2 }}</td>
         <td>
-            ₹ {{ order.total_discount }}
+            ₹ {{ order.total_discount|floatformat:2 }}
         </td>
-        <td>₹ {{ order.total_gst}} </td>
-        <td>₹ {{ order.total_amount }}</td>
+        <td>₹ {{ order.total_gst|floatformat:2 }} </td>
+        <td>₹ {{ order.total_amount|floatformat:2 }}</td>
         <td>
-          {% for item in order.order_items %}
-            {{ item.product_name }} ({{ item.quantity }}) – ₹ {{ item.price_at_sale }}<br>
+          {% for item in order.items.all %}
+            {{ item.variant.product.name }} - {{ item.variant.size }} ({{ item.quantity }}) – ₹ {{ item.price_at_sale|floatformat:2 }}<br>
           {% empty %}
             No items
           {% endfor %}
@@ -86,6 +86,6 @@
     </tbody>
   </table>
 
-  <h4 class="summary">Grand Total: ₹ {{ total_sum }}</h4>
+  <h4 class="summary">Grand Total: ₹ {{ total_sum|floatformat:2 }}</h4>
 </body>
 </html>

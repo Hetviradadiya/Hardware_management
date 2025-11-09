@@ -59,7 +59,7 @@
 
     {% include "../layout/partials/change_password_modal.html" %}
 
-    <div class="bs-toast toast toast-placement-ex m-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" id="alert-box">
+    <div class="bs-toast toast toast-placement-ex position-fixed top-0 end-0 m-3" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000" id="alert-box" style="z-index: 9999;">
       <div class="toast-header">
         <i class="bx bx-bell me-2" id="toast-icon"></i>
         <div class="me-auto fw-medium" id="toast-title">Notification</div>
@@ -72,83 +72,118 @@
     </div>
   </div>
   <!-- Layout wrapper: End -->
-  {% endblock layout %}
 
-{% block page_js %}
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  {% comment %} const form = document.getElementById("changePasswordForm");
-
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-
-    const current = document.getElementById("currentPassword").value;
-    const new1 = document.getElementById("newPassword1").value;
-    const new2 = document.getElementById("newPassword2").value;
-
-    if (new1 !== new2) {
-      showToast("Error", "New passwords do not match.", "danger");
-      return;
+  <!-- Change Password JavaScript - Moved outside template block -->
+  <script>
+    // CSRF helper function
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
     }
 
-    fetch("{% url 'change-password' %}", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken"),
-      },
-      body: JSON.stringify({
-        current_password: current,
-        new_password1: new1,
-        new_password2: new2,
-      }),
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        showToast("Success", "Password changed successfully", "success");
-        form.reset();
-        setTimeout(() => {
-          const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
-          modal.hide();
-        }, 1500);
+    // Toast function
+    function showToast(title, message, status = "primary") {
+      const toast = document.getElementById("alert-box");
+      const toastTitle = document.getElementById("toast-title");
+      const toastBody = document.getElementById("toast-body");
+      const toastIcon = document.getElementById("toast-icon");
+
+      // Ensure proper positioning and styling
+      toast.className = `bs-toast toast bg-${status} position-fixed top-0 end-0 m-3 show`;
+      toast.style.zIndex = "9999";
+      
+      toastTitle.textContent = title;
+      toastBody.textContent = message;
+
+      toastIcon.className = `bx me-2 ${
+        status === "success" ? "bx-check-circle" : 
+        status === "danger" ? "bx-error" : 
+        status === "warning" ? "bx-error-circle" : 
+        "bx-bell"
+      }`;
+
+      const bsToast = new bootstrap.Toast(toast, {
+        delay: 4000,
+        autohide: true
+      });
+      bsToast.show();
+    }
+
+    // Global utility functions for easy migration from alerts
+    window.showSuccessToast = function(message) {
+      showToast("Success", message, "success");
+    };
+
+    window.showErrorToast = function(message) {
+      showToast("Error", message, "danger");
+    };
+
+    window.showWarningToast = function(message) {
+      showToast("Warning", message, "warning");
+    };
+
+    window.showInfoToast = function(message) {
+      showToast("Info", message, "info");
+    };
+
+    // Make showToast globally available
+    window.showToast = showToast;
+
+    // Wait for DOM to be ready
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("changePasswordForm");
+
+      if (form) {
+        
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const current = document.getElementById("currentPassword").value;
+          const new1 = document.getElementById("newPassword1").value;
+          const new2 = document.getElementById("newPassword2").value;
+
+          if (new1 !== new2) {
+            showToast("Error", "New passwords do not match.", "danger");
+            return;
+          }
+          
+          fetch("/change-password/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+              current_password: current,
+              new_password1: new1,
+              new_password2: new2,
+            }),
+          })
+          .then(res => {
+            return res.json();
+          })
+          .then(data => {
+            if (data.success) {
+              showToast("Success", "Password changed successfully", "success");
+              form.reset();
+              setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                if (modal) modal.hide();
+              }, 1500);
+            } else {
+              let errorMessage = data.error || "An error occurred.";
+              showToast("Error", errorMessage, "danger");      
+            }
+          })
+          .catch(err => {
+            showToast("Error", "Something went wrong.", "danger");
+          });
+        });
       } else {
-        let errorMessage = data.error || "An error occurred.";
-        showToast("Error", errorMessage, "danger");      
+        console.log("Change password form not found!");
       }
-    })
-    .catch(err => {
-      showToast("Error", "Something went wrong.", "danger");
-      console.error(err);
     });
-  }); {% endcomment %}
+  </script>
 
-  function showToast(title, message, status = "primary") {
-    const toast = document.getElementById("alert-box");
-    const toastTitle = document.getElementById("toast-title");
-    const toastBody = document.getElementById("toast-body");
-    const toastIcon = document.getElementById("toast-icon");
-
-    toast.className = `bs-toast toast bg-${status} toast-placement-ex top-0 end-0 m-2 show`;
-    toastTitle.textContent = title;
-    toastBody.textContent = message;
-
-    toastIcon.className = `bx me-2 ${
-      status === "success" ? "bx-check-circle" : "bx-error"
-    }`;
-
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
-  }
-  
-});
-
-// CSRF helper
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-</script>
-
-{% endblock%}
+  {% endblock layout %}
